@@ -2,8 +2,8 @@
 //! beyond the Win32 calls confined to `winfs` (justified: no std equivalent exists).
 //! Design: docs/components/01-filesystem-scanner-design.md
 
-pub mod mft;
 pub mod metadata;
+pub mod mft;
 pub mod traversal;
 pub mod winfs;
 
@@ -40,8 +40,8 @@ pub fn scan_volume_resilient(
             traversal::scan_with_options(root, cancel, progress_interval, None, on_progress)
         }
         ScanEngineStrategy::Auto | ScanEngineStrategy::MftPreferred => {
-            let is_whole_drive = mft::volume::extract_drive_letter(root).is_some()
-                && root.parent().is_none();
+            let is_whole_drive =
+                mft::volume::extract_drive_letter(root).is_some() && root.parent().is_none();
             let is_ntfs = mft::volume::is_ntfs_volume(root);
 
             if is_whole_drive && is_ntfs {
@@ -59,4 +59,3 @@ pub fn scan_volume_resilient(
         }
     }
 }
-

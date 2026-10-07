@@ -108,9 +108,21 @@ namespace StorageIntelligence.Native
         [DllImport(__DllName, EntryPoint = "tree_destroy", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         internal static extern void tree_destroy(TreeHandle* handle);
 
+        /// <summary>
+        ///  Returns the root node ID, or `u64::MAX` on error.
+        ///
+        ///  # Safety
+        ///  `handle` must be a valid pointer returned by `tree_create`.
+        /// </summary>
         [DllImport(__DllName, EntryPoint = "tree_root_id", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         internal static extern ulong tree_root_id(TreeHandle* handle);
 
+        /// <summary>
+        ///  Returns the total number of nodes in the tree, or 0 on error.
+        ///
+        ///  # Safety
+        ///  `handle` must be a valid pointer returned by `tree_create`.
+        /// </summary>
         [DllImport(__DllName, EntryPoint = "tree_node_count", CallingConvention = CallingConvention.Cdecl, ExactSpelling = true)]
         internal static extern ulong tree_node_count(TreeHandle* handle);
 

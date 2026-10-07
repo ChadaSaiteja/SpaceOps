@@ -73,7 +73,7 @@ fn create_synthetic_mft_record(
     let name_utf16: Vec<u16> = name.encode_utf16().collect();
     let name_bytes_len = name_utf16.len() * 2;
     let fn_val_len = 66 + name_bytes_len;
-    let fn_total_len = ((fn_val_len + 24 + 7) / 8) * 8;
+    let fn_total_len = (fn_val_len + 24).div_ceil(8) * 8;
 
     rec[offset..offset + 4].copy_from_slice(&ATTR_FILE_NAME.to_le_bytes());
     rec[offset + 4..offset + 8].copy_from_slice(&(fn_total_len as u32).to_le_bytes());
@@ -125,7 +125,13 @@ fn win32_inv1_reparse_points_are_leaves_and_never_followed() {
         return;
     }
 
-    let (events, summary) = scan(root.path(), &CancellationToken::new(), Duration::ZERO, &|_| {}).unwrap();
+    let (events, summary) = scan(
+        root.path(),
+        &CancellationToken::new(),
+        Duration::ZERO,
+        &|_| {},
+    )
+    .unwrap();
 
     // Verify junction is reported as leaf and not traversed
     assert_eq!(summary.total_files, 1); // inside_real.txt only once
@@ -140,7 +146,13 @@ fn win32_inv2_allocated_size_semantics_matches_cluster_rounding() {
     let root = tempdir().unwrap();
     fs::write(root.path().join("small.txt"), b"123").unwrap();
 
-    let (_, summary) = scan(root.path(), &CancellationToken::new(), Duration::ZERO, &|_| {}).unwrap();
+    let (_, summary) = scan(
+        root.path(),
+        &CancellationToken::new(),
+        Duration::ZERO,
+        &|_| {},
+    )
+    .unwrap();
 
     assert_eq!(summary.total_files, 1);
     // On-disk cluster rounding guarantees multiple of cluster size (minimum 4096 bytes)
@@ -158,7 +170,13 @@ fn win32_inv3_hard_links_counted_at_every_path() {
     let link_created = fs::hard_link(&original, &link).is_ok();
 
     if link_created {
-        let (_, summary) = scan(root.path(), &CancellationToken::new(), Duration::ZERO, &|_| {}).unwrap();
+        let (_, summary) = scan(
+            root.path(),
+            &CancellationToken::new(),
+            Duration::ZERO,
+            &|_| {},
+        )
+        .unwrap();
         // ADR-008 #3: counted at every path without dedup
         assert_eq!(summary.total_files, 2);
     }
@@ -171,7 +189,13 @@ fn win32_inv4_flat_event_stream_hierarchy_is_strictly_ordered() {
     fs::create_dir(&sub).unwrap();
     fs::write(sub.join("file.txt"), b"data").unwrap();
 
-    let (events, _) = scan(root.path(), &CancellationToken::new(), Duration::ZERO, &|_| {}).unwrap();
+    let (events, _) = scan(
+        root.path(),
+        &CancellationToken::new(),
+        Duration::ZERO,
+        &|_| {},
+    )
+    .unwrap();
 
     // Event order must have EnteredDirectory before FileFound and DirectoryComplete after
     let enter_idx = events
@@ -196,9 +220,17 @@ fn win32_inv5_inaccessible_items_do_not_abort_scan() {
     let root = tempdir().unwrap();
     fs::write(root.path().join("visible.txt"), b"accessible").unwrap();
 
-    let (events, summary) = scan(root.path(), &CancellationToken::new(), Duration::ZERO, &|_| {}).unwrap();
+    let (events, summary) = scan(
+        root.path(),
+        &CancellationToken::new(),
+        Duration::ZERO,
+        &|_| {},
+    )
+    .unwrap();
     assert!(summary.total_files >= 1);
-    assert!(events.iter().any(|e| matches!(e, ScanEvent::FileFound { meta, .. } if meta.name == "visible.txt")));
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, ScanEvent::FileFound { meta, .. } if meta.name == "visible.txt")));
 }
 
 // ============================================================================
@@ -216,7 +248,14 @@ fn shallow_inv1_reparse_points_remain_leaves() {
         return;
     }
 
-    let (events, _) = scan_with_options(root.path(), &CancellationToken::new(), Duration::ZERO, Some(1), &|_| {}).unwrap();
+    let (events, _) = scan_with_options(
+        root.path(),
+        &CancellationToken::new(),
+        Duration::ZERO,
+        Some(1),
+        &|_| {},
+    )
+    .unwrap();
 
     assert!(events.iter().any(|e| matches!(
         e,
@@ -229,7 +268,14 @@ fn shallow_inv2_allocated_size_cluster_rounded() {
     let root = tempdir().unwrap();
     fs::write(root.path().join("top.txt"), b"top bytes").unwrap();
 
-    let (_, summary) = scan_with_options(root.path(), &CancellationToken::new(), Duration::ZERO, Some(1), &|_| {}).unwrap();
+    let (_, summary) = scan_with_options(
+        root.path(),
+        &CancellationToken::new(),
+        Duration::ZERO,
+        Some(1),
+        &|_| {},
+    )
+    .unwrap();
 
     assert_eq!(summary.total_files, 1);
     assert!(summary.total_size >= 4096);
@@ -243,7 +289,14 @@ fn shallow_inv3_top_level_hard_links_counted() {
     fs::write(&file1, b"content").unwrap();
     let file2 = root.path().join("f2.txt");
     if fs::hard_link(&file1, &file2).is_ok() {
-        let (_, summary) = scan_with_options(root.path(), &CancellationToken::new(), Duration::ZERO, Some(1), &|_| {}).unwrap();
+        let (_, summary) = scan_with_options(
+            root.path(),
+            &CancellationToken::new(),
+            Duration::ZERO,
+            Some(1),
+            &|_| {},
+        )
+        .unwrap();
         assert_eq!(summary.total_files, 2);
     }
 }
@@ -255,11 +308,20 @@ fn shallow_inv4_flat_event_stream_bounded_at_target_depth() {
     fs::create_dir_all(&deep).unwrap();
     fs::write(deep.join("hidden.txt"), b"deep").unwrap();
 
-    let (events, summary) = scan_with_options(root.path(), &CancellationToken::new(), Duration::ZERO, Some(1), &|_| {}).unwrap();
+    let (events, summary) = scan_with_options(
+        root.path(),
+        &CancellationToken::new(),
+        Duration::ZERO,
+        Some(1),
+        &|_| {},
+    )
+    .unwrap();
 
     assert_eq!(summary.total_files, 0); // No top-level files
-    assert_eq!(summary.total_dirs, 2);   // root + d1
-    assert!(!events.iter().any(|e| matches!(e, ScanEvent::FileFound { meta, .. } if meta.name == "hidden.txt")));
+    assert_eq!(summary.total_dirs, 2); // root + d1
+    assert!(!events
+        .iter()
+        .any(|e| matches!(e, ScanEvent::FileFound { meta, .. } if meta.name == "hidden.txt")));
 }
 
 #[test]
@@ -267,7 +329,13 @@ fn shallow_inv5_inaccessible_items_do_not_abort_shallow_scan() {
     let root = tempdir().unwrap();
     fs::write(root.path().join("top.txt"), b"accessible").unwrap();
 
-    let result = scan_with_options(root.path(), &CancellationToken::new(), Duration::ZERO, Some(1), &|_| {});
+    let result = scan_with_options(
+        root.path(),
+        &CancellationToken::new(),
+        Duration::ZERO,
+        Some(1),
+        &|_| {},
+    );
     assert!(result.is_ok());
 }
 
@@ -343,9 +411,29 @@ fn cross_engine_parity_flat_directory() {
     fs::write(root.path().join("a.txt"), b"12345").unwrap();
     fs::write(root.path().join("b.txt"), b"67890").unwrap();
 
-    let (_, win32_summary) = scan(root.path(), &CancellationToken::new(), Duration::ZERO, &|_| {}).unwrap();
-    let (_, shallow_summary) = scan_with_options(root.path(), &CancellationToken::new(), Duration::ZERO, Some(1), &|_| {}).unwrap();
-    let (_, resilient_summary) = scan_volume_resilient(root.path(), ScanEngineStrategy::Auto, &CancellationToken::new(), Duration::ZERO, &|_| {}).unwrap();
+    let (_, win32_summary) = scan(
+        root.path(),
+        &CancellationToken::new(),
+        Duration::ZERO,
+        &|_| {},
+    )
+    .unwrap();
+    let (_, shallow_summary) = scan_with_options(
+        root.path(),
+        &CancellationToken::new(),
+        Duration::ZERO,
+        Some(1),
+        &|_| {},
+    )
+    .unwrap();
+    let (_, resilient_summary) = scan_volume_resilient(
+        root.path(),
+        ScanEngineStrategy::Auto,
+        &CancellationToken::new(),
+        Duration::ZERO,
+        &|_| {},
+    )
+    .unwrap();
 
     assert_eq!(win32_summary.total_files, shallow_summary.total_files);
     assert_eq!(win32_summary.total_files, resilient_summary.total_files);
@@ -371,5 +459,7 @@ fn resilient_supervisor_clean_fallback_on_folder_target() {
     .unwrap();
 
     assert_eq!(summary.total_files, 1);
-    assert!(events.iter().any(|e| matches!(e, ScanEvent::FileFound { meta, .. } if meta.name == "data.bin")));
+    assert!(events
+        .iter()
+        .any(|e| matches!(e, ScanEvent::FileFound { meta, .. } if meta.name == "data.bin")));
 }

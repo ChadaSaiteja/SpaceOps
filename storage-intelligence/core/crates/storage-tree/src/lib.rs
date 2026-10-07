@@ -5,19 +5,16 @@
 //! Design: docs/components/02-storage-tree-design.md
 //! Decisions: docs/decisions/ADR-009-storage-tree-key-decisions.md
 
-mod tree;
-pub mod treemap;
-pub mod search;
-pub mod cleanup;
 pub mod app_manager;
+pub mod cleanup;
 pub mod developer;
 pub mod index;
+pub mod search;
+mod tree;
+pub mod treemap;
 
-pub use tree::{NodeInfo, NodeKind, StorageTree, TreeBuildError};
-pub use treemap::{classify_extension, compute_treemap_layout, FileCategory, TreemapRect};
-pub use search::{SearchQuery, SearchResult};
+pub use app_manager::{attribute_app_size, AppInfo, AppKind, AppLeftover, LeftoverLocationType};
 pub use cleanup::{is_path_protected, CleanupCandidate, CleanupReport, CleanupRuleId, RiskLevel};
-pub use app_manager::{AppInfo, AppKind, AppLeftover, LeftoverLocationType, attribute_app_size};
 pub use developer::{
     clean_dev_artifact, detect_dev_artifacts, DevArtifact, DevArtifactKind, DevEcosystem,
 };
@@ -25,3 +22,6 @@ pub use index::{
     delete_indexed_volume, get_index_stats, load_tree_from_db, save_tree_to_db,
     sync_tree_incremental, IndexStats, IndexSyncReport,
 };
+pub use search::{SearchQuery, SearchResult};
+pub use tree::{NodeInfo, NodeKind, StorageTree, TreeBuildError};
+pub use treemap::{classify_extension, compute_treemap_layout, FileCategory, TreemapRect};

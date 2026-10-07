@@ -9,8 +9,8 @@ use std::path::Path;
 use windows::core::PCWSTR;
 use windows::Win32::Foundation::HANDLE;
 use windows::Win32::Storage::FileSystem::{
-    FindClose, FindFirstFileExW, FindNextFileW, GetCompressedFileSizeW, GetDiskFreeSpaceW,
-    FIND_FIRST_EX_LARGE_FETCH, FindExInfoBasic, FindExSearchNameMatch, WIN32_FIND_DATAW,
+    FindClose, FindExInfoBasic, FindExSearchNameMatch, FindFirstFileExW, FindNextFileW,
+    GetCompressedFileSizeW, GetDiskFreeSpaceW, FIND_FIRST_EX_LARGE_FETCH, WIN32_FIND_DATAW,
 };
 
 fn to_wide_null(s: &OsStr) -> Vec<u16> {

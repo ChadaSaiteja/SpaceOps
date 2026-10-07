@@ -4,8 +4,8 @@
 //! high-fidelity storage attribution via the in-memory `StorageTree` arena, and orphaned
 //! leftover detection across user and system application cache roots.
 
-use crate::tree::StorageTree;
 use crate::cleanup::RiskLevel;
+use crate::tree::StorageTree;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
@@ -13,9 +13,9 @@ use std::path::{Path, PathBuf};
 use windows::core::{PCWSTR, PWSTR};
 #[cfg(windows)]
 use windows::Win32::System::Registry::{
-    RegCloseKey, RegEnumKeyExW, RegOpenKeyExW, RegQueryValueExW,
-    HKEY, HKEY_CURRENT_USER, HKEY_LOCAL_MACHINE, KEY_READ, KEY_WOW64_32KEY, KEY_WOW64_64KEY,
-    REG_DWORD, REG_EXPAND_SZ, REG_SAM_FLAGS, REG_SZ, REG_VALUE_TYPE,
+    RegCloseKey, RegEnumKeyExW, RegOpenKeyExW, RegQueryValueExW, HKEY, HKEY_CURRENT_USER,
+    HKEY_LOCAL_MACHINE, KEY_READ, KEY_WOW64_32KEY, KEY_WOW64_64KEY, REG_DWORD, REG_EXPAND_SZ,
+    REG_SAM_FLAGS, REG_SZ, REG_VALUE_TYPE,
 };
 
 /// Application deployment format / packaging type.
@@ -67,12 +67,24 @@ pub struct AppLeftover {
 
 #[cfg(windows)]
 fn read_string_value(key: HKEY, value_name: &str) -> Option<String> {
-    let wide_name: Vec<u16> = value_name.encode_utf16().chain(std::iter::once(0)).collect();
+    let wide_name: Vec<u16> = value_name
+        .encode_utf16()
+        .chain(std::iter::once(0))
+        .collect();
     let mut val_type = REG_VALUE_TYPE(0);
     let mut data_len: u32 = 0;
 
     unsafe {
-        if RegQueryValueExW(key, PCWSTR(wide_name.as_ptr()), None, Some(&mut val_type), None, Some(&mut data_len)).is_err() {
+        if RegQueryValueExW(
+            key,
+            PCWSTR(wide_name.as_ptr()),
+            None,
+            Some(&mut val_type),
+            None,
+            Some(&mut data_len),
+        )
+        .is_err()
+        {
             return None;
         }
         if val_type != REG_SZ && val_type != REG_EXPAND_SZ {
@@ -83,7 +95,16 @@ fn read_string_value(key: HKEY, value_name: &str) -> Option<String> {
         }
         let u16_len = (data_len as usize) / 2;
         let mut buf: Vec<u16> = vec![0; u16_len];
-        if RegQueryValueExW(key, PCWSTR(wide_name.as_ptr()), None, Some(&mut val_type), Some(buf.as_mut_ptr() as *mut u8), Some(&mut data_len)).is_err() {
+        if RegQueryValueExW(
+            key,
+            PCWSTR(wide_name.as_ptr()),
+            None,
+            Some(&mut val_type),
+            Some(buf.as_mut_ptr() as *mut u8),
+            Some(&mut data_len),
+        )
+        .is_err()
+        {
             return None;
         }
         while let Some(&0) = buf.last() {
@@ -95,16 +116,27 @@ fn read_string_value(key: HKEY, value_name: &str) -> Option<String> {
 
 #[cfg(windows)]
 fn read_dword_value(key: HKEY, value_name: &str) -> Option<u32> {
-    let wide_name: Vec<u16> = value_name.encode_utf16().chain(std::iter::once(0)).collect();
+    let wide_name: Vec<u16> = value_name
+        .encode_utf16()
+        .chain(std::iter::once(0))
+        .collect();
     let mut val_type = REG_VALUE_TYPE(0);
     let mut dword: u32 = 0;
     let mut data_len: u32 = std::mem::size_of::<u32>() as u32;
 
     unsafe {
-        if RegQueryValueExW(key, PCWSTR(wide_name.as_ptr()), None, Some(&mut val_type), Some(&mut dword as *mut u32 as *mut u8), Some(&mut data_len)).is_ok() {
-            if val_type == REG_DWORD {
-                return Some(dword);
-            }
+        if RegQueryValueExW(
+            key,
+            PCWSTR(wide_name.as_ptr()),
+            None,
+            Some(&mut val_type),
+            Some(&mut dword as *mut u32 as *mut u8),
+            Some(&mut data_len),
+        )
+        .is_ok()
+            && val_type == REG_DWORD
+        {
+            return Some(dword);
         }
     }
     None
@@ -112,7 +144,10 @@ fn read_dword_value(key: HKEY, value_name: &str) -> Option<u32> {
 
 #[cfg(windows)]
 fn enumerate_subkeys(root: HKEY, subkey_path: &str, sam: REG_SAM_FLAGS) -> Vec<String> {
-    let wide_path: Vec<u16> = subkey_path.encode_utf16().chain(std::iter::once(0)).collect();
+    let wide_path: Vec<u16> = subkey_path
+        .encode_utf16()
+        .chain(std::iter::once(0))
+        .collect();
     let mut key = HKEY::default();
     let mut result = Vec::new();
 
@@ -170,11 +205,15 @@ pub fn discover_win32_apps(tree: Option<&StorageTree>) -> Vec<AppInfo> {
                 }
 
                 let full_subpath = format!(r"{}\{}", UNINSTALL_PATH, subkey);
-                let wide_subpath: Vec<u16> = full_subpath.encode_utf16().chain(std::iter::once(0)).collect();
+                let wide_subpath: Vec<u16> = full_subpath
+                    .encode_utf16()
+                    .chain(std::iter::once(0))
+                    .collect();
                 let mut key = HKEY::default();
 
                 unsafe {
-                    if RegOpenKeyExW(root, PCWSTR(wide_subpath.as_ptr()), 0, sam, &mut key).is_err() {
+                    if RegOpenKeyExW(root, PCWSTR(wide_subpath.as_ptr()), 0, sam, &mut key).is_err()
+                    {
                         continue;
                     }
 
@@ -190,7 +229,10 @@ pub fn discover_win32_apps(tree: Option<&StorageTree>) -> Vec<AppInfo> {
                     let sys_comp = read_dword_value(key, "SystemComponent").unwrap_or(0);
 
                     // Skip minor hotfixes/updates
-                    if parent_key.is_some() || release_type.as_deref() == Some("Update") || release_type.as_deref() == Some("Hotfix") {
+                    if parent_key.is_some()
+                        || release_type.as_deref() == Some("Update")
+                        || release_type.as_deref() == Some("Hotfix")
+                    {
                         let _ = RegCloseKey(key);
                         continue;
                     }
@@ -198,11 +240,15 @@ pub fn discover_win32_apps(tree: Option<&StorageTree>) -> Vec<AppInfo> {
                     let name = display_name.unwrap().trim().to_string();
                     let version = read_string_value(key, "DisplayVersion").unwrap_or_default();
                     let publisher = read_string_value(key, "Publisher").unwrap_or_default();
-                    let install_location = read_string_value(key, "InstallLocation").unwrap_or_default();
-                    let uninstall_string = read_string_value(key, "UninstallString").unwrap_or_default();
-                    let quiet_uninstall_string = read_string_value(key, "QuietUninstallString").unwrap_or_default();
+                    let install_location =
+                        read_string_value(key, "InstallLocation").unwrap_or_default();
+                    let uninstall_string =
+                        read_string_value(key, "UninstallString").unwrap_or_default();
+                    let quiet_uninstall_string =
+                        read_string_value(key, "QuietUninstallString").unwrap_or_default();
                     let install_date = read_string_value(key, "InstallDate").unwrap_or_default();
-                    let estimated_size_kb = read_dword_value(key, "EstimatedSize").unwrap_or(0) as u64;
+                    let estimated_size_kb =
+                        read_dword_value(key, "EstimatedSize").unwrap_or(0) as u64;
 
                     let _ = RegCloseKey(key);
 
@@ -233,7 +279,9 @@ pub fn discover_win32_apps(tree: Option<&StorageTree>) -> Vec<AppInfo> {
 
     // Sort by actual size descending, then by name
     apps.sort_by(|a, b| {
-        b.actual_size.cmp(&a.actual_size).then_with(|| a.name.cmp(&b.name))
+        b.actual_size
+            .cmp(&a.actual_size)
+            .then_with(|| a.name.cmp(&b.name))
     });
 
     apps
@@ -309,23 +357,50 @@ pub fn find_app_leftovers(
 
     // Standard system exclusions that must never be flagged as leftovers
     let system_ignore: HashSet<&str> = [
-        "microsoft", "windows", "packages", "temp", "system", "common files",
-        "nvidia", "intel", "amd", "realtek", "adobe", "google", "mozilla",
-        "microsoft corporation", "windows defender", "windows defender advanced threat protection",
-        "dotnet", "git", "powershell", "nuget", "pip", "yarn", "npm", "cargo",
-    ].iter().cloned().collect();
+        "microsoft",
+        "windows",
+        "packages",
+        "temp",
+        "system",
+        "common files",
+        "nvidia",
+        "intel",
+        "amd",
+        "realtek",
+        "adobe",
+        "google",
+        "mozilla",
+        "microsoft corporation",
+        "windows defender",
+        "windows defender advanced threat protection",
+        "dotnet",
+        "git",
+        "powershell",
+        "nuget",
+        "pip",
+        "yarn",
+        "npm",
+        "cargo",
+    ]
+    .iter()
+    .cloned()
+    .collect();
 
     // Create a lookup of lowercased installed application and publisher tokens
     let mut app_tokens: HashSet<String> = HashSet::new();
     for app in installed_apps {
         for word in app.name.split_whitespace() {
-            let clean = word.trim_matches(|c: char| !c.is_alphanumeric()).to_ascii_lowercase();
+            let clean = word
+                .trim_matches(|c: char| !c.is_alphanumeric())
+                .to_ascii_lowercase();
             if clean.len() >= 3 {
                 app_tokens.insert(clean);
             }
         }
         for word in app.publisher.split_whitespace() {
-            let clean = word.trim_matches(|c: char| !c.is_alphanumeric()).to_ascii_lowercase();
+            let clean = word
+                .trim_matches(|c: char| !c.is_alphanumeric())
+                .to_ascii_lowercase();
             if clean.len() >= 3 {
                 app_tokens.insert(clean);
             }
@@ -344,7 +419,9 @@ pub fn find_app_leftovers(
         ),
         (
             LeftoverLocationType::ProgramData,
-            std::env::var_os("ProgramData").map(PathBuf::from).or_else(|| Some(PathBuf::from(r"C:\ProgramData"))),
+            std::env::var_os("ProgramData")
+                .map(PathBuf::from)
+                .or_else(|| Some(PathBuf::from(r"C:\ProgramData"))),
         ),
     ];
 
@@ -411,7 +488,7 @@ pub fn find_app_leftovers(
         }
     }
 
-    leftovers.sort_by(|a, b| b.size.cmp(&a.size));
+    leftovers.sort_by_key(|a| std::cmp::Reverse(a.size));
     leftovers
 }
 
@@ -436,7 +513,8 @@ fn compute_quick_dir_size_bounded(dir: &Path, depth: usize, max_depth: usize) ->
                     file_count += 1;
                 }
             } else if p.is_dir() {
-                let (sub_size, sub_files) = compute_quick_dir_size_bounded(&p, depth + 1, max_depth);
+                let (sub_size, sub_files) =
+                    compute_quick_dir_size_bounded(&p, depth + 1, max_depth);
                 total_size += sub_size;
                 file_count += sub_files;
             }
@@ -528,10 +606,16 @@ mod tests {
     fn infer_directory_from_uninstall_command() {
         let cmd = r#""C:\Program Files (x86)\Vendor\Tool\uninstall.exe" /S"#;
         let inferred = infer_directory_from_command(cmd);
-        assert_eq!(inferred, Some(PathBuf::from(r"C:\Program Files (x86)\Vendor\Tool")));
+        assert_eq!(
+            inferred,
+            Some(PathBuf::from(r"C:\Program Files (x86)\Vendor\Tool"))
+        );
 
         let unquoted = r#"C:\Apps\Simple\uninst.exe"#;
-        assert_eq!(infer_directory_from_command(unquoted), Some(PathBuf::from(r"C:\Apps\Simple")));
+        assert_eq!(
+            infer_directory_from_command(unquoted),
+            Some(PathBuf::from(r"C:\Apps\Simple"))
+        );
     }
 
     #[test]

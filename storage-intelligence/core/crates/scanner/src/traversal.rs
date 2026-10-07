@@ -109,8 +109,8 @@ pub fn scan_with_options(
     max_depth: Option<usize>,
     on_progress: &(dyn Fn(ScanProgress) + Send + Sync),
 ) -> Result<(Vec<ScanEvent>, ScanSummary), ScanError> {
-    let root_meta = std::fs::symlink_metadata(root)
-        .map_err(|_| ScanError::InvalidPath(root.to_path_buf()))?;
+    let root_meta =
+        std::fs::symlink_metadata(root).map_err(|_| ScanError::InvalidPath(root.to_path_buf()))?;
     if !root_meta.is_dir() {
         return Err(ScanError::InvalidPath(root.to_path_buf()));
     }
@@ -236,7 +236,10 @@ fn process_fast_entry(
         });
 
         // Depth limiting check (for instant shallow scan)
-        if ctx.max_depth.map_or(false, |limit| current_depth + 1 >= limit) {
+        if ctx
+            .max_depth
+            .is_some_and(|limit| current_depth + 1 >= limit)
+        {
             ctx.events.push(ScanEvent::DirectoryComplete {
                 id: child_id,
                 total_size: 0,
@@ -281,8 +284,6 @@ fn process_fast_entry(
         }
     }
 }
-
-
 
 #[cfg(test)]
 mod tests {
@@ -388,7 +389,10 @@ mod tests {
     #[test]
     fn classifies_permission_denied() {
         let err = io::Error::from(io::ErrorKind::PermissionDenied);
-        assert_eq!(classify_io_error(&err), InaccessibleReason::PermissionDenied);
+        assert_eq!(
+            classify_io_error(&err),
+            InaccessibleReason::PermissionDenied
+        );
     }
 
     #[test]
@@ -515,12 +519,9 @@ mod tests {
         let cancel_for_callback = cancel.clone();
         // Cancel as soon as the first progress tick fires, simulating a user clicking
         // "Cancel" partway through a real scan.
-        let result = scan(
-            root.path(),
-            &cancel,
-            Duration::ZERO,
-            &move |_progress| cancel_for_callback.cancel(),
-        );
+        let result = scan(root.path(), &cancel, Duration::ZERO, &move |_progress| {
+            cancel_for_callback.cancel()
+        });
 
         assert!(matches!(result, Err(ScanError::Cancelled)));
     }
@@ -572,5 +573,3 @@ mod tests {
         )));
     }
 }
-
-

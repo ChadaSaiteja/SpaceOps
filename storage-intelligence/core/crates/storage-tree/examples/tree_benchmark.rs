@@ -48,7 +48,10 @@ fn get_working_set_bytes() -> usize {
 
 /// Generates a realistic synthetic scan event stream with approximately `target_nodes` nodes.
 /// Includes one large directory containing `special_large_dir_count` children.
-fn generate_synthetic_events(target_nodes: usize, special_large_dir_count: usize) -> (Vec<ScanEvent>, u64) {
+fn generate_synthetic_events(
+    target_nodes: usize,
+    special_large_dir_count: usize,
+) -> (Vec<ScanEvent>, u64) {
     let mut events = Vec::with_capacity(target_nodes * 2);
     let mut current_scanner_id = 0u64;
 
@@ -258,9 +261,18 @@ fn main() {
     println!("========================================================");
     println!(
         "{:<10} | {:<12} | {:<14} | {:<16} | {:<16} | {:<12} | {:<10}",
-        "Nodes", "Build Time", "node() Lookup", "children(10K)", "top_files(100)", "Tree RSS", "Status"
+        "Nodes",
+        "Build Time",
+        "node() Lookup",
+        "children(10K)",
+        "top_files(100)",
+        "Tree RSS",
+        "Status"
     );
-    println!("{:-<10}-+-{:-<12}-+-{:-<14}-+-{:-<16}-+-{:-<16}-+-{:-<12}-+-{:-<10}", "", "", "", "", "", "", "");
+    println!(
+        "{:-<10}-+-{:-<12}-+-{:-<14}-+-{:-<16}-+-{:-<16}-+-{:-<12}-+-{:-<10}",
+        "", "", "", "", "", "", ""
+    );
 
     for r in &results {
         let build_ok = r.build_duration <= Duration::from_millis(2000);
@@ -285,9 +297,49 @@ fn main() {
 
     println!("\nTarget Comparison (1,000,000 nodes):");
     let r1m = results.last().unwrap();
-    println!("  Build time:        {:?} (target: <= 2.0 s) -> {}", r1m.build_duration, if r1m.build_duration <= Duration::from_millis(2000) { "MET" } else { "MISSED" });
-    println!("  node() lookup:     {:.1} ns (target: < 1000 ns) -> {}", r1m.node_lookup_avg_nanos, if r1m.node_lookup_avg_nanos < 1000.0 { "MET" } else { "MISSED" });
-    println!("  children(10K):     {:.1} µs (target: < 1000 µs) -> {}", r1m.children_query_micros, if r1m.children_query_micros < 1000.0 { "MET" } else { "MISSED" });
-    println!("  top_files(100):    {:.1} ms (target: < 50 ms) -> {}", r1m.top_files_micros / 1000.0, if r1m.top_files_micros < 50_000.0 { "MET" } else { "MISSED" });
-    println!("  Tree delta RSS:    {:.1} MB (target: < 300 MB) -> {}", r1m.delta_rss_mb, if r1m.delta_rss_mb < 300.0 { "MET" } else { "MISSED" });
+    println!(
+        "  Build time:        {:?} (target: <= 2.0 s) -> {}",
+        r1m.build_duration,
+        if r1m.build_duration <= Duration::from_millis(2000) {
+            "MET"
+        } else {
+            "MISSED"
+        }
+    );
+    println!(
+        "  node() lookup:     {:.1} ns (target: < 1000 ns) -> {}",
+        r1m.node_lookup_avg_nanos,
+        if r1m.node_lookup_avg_nanos < 1000.0 {
+            "MET"
+        } else {
+            "MISSED"
+        }
+    );
+    println!(
+        "  children(10K):     {:.1} µs (target: < 1000 µs) -> {}",
+        r1m.children_query_micros,
+        if r1m.children_query_micros < 1000.0 {
+            "MET"
+        } else {
+            "MISSED"
+        }
+    );
+    println!(
+        "  top_files(100):    {:.1} ms (target: < 50 ms) -> {}",
+        r1m.top_files_micros / 1000.0,
+        if r1m.top_files_micros < 50_000.0 {
+            "MET"
+        } else {
+            "MISSED"
+        }
+    );
+    println!(
+        "  Tree delta RSS:    {:.1} MB (target: < 300 MB) -> {}",
+        r1m.delta_rss_mb,
+        if r1m.delta_rss_mb < 300.0 {
+            "MET"
+        } else {
+            "MISSED"
+        }
+    );
 }

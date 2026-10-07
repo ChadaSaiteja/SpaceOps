@@ -3,8 +3,8 @@
 //! Implements the Bruls-Huizing-van Wijk squarified treemap algorithm to partition
 //! 2D screen space proportional to disk usage, minimizing aspect ratio distortion.
 
-use common::NodeId;
 use crate::tree::{NodeKind, StorageTree};
+use common::NodeId;
 
 /// High-level file categorization based on extension (PRD §8).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -44,8 +44,8 @@ pub fn classify_extension(ext: Option<&str>) -> FileCategory {
             let lower = e.to_ascii_lowercase();
             match lower.as_str() {
                 // Video
-                "mp4" | "mkv" | "avi" | "mov" | "wmv" | "flv" | "webm" | "m4v" | "mpg"
-                | "mpeg" | "3gp" | "m2ts" | "vob" => FileCategory::Video,
+                "mp4" | "mkv" | "avi" | "mov" | "wmv" | "flv" | "webm" | "m4v" | "mpg" | "mpeg"
+                | "3gp" | "m2ts" | "vob" => FileCategory::Video,
 
                 // Audio
                 "mp3" | "wav" | "flac" | "aac" | "ogg" | "wma" | "m4a" | "aiff" | "mid"
@@ -60,18 +60,17 @@ pub fn classify_extension(ext: Option<&str>) -> FileCategory {
                 | "csv" | "md" | "odt" | "ods" | "odp" | "epub" => FileCategory::Document,
 
                 // Archives
-                "zip" | "rar" | "7z" | "tar" | "gz" | "bz2" | "xz" | "iso" | "cab"
-                | "dmg" | "tgz" | "zst" => FileCategory::Archive,
+                "zip" | "rar" | "7z" | "tar" | "gz" | "bz2" | "xz" | "iso" | "cab" | "dmg"
+                | "tgz" | "zst" => FileCategory::Archive,
 
                 // Executables & Binaries / Installers
-                "exe" | "msi" | "dll" | "sys" | "com" | "bat" | "cmd" | "ps1" | "vbs"
-                | "scr" | "drv" | "ocx" => FileCategory::Executable,
+                "exe" | "msi" | "dll" | "sys" | "com" | "bat" | "cmd" | "ps1" | "vbs" | "scr"
+                | "drv" | "ocx" => FileCategory::Executable,
 
                 // Code & Developer Data
-                "rs" | "cs" | "js" | "ts" | "jsx" | "tsx" | "py" | "c" | "cpp" | "h"
-                | "hpp" | "java" | "go" | "html" | "css" | "json" | "xml" | "yaml"
-                | "yml" | "sql" | "sh" | "toml" | "lock" | "props" | "targets"
-                | "xaml" => FileCategory::Code,
+                "rs" | "cs" | "js" | "ts" | "jsx" | "tsx" | "py" | "c" | "cpp" | "h" | "hpp"
+                | "java" | "go" | "html" | "css" | "json" | "xml" | "yaml" | "yml" | "sql"
+                | "sh" | "toml" | "lock" | "props" | "targets" | "xaml" => FileCategory::Code,
 
                 // System & Metadata
                 "log" | "dat" | "ini" | "cfg" | "tmp" | "bak" | "dmp" | "evtx" | "reg" => {
@@ -227,7 +226,7 @@ fn layout_children(
     }
 
     // Sort descending by size (they are already sorted in tree, but ensure consistency)
-    items.sort_by(|a, b| b.size.cmp(&a.size));
+    items.sort_by_key(|a| std::cmp::Reverse(a.size));
 
     // Normalize areas to fit the total bounding area
     let total_area = bounds.area();
@@ -271,7 +270,8 @@ fn squarify(
 
         let mut row_len = 1;
         let mut row_sum = items[start_idx].normalized_area;
-        let mut current_worst = worst_aspect_ratio(&items[start_idx..start_idx + 1], row_sum, shorter);
+        let mut current_worst =
+            worst_aspect_ratio(&items[start_idx..start_idx + 1], row_sum, shorter);
 
         while start_idx + row_len < items.len() {
             let next_item = &items[start_idx + row_len];
@@ -341,6 +341,7 @@ fn worst_aspect_ratio(row: &[LayoutItem], row_sum: f32, length: f32) -> f32 {
 }
 
 /// Lays out a finalized row into `bounds`, then shrinks `bounds` by the row's thickness.
+#[allow(clippy::too_many_arguments)]
 fn layout_row(
     tree: &StorageTree,
     row: &[LayoutItem],
@@ -356,11 +357,8 @@ fn layout_row(
     }
 
     let is_horizontal = bounds.w <= bounds.h;
-    let row_thickness = (row_sum / bounds.shorter_side()).min(if is_horizontal {
-        bounds.h
-    } else {
-        bounds.w
-    });
+    let row_thickness =
+        (row_sum / bounds.shorter_side()).min(if is_horizontal { bounds.h } else { bounds.w });
 
     if row_thickness <= 0.001 {
         return;
@@ -543,8 +541,16 @@ mod tests {
         for r in &rects {
             assert!(r.x >= 0.0);
             assert!(r.y >= 0.0);
-            assert!(r.x + r.width <= 800.5, "x+w exceeds viewport: {}", r.x + r.width);
-            assert!(r.y + r.height <= 600.5, "y+h exceeds viewport: {}", r.y + r.height);
+            assert!(
+                r.x + r.width <= 800.5,
+                "x+w exceeds viewport: {}",
+                r.x + r.width
+            );
+            assert!(
+                r.y + r.height <= 600.5,
+                "y+h exceeds viewport: {}",
+                r.y + r.height
+            );
             assert!(r.width >= 2.0);
             assert!(r.height >= 2.0);
         }

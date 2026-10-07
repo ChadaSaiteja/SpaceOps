@@ -83,7 +83,11 @@ static LOGGING_INIT: Once = Once::new();
 fn init_logging_impl() {
     let log_dir = std::env::var("LOCALAPPDATA")
         .map(|base| PathBuf::from(base).join("StorageIntelligence").join("logs"))
-        .unwrap_or_else(|_| std::env::temp_dir().join("StorageIntelligence").join("logs"));
+        .unwrap_or_else(|_| {
+            std::env::temp_dir()
+                .join("StorageIntelligence")
+                .join("logs")
+        });
     let _ = std::fs::create_dir_all(&log_dir);
 
     let file_appender = tracing_appender::rolling::daily(&log_dir, "core.log");
@@ -163,17 +167,20 @@ fn set_error_message(out: *mut *mut u16, msg: &str) {
 /// `out_error_message` parameter, and must not have been freed already.
 #[no_mangle]
 pub unsafe extern "C" fn free_error_message(ptr: *mut u16) {
-    catch_ffi_panic((), std::panic::AssertUnwindSafe(|| {
-        if ptr.is_null() {
-            return;
-        }
-        let mut len = 0usize;
-        while *ptr.add(len) != 0 {
-            len += 1;
-        }
-        let slice = std::slice::from_raw_parts_mut(ptr, len + 1);
-        drop(Box::from_raw(slice as *mut [u16]));
-    }))
+    catch_ffi_panic(
+        (),
+        std::panic::AssertUnwindSafe(|| {
+            if ptr.is_null() {
+                return;
+            }
+            let mut len = 0usize;
+            while *ptr.add(len) != 0 {
+                len += 1;
+            }
+            let slice = std::slice::from_raw_parts_mut(ptr, len + 1);
+            drop(Box::from_raw(slice as *mut [u16]));
+        }),
+    )
 }
 
 #[no_mangle]
@@ -188,11 +195,14 @@ pub extern "C" fn cancel_token_create() -> *mut CancelHandle {
 /// `handle` must be null or a valid pointer previously returned by `cancel_token_create`
 /// that has not yet been destroyed.
 pub unsafe extern "C" fn cancel_token_cancel(handle: *const CancelHandle) {
-    catch_ffi_panic((), std::panic::AssertUnwindSafe(|| {
-        if let Some(h) = handle.as_ref() {
-            h.0.cancel();
-        }
-    }))
+    catch_ffi_panic(
+        (),
+        std::panic::AssertUnwindSafe(|| {
+            if let Some(h) = handle.as_ref() {
+                h.0.cancel();
+            }
+        }),
+    )
 }
 
 #[no_mangle]
@@ -200,11 +210,14 @@ pub unsafe extern "C" fn cancel_token_cancel(handle: *const CancelHandle) {
 /// `handle` must be null or a valid pointer previously returned by `cancel_token_create`,
 /// must not be used again after this call, and must not be destroyed twice.
 pub unsafe extern "C" fn cancel_token_destroy(handle: *mut CancelHandle) {
-    catch_ffi_panic((), std::panic::AssertUnwindSafe(|| {
-        if !handle.is_null() {
-            drop(Box::from_raw(handle));
-        }
-    }))
+    catch_ffi_panic(
+        (),
+        std::panic::AssertUnwindSafe(|| {
+            if !handle.is_null() {
+                drop(Box::from_raw(handle));
+            }
+        }),
+    )
 }
 
 /// Blocking C ABI entry point (ADR-007): call from a background thread (e.g. a .NET
@@ -226,68 +239,74 @@ pub unsafe extern "C" fn scan_drive(
     out_result: *mut *mut ScanResultHandle,
     out_error_message: *mut *mut u16,
 ) -> i32 {
-    catch_ffi_panic(ScanErrorCode::Internal as i32, std::panic::AssertUnwindSafe(|| {
-        init_logging_impl_once();
+    catch_ffi_panic(
+        ScanErrorCode::Internal as i32,
+        std::panic::AssertUnwindSafe(|| {
+            init_logging_impl_once();
 
-        if out_result.is_null() {
-            return ScanErrorCode::Internal as i32;
-        }
-        *out_result = std::ptr::null_mut();
-        if !out_error_message.is_null() {
-            *out_error_message = std::ptr::null_mut();
-        }
-
-        let path_buf = match wide_ptr_to_pathbuf(path) {
-            Some(p) => p,
-            None => {
-                set_error_message(out_error_message, "null or invalid path");
-                return ScanErrorCode::InvalidPath as i32;
-            }
-        };
-
-        let cancel_token = match cancel_handle.as_ref() {
-            Some(h) => &h.0,
-            None => {
-                set_error_message(out_error_message, "null cancel handle");
+            if out_result.is_null() {
                 return ScanErrorCode::Internal as i32;
             }
-        };
-
-        let send_user_data = SendPtr(user_data);
-        let on_progress = move |p: scanner::ScanProgress| {
-            if let Some(cb) = progress_callback {
-                let ffi_progress = ScanProgressFfi {
-                    files_scanned: p.files_scanned,
-                    bytes_scanned: p.bytes_scanned,
-                };
-                cb(ffi_progress, send_user_data.get());
+            *out_result = std::ptr::null_mut();
+            if !out_error_message.is_null() {
+                *out_error_message = std::ptr::null_mut();
             }
-        };
 
-        match scanner::scan_volume_resilient(
-            &path_buf,
-            scanner::ScanEngineStrategy::Auto,
-            cancel_token,
-            PROGRESS_INTERVAL,
-            &on_progress,
-        ) {
-            Ok((events, summary)) => {
-                let handle = Box::new(ScanResultHandle { summary, events: Some(events) });
-                *out_result = Box::into_raw(handle);
-                ScanErrorCode::Ok as i32
-            }
-            Err(err) => {
-                tracing::error!(error = %err, "scan failed");
-                set_error_message(out_error_message, &err.to_string());
-                match err {
-                    common::ScanError::InvalidPath(_) => ScanErrorCode::InvalidPath as i32,
-                    common::ScanError::Cancelled => ScanErrorCode::Cancelled as i32,
-                    common::ScanError::DeviceLost(_) => ScanErrorCode::DeviceLost as i32,
-                    common::ScanError::Internal(_) => ScanErrorCode::Internal as i32,
+            let path_buf = match wide_ptr_to_pathbuf(path) {
+                Some(p) => p,
+                None => {
+                    set_error_message(out_error_message, "null or invalid path");
+                    return ScanErrorCode::InvalidPath as i32;
+                }
+            };
+
+            let cancel_token = match cancel_handle.as_ref() {
+                Some(h) => &h.0,
+                None => {
+                    set_error_message(out_error_message, "null cancel handle");
+                    return ScanErrorCode::Internal as i32;
+                }
+            };
+
+            let send_user_data = SendPtr(user_data);
+            let on_progress = move |p: scanner::ScanProgress| {
+                if let Some(cb) = progress_callback {
+                    let ffi_progress = ScanProgressFfi {
+                        files_scanned: p.files_scanned,
+                        bytes_scanned: p.bytes_scanned,
+                    };
+                    cb(ffi_progress, send_user_data.get());
+                }
+            };
+
+            match scanner::scan_volume_resilient(
+                &path_buf,
+                scanner::ScanEngineStrategy::Auto,
+                cancel_token,
+                PROGRESS_INTERVAL,
+                &on_progress,
+            ) {
+                Ok((events, summary)) => {
+                    let handle = Box::new(ScanResultHandle {
+                        summary,
+                        events: Some(events),
+                    });
+                    *out_result = Box::into_raw(handle);
+                    ScanErrorCode::Ok as i32
+                }
+                Err(err) => {
+                    tracing::error!(error = %err, "scan failed");
+                    set_error_message(out_error_message, &err.to_string());
+                    match err {
+                        common::ScanError::InvalidPath(_) => ScanErrorCode::InvalidPath as i32,
+                        common::ScanError::Cancelled => ScanErrorCode::Cancelled as i32,
+                        common::ScanError::DeviceLost(_) => ScanErrorCode::DeviceLost as i32,
+                        common::ScanError::Internal(_) => ScanErrorCode::Internal as i32,
+                    }
                 }
             }
-        }
-    }))
+        }),
+    )
 }
 
 #[no_mangle]
@@ -324,11 +343,14 @@ pub unsafe extern "C" fn scan_result_summary(handle: *const ScanResultHandle) ->
 /// `handle` must be null or a valid pointer previously returned by `scan_drive` via
 /// `out_result`, must not be used again after this call, and must not be destroyed twice.
 pub unsafe extern "C" fn scan_result_destroy(handle: *mut ScanResultHandle) {
-    catch_ffi_panic((), std::panic::AssertUnwindSafe(|| {
-        if !handle.is_null() {
-            drop(Box::from_raw(handle));
-        }
-    }))
+    catch_ffi_panic(
+        (),
+        std::panic::AssertUnwindSafe(|| {
+            if !handle.is_null() {
+                drop(Box::from_raw(handle));
+            }
+        }),
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -342,8 +364,8 @@ pub unsafe extern "C" fn scan_result_destroy(handle: *mut ScanResultHandle) {
 #[repr(C)]
 pub struct NodeInfoFfi {
     pub id: u64,
-    pub parent_id: u64,       // u64::MAX if root (no parent)
-    pub kind: i32,            // 0=Dir, 1=File, 2=ReparsePoint, 3=Inaccessible
+    pub parent_id: u64, // u64::MAX if root (no parent)
+    pub kind: i32,      // 0=Dir, 1=File, 2=ReparsePoint, 3=Inaccessible
     pub size: u64,
     pub file_count: u64,
     pub dir_count: u64,
@@ -359,8 +381,8 @@ pub struct TreemapRectFfi {
     pub width: f32,
     pub height: f32,
     pub depth: u32,
-    pub kind: i32,           // 0=Dir, 1=File, 2=ReparsePoint, 3=Inaccessible
-    pub category: i32,       // 0=Video, 1=Audio, 2=Image, 3=Document, 4=Archive, 5=Executable, 6=Code, 7=System, 8=Other
+    pub kind: i32,     // 0=Dir, 1=File, 2=ReparsePoint, 3=Inaccessible
+    pub category: i32, // 0=Video, 1=Audio, 2=Image, 3=Document, 4=Archive, 5=Executable, 6=Code, 7=System, 8=Other
 }
 
 /// C-compatible representation of a search result hit (ADR-012).
@@ -369,8 +391,8 @@ pub struct TreemapRectFfi {
 pub struct SearchResultFfi {
     pub node_id: u64,
     pub size: u64,
-    pub kind: i32,           // 0=Dir, 1=File, 2=ReparsePoint, 3=Inaccessible
-    pub category: i32,       // 0=Video, 1=Audio, 2=Image, 3=Document, 4=Archive, 5=Executable, 6=Code, 7=System, 8=Other
+    pub kind: i32,     // 0=Dir, 1=File, 2=ReparsePoint, 3=Inaccessible
+    pub category: i32, // 0=Video, 1=Audio, 2=Image, 3=Document, 4=Archive, 5=Executable, 6=Code, 7=System, 8=Other
     pub score: u32,
 }
 
@@ -420,69 +442,88 @@ pub unsafe extern "C" fn tree_create(
     out_tree: *mut *mut TreeHandle,
     out_error_message: *mut *mut u16,
 ) -> i32 {
-    catch_ffi_panic(ScanErrorCode::Internal as i32, std::panic::AssertUnwindSafe(|| {
-        init_logging_impl_once();
+    catch_ffi_panic(
+        ScanErrorCode::Internal as i32,
+        std::panic::AssertUnwindSafe(|| {
+            init_logging_impl_once();
 
-        if out_tree.is_null() || scan_result.is_null() {
-            return ScanErrorCode::Internal as i32;
-        }
-        *out_tree = std::ptr::null_mut();
-        if !out_error_message.is_null() {
-            *out_error_message = std::ptr::null_mut();
-        }
-
-        let result_ref = &mut *scan_result;
-        let events = match result_ref.events.take() {
-            Some(e) => e,
-            None => {
-                set_error_message(out_error_message, "events already consumed by a previous tree_create call");
+            if out_tree.is_null() || scan_result.is_null() {
                 return ScanErrorCode::Internal as i32;
             }
-        };
+            *out_tree = std::ptr::null_mut();
+            if !out_error_message.is_null() {
+                *out_error_message = std::ptr::null_mut();
+            }
 
-        match storage_tree::StorageTree::build(events) {
-            Ok(tree) => {
-                *out_tree = Box::into_raw(Box::new(TreeHandle(tree)));
-                ScanErrorCode::Ok as i32
+            let result_ref = &mut *scan_result;
+            let events = match result_ref.events.take() {
+                Some(e) => e,
+                None => {
+                    set_error_message(
+                        out_error_message,
+                        "events already consumed by a previous tree_create call",
+                    );
+                    return ScanErrorCode::Internal as i32;
+                }
+            };
+
+            match storage_tree::StorageTree::build(events) {
+                Ok(tree) => {
+                    *out_tree = Box::into_raw(Box::new(TreeHandle(tree)));
+                    ScanErrorCode::Ok as i32
+                }
+                Err(err) => {
+                    tracing::error!(error = %err, "tree build failed");
+                    set_error_message(out_error_message, &err.to_string());
+                    ScanErrorCode::Internal as i32
+                }
             }
-            Err(err) => {
-                tracing::error!(error = %err, "tree build failed");
-                set_error_message(out_error_message, &err.to_string());
-                ScanErrorCode::Internal as i32
-            }
-        }
-    }))
+        }),
+    )
 }
 
 #[no_mangle]
 /// # Safety
 /// `handle` must be null or a valid pointer from `tree_create`, not yet destroyed.
 pub unsafe extern "C" fn tree_destroy(handle: *mut TreeHandle) {
-    catch_ffi_panic((), std::panic::AssertUnwindSafe(|| {
-        if !handle.is_null() {
-            drop(Box::from_raw(handle));
-        }
-    }))
+    catch_ffi_panic(
+        (),
+        std::panic::AssertUnwindSafe(|| {
+            if !handle.is_null() {
+                drop(Box::from_raw(handle));
+            }
+        }),
+    )
 }
 
+/// Returns the root node ID, or `u64::MAX` on error.
+///
+/// # Safety
+/// `handle` must be a valid pointer returned by `tree_create`.
 #[no_mangle]
 pub unsafe extern "C" fn tree_root_id(handle: *const TreeHandle) -> u64 {
-    catch_ffi_panic(u64::MAX, std::panic::AssertUnwindSafe(|| {
-        match handle.as_ref() {
+    catch_ffi_panic(
+        u64::MAX,
+        std::panic::AssertUnwindSafe(|| match handle.as_ref() {
             Some(h) => h.0.root().0,
             None => u64::MAX,
-        }
-    }))
+        }),
+    )
 }
 
+/// Returns the total number of nodes in the tree, or 0 on error.
+///
+/// # Safety
+/// `handle` must be a valid pointer returned by `tree_create`.
 #[no_mangle]
 pub unsafe extern "C" fn tree_node_count(handle: *const TreeHandle) -> u64 {
-    catch_ffi_panic(0, std::panic::AssertUnwindSafe(|| {
-        match handle.as_ref() {
+    catch_ffi_panic(
+        0,
+        std::panic::AssertUnwindSafe(|| match handle.as_ref() {
             Some(h) => h.0.node_count() as u64,
             None => 0,
-        }
-    }))
+        }),
+    )
 }
 
 /// Get info for a single node. Returns 0 on success, non-zero if invalid.
@@ -495,26 +536,29 @@ pub unsafe extern "C" fn tree_node_info(
     node_id: u64,
     out_info: *mut NodeInfoFfi,
 ) -> i32 {
-    catch_ffi_panic(ScanErrorCode::Internal as i32, std::panic::AssertUnwindSafe(|| {
-        if handle.is_null() || out_info.is_null() {
-            return ScanErrorCode::Internal as i32;
-        }
-        let tree = &(*handle).0;
-        match tree.node(common::NodeId(node_id)) {
-            Some(info) => {
-                *out_info = NodeInfoFfi {
-                    id: info.id.0,
-                    parent_id: info.parent.map_or(u64::MAX, |p| p.0),
-                    kind: node_kind_to_i32(info.kind),
-                    size: info.size,
-                    file_count: info.file_count,
-                    dir_count: info.dir_count,
-                };
-                ScanErrorCode::Ok as i32
+    catch_ffi_panic(
+        ScanErrorCode::Internal as i32,
+        std::panic::AssertUnwindSafe(|| {
+            if handle.is_null() || out_info.is_null() {
+                return ScanErrorCode::Internal as i32;
             }
-            None => ScanErrorCode::InvalidPath as i32, // reusing error code for "not found"
-        }
-    }))
+            let tree = &(*handle).0;
+            match tree.node(common::NodeId(node_id)) {
+                Some(info) => {
+                    *out_info = NodeInfoFfi {
+                        id: info.id.0,
+                        parent_id: info.parent.map_or(u64::MAX, |p| p.0),
+                        kind: node_kind_to_i32(info.kind),
+                        size: info.size,
+                        file_count: info.file_count,
+                        dir_count: info.dir_count,
+                    };
+                    ScanErrorCode::Ok as i32
+                }
+                None => ScanErrorCode::InvalidPath as i32, // reusing error code for "not found"
+            }
+        }),
+    )
 }
 
 /// Get children of a node (pre-sorted by size desc). Paginated via offset/limit.
@@ -532,30 +576,37 @@ pub unsafe extern "C" fn tree_children(
     out_count: *mut u32,
     out_total_children: *mut u32,
 ) -> i32 {
-    catch_ffi_panic(ScanErrorCode::Internal as i32, std::panic::AssertUnwindSafe(|| {
-        if handle.is_null() || out_ids.is_null() || out_count.is_null() || out_total_children.is_null() {
-            return ScanErrorCode::Internal as i32;
-        }
-        let tree = &(*handle).0;
-        match tree.children(common::NodeId(node_id)) {
-            Some(children) => {
-                *out_total_children = children.len() as u32;
-                let start = (offset as usize).min(children.len());
-                let end = (start + limit as usize).min(children.len());
-                let page = &children[start..end];
-                for (i, child_id) in page.iter().enumerate() {
-                    *out_ids.add(i) = child_id.0;
+    catch_ffi_panic(
+        ScanErrorCode::Internal as i32,
+        std::panic::AssertUnwindSafe(|| {
+            if handle.is_null()
+                || out_ids.is_null()
+                || out_count.is_null()
+                || out_total_children.is_null()
+            {
+                return ScanErrorCode::Internal as i32;
+            }
+            let tree = &(*handle).0;
+            match tree.children(common::NodeId(node_id)) {
+                Some(children) => {
+                    *out_total_children = children.len() as u32;
+                    let start = (offset as usize).min(children.len());
+                    let end = (start + limit as usize).min(children.len());
+                    let page = &children[start..end];
+                    for (i, child_id) in page.iter().enumerate() {
+                        *out_ids.add(i) = child_id.0;
+                    }
+                    *out_count = page.len() as u32;
+                    ScanErrorCode::Ok as i32
                 }
-                *out_count = page.len() as u32;
-                ScanErrorCode::Ok as i32
+                None => {
+                    *out_count = 0;
+                    *out_total_children = 0;
+                    ScanErrorCode::InvalidPath as i32
+                }
             }
-            None => {
-                *out_count = 0;
-                *out_total_children = 0;
-                ScanErrorCode::InvalidPath as i32
-            }
-        }
-    }))
+        }),
+    )
 }
 
 /// Get ancestors of a node (bottom-up: node → parent → ... → root).
@@ -570,19 +621,22 @@ pub unsafe extern "C" fn tree_ancestors(
     limit: u32,
     out_count: *mut u32,
 ) -> i32 {
-    catch_ffi_panic(ScanErrorCode::Internal as i32, std::panic::AssertUnwindSafe(|| {
-        if handle.is_null() || out_ids.is_null() || out_count.is_null() {
-            return ScanErrorCode::Internal as i32;
-        }
-        let tree = &(*handle).0;
-        let ancestors = tree.ancestors(common::NodeId(node_id));
-        let take = (limit as usize).min(ancestors.len());
-        for (i, id) in ancestors[..take].iter().enumerate() {
-            *out_ids.add(i) = id.0;
-        }
-        *out_count = take as u32;
-        ScanErrorCode::Ok as i32
-    }))
+    catch_ffi_panic(
+        ScanErrorCode::Internal as i32,
+        std::panic::AssertUnwindSafe(|| {
+            if handle.is_null() || out_ids.is_null() || out_count.is_null() {
+                return ScanErrorCode::Internal as i32;
+            }
+            let tree = &(*handle).0;
+            let ancestors = tree.ancestors(common::NodeId(node_id));
+            let take = (limit as usize).min(ancestors.len());
+            for (i, id) in ancestors[..take].iter().enumerate() {
+                *out_ids.add(i) = id.0;
+            }
+            *out_count = take as u32;
+            ScanErrorCode::Ok as i32
+        }),
+    )
 }
 
 /// Get top N largest files under a subtree.
@@ -597,18 +651,21 @@ pub unsafe extern "C" fn tree_top_files_by_size(
     out_ids: *mut u64,
     out_count: *mut u32,
 ) -> i32 {
-    catch_ffi_panic(ScanErrorCode::Internal as i32, std::panic::AssertUnwindSafe(|| {
-        if handle.is_null() || out_ids.is_null() || out_count.is_null() {
-            return ScanErrorCode::Internal as i32;
-        }
-        let tree = &(*handle).0;
-        let top = tree.top_files_by_size(common::NodeId(root_id), limit as usize);
-        for (i, id) in top.iter().enumerate() {
-            *out_ids.add(i) = id.0;
-        }
-        *out_count = top.len() as u32;
-        ScanErrorCode::Ok as i32
-    }))
+    catch_ffi_panic(
+        ScanErrorCode::Internal as i32,
+        std::panic::AssertUnwindSafe(|| {
+            if handle.is_null() || out_ids.is_null() || out_count.is_null() {
+                return ScanErrorCode::Internal as i32;
+            }
+            let tree = &(*handle).0;
+            let top = tree.top_files_by_size(common::NodeId(root_id), limit as usize);
+            for (i, id) in top.iter().enumerate() {
+                *out_ids.add(i) = id.0;
+            }
+            *out_count = top.len() as u32;
+            ScanErrorCode::Ok as i32
+        }),
+    )
 }
 
 /// Copies the node's name as null-terminated UTF-16 into `out_buffer`.
@@ -626,28 +683,31 @@ pub unsafe extern "C" fn tree_node_name(
     buffer_len: u32,
     out_actual_len: *mut u32,
 ) -> i32 {
-    catch_ffi_panic(ScanErrorCode::Internal as i32, std::panic::AssertUnwindSafe(|| {
-        if handle.is_null() || out_actual_len.is_null() {
-            return ScanErrorCode::Internal as i32;
-        }
-        let tree = &(*handle).0;
-        match tree.node(common::NodeId(node_id)) {
-            Some(info) => {
-                let utf16: Vec<u16> = info.name.encode_utf16().collect();
-                *out_actual_len = utf16.len() as u32;
-                if out_buffer.is_null() || buffer_len == 0 {
-                    return ScanErrorCode::Ok as i32;
-                }
-                if (buffer_len as usize) <= utf16.len() {
-                    return ScanErrorCode::Internal as i32;
-                }
-                std::ptr::copy_nonoverlapping(utf16.as_ptr(), out_buffer, utf16.len());
-                *out_buffer.add(utf16.len()) = 0;
-                ScanErrorCode::Ok as i32
+    catch_ffi_panic(
+        ScanErrorCode::Internal as i32,
+        std::panic::AssertUnwindSafe(|| {
+            if handle.is_null() || out_actual_len.is_null() {
+                return ScanErrorCode::Internal as i32;
             }
-            None => ScanErrorCode::InvalidPath as i32,
-        }
-    }))
+            let tree = &(*handle).0;
+            match tree.node(common::NodeId(node_id)) {
+                Some(info) => {
+                    let utf16: Vec<u16> = info.name.encode_utf16().collect();
+                    *out_actual_len = utf16.len() as u32;
+                    if out_buffer.is_null() || buffer_len == 0 {
+                        return ScanErrorCode::Ok as i32;
+                    }
+                    if (buffer_len as usize) <= utf16.len() {
+                        return ScanErrorCode::Internal as i32;
+                    }
+                    std::ptr::copy_nonoverlapping(utf16.as_ptr(), out_buffer, utf16.len());
+                    *out_buffer.add(utf16.len()) = 0;
+                    ScanErrorCode::Ok as i32
+                }
+                None => ScanErrorCode::InvalidPath as i32,
+            }
+        }),
+    )
 }
 
 /// Reconstructs the node's full path as null-terminated UTF-16 into `out_buffer`.
@@ -665,29 +725,32 @@ pub unsafe extern "C" fn tree_node_path(
     buffer_len: u32,
     out_actual_len: *mut u32,
 ) -> i32 {
-    catch_ffi_panic(ScanErrorCode::Internal as i32, std::panic::AssertUnwindSafe(|| {
-        if handle.is_null() || out_actual_len.is_null() {
-            return ScanErrorCode::Internal as i32;
-        }
-        let tree = &(*handle).0;
-        match tree.full_path(common::NodeId(node_id)) {
-            Some(path) => {
-                let path_str = path.to_string_lossy();
-                let utf16: Vec<u16> = path_str.encode_utf16().collect();
-                *out_actual_len = utf16.len() as u32;
-                if out_buffer.is_null() || buffer_len == 0 {
-                    return ScanErrorCode::Ok as i32;
-                }
-                if (buffer_len as usize) <= utf16.len() {
-                    return ScanErrorCode::Internal as i32;
-                }
-                std::ptr::copy_nonoverlapping(utf16.as_ptr(), out_buffer, utf16.len());
-                *out_buffer.add(utf16.len()) = 0;
-                ScanErrorCode::Ok as i32
+    catch_ffi_panic(
+        ScanErrorCode::Internal as i32,
+        std::panic::AssertUnwindSafe(|| {
+            if handle.is_null() || out_actual_len.is_null() {
+                return ScanErrorCode::Internal as i32;
             }
-            None => ScanErrorCode::InvalidPath as i32,
-        }
-    }))
+            let tree = &(*handle).0;
+            match tree.full_path(common::NodeId(node_id)) {
+                Some(path) => {
+                    let path_str = path.to_string_lossy();
+                    let utf16: Vec<u16> = path_str.encode_utf16().collect();
+                    *out_actual_len = utf16.len() as u32;
+                    if out_buffer.is_null() || buffer_len == 0 {
+                        return ScanErrorCode::Ok as i32;
+                    }
+                    if (buffer_len as usize) <= utf16.len() {
+                        return ScanErrorCode::Internal as i32;
+                    }
+                    std::ptr::copy_nonoverlapping(utf16.as_ptr(), out_buffer, utf16.len());
+                    *out_buffer.add(utf16.len()) = 0;
+                    ScanErrorCode::Ok as i32
+                }
+                None => ScanErrorCode::InvalidPath as i32,
+            }
+        }),
+    )
 }
 
 /// Finds a node by absolute filesystem path within the active StorageTree.
@@ -701,23 +764,26 @@ pub unsafe extern "C" fn tree_find_by_path(
     path: *const u16,
     out_node_id: *mut u64,
 ) -> i32 {
-    catch_ffi_panic(ScanErrorCode::Internal as i32, std::panic::AssertUnwindSafe(|| {
-        if handle.is_null() || path.is_null() || out_node_id.is_null() {
-            return ScanErrorCode::Internal as i32;
-        }
-        let path_buf = match wide_ptr_to_pathbuf(path) {
-            Some(p) => p,
-            None => return ScanErrorCode::InvalidPath as i32,
-        };
-        let tree = &(*handle).0;
-        match tree.find_by_path(&path_buf) {
-            Some(id) => {
-                *out_node_id = id.0;
-                ScanErrorCode::Ok as i32
+    catch_ffi_panic(
+        ScanErrorCode::Internal as i32,
+        std::panic::AssertUnwindSafe(|| {
+            if handle.is_null() || path.is_null() || out_node_id.is_null() {
+                return ScanErrorCode::Internal as i32;
             }
-            None => ScanErrorCode::InvalidPath as i32,
-        }
-    }))
+            let path_buf = match wide_ptr_to_pathbuf(path) {
+                Some(p) => p,
+                None => return ScanErrorCode::InvalidPath as i32,
+            };
+            let tree = &(*handle).0;
+            match tree.find_by_path(&path_buf) {
+                Some(id) => {
+                    *out_node_id = id.0;
+                    ScanErrorCode::Ok as i32
+                }
+                None => ScanErrorCode::InvalidPath as i32,
+            }
+        }),
+    )
 }
 
 /// Computes squarified treemap layout starting from `root_id` into `out_rects`.
@@ -741,43 +807,46 @@ pub unsafe extern "C" fn tree_compute_layout(
     out_count: *mut u32,
     out_total_rects: *mut u32,
 ) -> i32 {
-    catch_ffi_panic(ScanErrorCode::Internal as i32, std::panic::AssertUnwindSafe(|| {
-        if handle.is_null() || out_count.is_null() || out_total_rects.is_null() {
-            return ScanErrorCode::Internal as i32;
-        }
-        let tree = &(*handle).0;
-        let rects = tree.compute_layout(
-            common::NodeId(root_id),
-            width,
-            height,
-            max_depth,
-            min_size_px,
-        );
+    catch_ffi_panic(
+        ScanErrorCode::Internal as i32,
+        std::panic::AssertUnwindSafe(|| {
+            if handle.is_null() || out_count.is_null() || out_total_rects.is_null() {
+                return ScanErrorCode::Internal as i32;
+            }
+            let tree = &(*handle).0;
+            let rects = tree.compute_layout(
+                common::NodeId(root_id),
+                width,
+                height,
+                max_depth,
+                min_size_px,
+            );
 
-        *out_total_rects = rects.len() as u32;
+            *out_total_rects = rects.len() as u32;
 
-        if out_rects.is_null() || limit == 0 {
-            *out_count = 0;
-            return ScanErrorCode::Ok as i32;
-        }
+            if out_rects.is_null() || limit == 0 {
+                *out_count = 0;
+                return ScanErrorCode::Ok as i32;
+            }
 
-        let write_count = (limit as usize).min(rects.len());
-        for (i, r) in rects[..write_count].iter().enumerate() {
-            *out_rects.add(i) = TreemapRectFfi {
-                node_id: r.node_id.0,
-                x: r.x,
-                y: r.y,
-                width: r.width,
-                height: r.height,
-                depth: r.depth,
-                kind: node_kind_to_i32(r.kind),
-                category: r.category as i32,
-            };
-        }
+            let write_count = (limit as usize).min(rects.len());
+            for (i, r) in rects[..write_count].iter().enumerate() {
+                *out_rects.add(i) = TreemapRectFfi {
+                    node_id: r.node_id.0,
+                    x: r.x,
+                    y: r.y,
+                    width: r.width,
+                    height: r.height,
+                    depth: r.depth,
+                    kind: node_kind_to_i32(r.kind),
+                    category: r.category as i32,
+                };
+            }
 
-        *out_count = write_count as u32;
-        ScanErrorCode::Ok as i32
-    }))
+            *out_count = write_count as u32;
+            ScanErrorCode::Ok as i32
+        }),
+    )
 }
 
 /// Searches the StorageTree arena using the given query (ADR-012).
@@ -795,39 +864,42 @@ pub unsafe extern "C" fn tree_search(
     out_results: *mut SearchResultFfi,
     out_count: *mut u32,
 ) -> i32 {
-    catch_ffi_panic(ScanErrorCode::Internal as i32, std::panic::AssertUnwindSafe(|| {
-        if handle.is_null() || query.is_null() || out_count.is_null() {
-            return ScanErrorCode::Internal as i32;
-        }
+    catch_ffi_panic(
+        ScanErrorCode::Internal as i32,
+        std::panic::AssertUnwindSafe(|| {
+            if handle.is_null() || query.is_null() || out_count.is_null() {
+                return ScanErrorCode::Internal as i32;
+            }
 
-        let query_str = match wide_ptr_to_string(query) {
-            Some(s) => s,
-            None => return ScanErrorCode::Internal as i32,
-        };
-
-        let parsed_query = storage_tree::SearchQuery::parse(&query_str);
-        let tree = &(*handle).0;
-        let hits = tree.search(&parsed_query, limit as usize);
-
-        if out_results.is_null() || limit == 0 {
-            *out_count = hits.len() as u32;
-            return ScanErrorCode::Ok as i32;
-        }
-
-        let write_count = (limit as usize).min(hits.len());
-        for (i, hit) in hits[..write_count].iter().enumerate() {
-            *out_results.add(i) = SearchResultFfi {
-                node_id: hit.node_id.0,
-                size: hit.size,
-                kind: node_kind_to_i32(hit.kind),
-                category: hit.category as i32,
-                score: hit.score,
+            let query_str = match wide_ptr_to_string(query) {
+                Some(s) => s,
+                None => return ScanErrorCode::Internal as i32,
             };
-        }
 
-        *out_count = write_count as u32;
-        ScanErrorCode::Ok as i32
-    }))
+            let parsed_query = storage_tree::SearchQuery::parse(&query_str);
+            let tree = &(*handle).0;
+            let hits = tree.search(&parsed_query, limit as usize);
+
+            if out_results.is_null() || limit == 0 {
+                *out_count = hits.len() as u32;
+                return ScanErrorCode::Ok as i32;
+            }
+
+            let write_count = (limit as usize).min(hits.len());
+            for (i, hit) in hits[..write_count].iter().enumerate() {
+                *out_results.add(i) = SearchResultFfi {
+                    node_id: hit.node_id.0,
+                    size: hit.size,
+                    kind: node_kind_to_i32(hit.kind),
+                    category: hit.category as i32,
+                    score: hit.score,
+                };
+            }
+
+            *out_count = write_count as u32;
+            ScanErrorCode::Ok as i32
+        }),
+    )
 }
 
 /// Detects all cleanup candidate categories across the active in-memory tree (ADR-013).
@@ -843,35 +915,38 @@ pub unsafe extern "C" fn cleanup_detect_candidates(
     out_count: *mut u32,
     out_total: *mut u32,
 ) -> i32 {
-    catch_ffi_panic(ScanErrorCode::Internal as i32, std::panic::AssertUnwindSafe(|| {
-        if handle.is_null() || out_count.is_null() || out_total.is_null() {
-            return ScanErrorCode::Internal as i32;
-        }
+    catch_ffi_panic(
+        ScanErrorCode::Internal as i32,
+        std::panic::AssertUnwindSafe(|| {
+            if handle.is_null() || out_count.is_null() || out_total.is_null() {
+                return ScanErrorCode::Internal as i32;
+            }
 
-        let tree = &(*handle).0;
-        let candidates = tree.detect_cleanup_candidates();
+            let tree = &(*handle).0;
+            let candidates = tree.detect_cleanup_candidates();
 
-        *out_total = candidates.len() as u32;
+            *out_total = candidates.len() as u32;
 
-        if out_candidates.is_null() || limit == 0 {
-            *out_count = 0;
-            return ScanErrorCode::Ok as i32;
-        }
+            if out_candidates.is_null() || limit == 0 {
+                *out_count = 0;
+                return ScanErrorCode::Ok as i32;
+            }
 
-        let write_count = (limit as usize).min(candidates.len());
-        for (i, c) in candidates[..write_count].iter().enumerate() {
-            *out_candidates.add(i) = CleanupCandidateFfi {
-                rule_id: c.rule_id as u32,
-                risk_level: c.risk_level as i32,
-                total_bytes: c.total_bytes,
-                file_count: c.file_count,
-                is_protected: if c.is_protected { 1 } else { 0 },
-            };
-        }
+            let write_count = (limit as usize).min(candidates.len());
+            for (i, c) in candidates[..write_count].iter().enumerate() {
+                *out_candidates.add(i) = CleanupCandidateFfi {
+                    rule_id: c.rule_id as u32,
+                    risk_level: c.risk_level as i32,
+                    total_bytes: c.total_bytes,
+                    file_count: c.file_count,
+                    is_protected: if c.is_protected { 1 } else { 0 },
+                };
+            }
 
-        *out_count = write_count as u32;
-        ScanErrorCode::Ok as i32
-    }))
+            *out_count = write_count as u32;
+            ScanErrorCode::Ok as i32
+        }),
+    )
 }
 
 /// Executes or simulates cleanup for a specific candidate category (ADR-013).
@@ -887,36 +962,41 @@ pub unsafe extern "C" fn cleanup_execute_rule(
     send_to_recycle_bin: u8,
     out_report: *mut CleanupReportFfi,
 ) -> i32 {
-    catch_ffi_panic(ScanErrorCode::Internal as i32, std::panic::AssertUnwindSafe(|| {
-        if handle.is_null() || out_report.is_null() {
-            return ScanErrorCode::Internal as i32;
-        }
-
-        let rule = match storage_tree::CleanupRuleId::from_u32(rule_id) {
-            Some(r) => r,
-            None => return ScanErrorCode::InvalidPath as i32,
-        };
-
-        let tree = &(*handle).0;
-        let candidates = tree.detect_cleanup_candidates();
-        let target_candidate = candidates.into_iter().find(|c| c.rule_id == rule);
-
-        let report = match target_candidate {
-            Some(cand) => {
-                storage_tree::cleanup::execute_cleanup(&cand.target_paths, dry_run != 0, send_to_recycle_bin != 0)
+    catch_ffi_panic(
+        ScanErrorCode::Internal as i32,
+        std::panic::AssertUnwindSafe(|| {
+            if handle.is_null() || out_report.is_null() {
+                return ScanErrorCode::Internal as i32;
             }
-            None => storage_tree::CleanupReport::default(),
-        };
 
-        *out_report = CleanupReportFfi {
-            files_reclaimed: report.files_reclaimed,
-            bytes_reclaimed: report.bytes_reclaimed,
-            files_failed: report.files_failed,
-            is_dry_run: if report.is_dry_run { 1 } else { 0 },
-        };
+            let rule = match storage_tree::CleanupRuleId::from_u32(rule_id) {
+                Some(r) => r,
+                None => return ScanErrorCode::InvalidPath as i32,
+            };
 
-        ScanErrorCode::Ok as i32
-    }))
+            let tree = &(*handle).0;
+            let candidates = tree.detect_cleanup_candidates();
+            let target_candidate = candidates.into_iter().find(|c| c.rule_id == rule);
+
+            let report = match target_candidate {
+                Some(cand) => storage_tree::cleanup::execute_cleanup(
+                    &cand.target_paths,
+                    dry_run != 0,
+                    send_to_recycle_bin != 0,
+                ),
+                None => storage_tree::CleanupReport::default(),
+            };
+
+            *out_report = CleanupReportFfi {
+                files_reclaimed: report.files_reclaimed,
+                bytes_reclaimed: report.bytes_reclaimed,
+                files_failed: report.files_failed,
+                is_dry_run: if report.is_dry_run { 1 } else { 0 },
+            };
+
+            ScanErrorCode::Ok as i32
+        }),
+    )
 }
 
 /// Checks if a filesystem path is an unbypassable protected system location (ADR-013).
@@ -925,15 +1005,24 @@ pub unsafe extern "C" fn cleanup_execute_rule(
 /// `path` must be a null-terminated UTF-16 string pointer.
 #[no_mangle]
 pub unsafe extern "C" fn cleanup_is_path_protected(path: *const u16) -> u8 {
-    catch_ffi_panic(1u8, std::panic::AssertUnwindSafe(|| {
-        if path.is_null() {
-            return 1u8;
-        }
-        match wide_ptr_to_pathbuf(path) {
-            Some(p) => if storage_tree::is_path_protected(&p) { 1u8 } else { 0u8 },
-            None => 1u8,
-        }
-    }))
+    catch_ffi_panic(
+        1u8,
+        std::panic::AssertUnwindSafe(|| {
+            if path.is_null() {
+                return 1u8;
+            }
+            match wide_ptr_to_pathbuf(path) {
+                Some(p) => {
+                    if storage_tree::is_path_protected(&p) {
+                        1u8
+                    } else {
+                        0u8
+                    }
+                }
+                None => 1u8,
+            }
+        }),
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -993,24 +1082,27 @@ pub unsafe extern "C" fn app_catalog_create(
     tree_handle: *const TreeHandle,
     out_catalog: *mut *mut AppCatalogHandle,
 ) -> i32 {
-    catch_ffi_panic(ScanErrorCode::Internal as i32, std::panic::AssertUnwindSafe(|| {
-        if out_catalog.is_null() {
-            return ScanErrorCode::Internal as i32;
-        }
-        *out_catalog = std::ptr::null_mut();
+    catch_ffi_panic(
+        ScanErrorCode::Internal as i32,
+        std::panic::AssertUnwindSafe(|| {
+            if out_catalog.is_null() {
+                return ScanErrorCode::Internal as i32;
+            }
+            *out_catalog = std::ptr::null_mut();
 
-        let tree = if !tree_handle.is_null() {
-            Some(&(*tree_handle).0)
-        } else {
-            None
-        };
+            let tree = if !tree_handle.is_null() {
+                Some(&(*tree_handle).0)
+            } else {
+                None
+            };
 
-        let apps = storage_tree::app_manager::discover_win32_apps(tree);
-        let boxed = Box::new(AppCatalogHandle(apps));
-        *out_catalog = Box::into_raw(boxed);
+            let apps = storage_tree::app_manager::discover_win32_apps(tree);
+            let boxed = Box::new(AppCatalogHandle(apps));
+            *out_catalog = Box::into_raw(boxed);
 
-        ScanErrorCode::Ok as i32
-    }))
+            ScanErrorCode::Ok as i32
+        }),
+    )
 }
 
 /// Returns the number of applications in the catalog.
@@ -1019,13 +1111,16 @@ pub unsafe extern "C" fn app_catalog_create(
 /// `catalog` must be null or a valid pointer from `app_catalog_create`.
 #[no_mangle]
 pub unsafe extern "C" fn app_catalog_count(catalog: *const AppCatalogHandle) -> u32 {
-    catch_ffi_panic(0u32, std::panic::AssertUnwindSafe(|| {
-        if catalog.is_null() {
-            0u32
-        } else {
-            (*catalog).0.len() as u32
-        }
-    }))
+    catch_ffi_panic(
+        0u32,
+        std::panic::AssertUnwindSafe(|| {
+            if catalog.is_null() {
+                0u32
+            } else {
+                (*catalog).0.len() as u32
+            }
+        }),
+    )
 }
 
 /// Retrieves metadata numbers for the application at `index`.
@@ -1038,27 +1133,30 @@ pub unsafe extern "C" fn app_catalog_item(
     index: u32,
     out_info: *mut AppInfoFfi,
 ) -> i32 {
-    catch_ffi_panic(ScanErrorCode::Internal as i32, std::panic::AssertUnwindSafe(|| {
-        if catalog.is_null() || out_info.is_null() {
-            return ScanErrorCode::Internal as i32;
-        }
-        let list = &(*catalog).0;
-        let idx = index as usize;
-        if idx >= list.len() {
-            return ScanErrorCode::InvalidPath as i32;
-        }
+    catch_ffi_panic(
+        ScanErrorCode::Internal as i32,
+        std::panic::AssertUnwindSafe(|| {
+            if catalog.is_null() || out_info.is_null() {
+                return ScanErrorCode::Internal as i32;
+            }
+            let list = &(*catalog).0;
+            let idx = index as usize;
+            if idx >= list.len() {
+                return ScanErrorCode::InvalidPath as i32;
+            }
 
-        let app = &list[idx];
-        *out_info = AppInfoFfi {
-            kind: app.kind as u32,
-            estimated_size: app.estimated_size,
-            actual_size: app.actual_size,
-            file_count: app.file_count,
-            is_system_component: if app.is_system_component { 1 } else { 0 },
-        };
+            let app = &list[idx];
+            *out_info = AppInfoFfi {
+                kind: app.kind as u32,
+                estimated_size: app.estimated_size,
+                actual_size: app.actual_size,
+                file_count: app.file_count,
+                is_system_component: if app.is_system_component { 1 } else { 0 },
+            };
 
-        ScanErrorCode::Ok as i32
-    }))
+            ScanErrorCode::Ok as i32
+        }),
+    )
 }
 
 /// Retrieves a string field for the application at `index`.
@@ -1076,31 +1174,34 @@ pub unsafe extern "C" fn app_catalog_string(
     buffer_len: u32,
     out_actual_len: *mut u32,
 ) -> i32 {
-    catch_ffi_panic(ScanErrorCode::Internal as i32, std::panic::AssertUnwindSafe(|| {
-        if catalog.is_null() || out_actual_len.is_null() {
-            return ScanErrorCode::Internal as i32;
-        }
-        let list = &(*catalog).0;
-        let idx = index as usize;
-        if idx >= list.len() {
-            return ScanErrorCode::InvalidPath as i32;
-        }
+    catch_ffi_panic(
+        ScanErrorCode::Internal as i32,
+        std::panic::AssertUnwindSafe(|| {
+            if catalog.is_null() || out_actual_len.is_null() {
+                return ScanErrorCode::Internal as i32;
+            }
+            let list = &(*catalog).0;
+            let idx = index as usize;
+            if idx >= list.len() {
+                return ScanErrorCode::InvalidPath as i32;
+            }
 
-        let app = &list[idx];
-        let val = match field_id {
-            0 => &app.id,
-            1 => &app.name,
-            2 => &app.version,
-            3 => &app.publisher,
-            4 => &app.install_location,
-            5 => &app.uninstall_string,
-            6 => &app.quiet_uninstall_string,
-            7 => &app.install_date,
-            _ => return ScanErrorCode::InvalidPath as i32,
-        };
+            let app = &list[idx];
+            let val = match field_id {
+                0 => &app.id,
+                1 => &app.name,
+                2 => &app.version,
+                3 => &app.publisher,
+                4 => &app.install_location,
+                5 => &app.uninstall_string,
+                6 => &app.quiet_uninstall_string,
+                7 => &app.install_date,
+                _ => return ScanErrorCode::InvalidPath as i32,
+            };
 
-        copy_str_to_wide_buf(val, out_buffer, buffer_len, out_actual_len)
-    }))
+            copy_str_to_wide_buf(val, out_buffer, buffer_len, out_actual_len)
+        }),
+    )
 }
 
 /// Frees an `AppCatalogHandle`. Safe to call with null.
@@ -1109,11 +1210,14 @@ pub unsafe extern "C" fn app_catalog_string(
 /// `catalog` must be null or a valid pointer from `app_catalog_create`.
 #[no_mangle]
 pub unsafe extern "C" fn app_catalog_destroy(catalog: *mut AppCatalogHandle) {
-    catch_ffi_panic((), std::panic::AssertUnwindSafe(|| {
-        if !catalog.is_null() {
-            drop(Box::from_raw(catalog));
-        }
-    }))
+    catch_ffi_panic(
+        (),
+        std::panic::AssertUnwindSafe(|| {
+            if !catalog.is_null() {
+                drop(Box::from_raw(catalog));
+            }
+        }),
+    )
 }
 
 /// Detects orphaned application leftovers (ADR-014 §4).
@@ -1126,31 +1230,34 @@ pub unsafe extern "C" fn app_leftovers_detect(
     tree_handle: *const TreeHandle,
     out_leftovers: *mut *mut AppLeftoversHandle,
 ) -> i32 {
-    catch_ffi_panic(ScanErrorCode::Internal as i32, std::panic::AssertUnwindSafe(|| {
-        if out_leftovers.is_null() {
-            return ScanErrorCode::Internal as i32;
-        }
-        *out_leftovers = std::ptr::null_mut();
+    catch_ffi_panic(
+        ScanErrorCode::Internal as i32,
+        std::panic::AssertUnwindSafe(|| {
+            if out_leftovers.is_null() {
+                return ScanErrorCode::Internal as i32;
+            }
+            *out_leftovers = std::ptr::null_mut();
 
-        let empty_apps = Vec::new();
-        let installed_apps = if !catalog.is_null() {
-            &(*catalog).0
-        } else {
-            &empty_apps
-        };
+            let empty_apps = Vec::new();
+            let installed_apps = if !catalog.is_null() {
+                &(*catalog).0
+            } else {
+                &empty_apps
+            };
 
-        let tree = if !tree_handle.is_null() {
-            Some(&(*tree_handle).0)
-        } else {
-            None
-        };
+            let tree = if !tree_handle.is_null() {
+                Some(&(*tree_handle).0)
+            } else {
+                None
+            };
 
-        let leftovers = storage_tree::app_manager::find_app_leftovers(installed_apps, tree);
-        let boxed = Box::new(AppLeftoversHandle(leftovers));
-        *out_leftovers = Box::into_raw(boxed);
+            let leftovers = storage_tree::app_manager::find_app_leftovers(installed_apps, tree);
+            let boxed = Box::new(AppLeftoversHandle(leftovers));
+            *out_leftovers = Box::into_raw(boxed);
 
-        ScanErrorCode::Ok as i32
-    }))
+            ScanErrorCode::Ok as i32
+        }),
+    )
 }
 
 /// Returns the number of leftovers found.
@@ -1159,13 +1266,16 @@ pub unsafe extern "C" fn app_leftovers_detect(
 /// `leftovers` must be null or a valid pointer from `app_leftovers_detect`.
 #[no_mangle]
 pub unsafe extern "C" fn app_leftovers_count(leftovers: *const AppLeftoversHandle) -> u32 {
-    catch_ffi_panic(0u32, std::panic::AssertUnwindSafe(|| {
-        if leftovers.is_null() {
-            0u32
-        } else {
-            (*leftovers).0.len() as u32
-        }
-    }))
+    catch_ffi_panic(
+        0u32,
+        std::panic::AssertUnwindSafe(|| {
+            if leftovers.is_null() {
+                0u32
+            } else {
+                (*leftovers).0.len() as u32
+            }
+        }),
+    )
 }
 
 /// Retrieves metadata numbers for the leftover at `index`.
@@ -1178,26 +1288,29 @@ pub unsafe extern "C" fn app_leftovers_item(
     index: u32,
     out_info: *mut AppLeftoverFfi,
 ) -> i32 {
-    catch_ffi_panic(ScanErrorCode::Internal as i32, std::panic::AssertUnwindSafe(|| {
-        if leftovers.is_null() || out_info.is_null() {
-            return ScanErrorCode::Internal as i32;
-        }
-        let list = &(*leftovers).0;
-        let idx = index as usize;
-        if idx >= list.len() {
-            return ScanErrorCode::InvalidPath as i32;
-        }
+    catch_ffi_panic(
+        ScanErrorCode::Internal as i32,
+        std::panic::AssertUnwindSafe(|| {
+            if leftovers.is_null() || out_info.is_null() {
+                return ScanErrorCode::Internal as i32;
+            }
+            let list = &(*leftovers).0;
+            let idx = index as usize;
+            if idx >= list.len() {
+                return ScanErrorCode::InvalidPath as i32;
+            }
 
-        let l = &list[idx];
-        *out_info = AppLeftoverFfi {
-            size: l.size,
-            file_count: l.file_count,
-            location_type: l.location_type as u32,
-            risk_level: l.risk_level as i32,
-        };
+            let l = &list[idx];
+            *out_info = AppLeftoverFfi {
+                size: l.size,
+                file_count: l.file_count,
+                location_type: l.location_type as u32,
+                risk_level: l.risk_level as i32,
+            };
 
-        ScanErrorCode::Ok as i32
-    }))
+            ScanErrorCode::Ok as i32
+        }),
+    )
 }
 
 /// Retrieves string fields for the leftover at `index`.
@@ -1214,27 +1327,30 @@ pub unsafe extern "C" fn app_leftovers_string(
     buffer_len: u32,
     out_actual_len: *mut u32,
 ) -> i32 {
-    catch_ffi_panic(ScanErrorCode::Internal as i32, std::panic::AssertUnwindSafe(|| {
-        if leftovers.is_null() || out_actual_len.is_null() {
-            return ScanErrorCode::Internal as i32;
-        }
-        let list = &(*leftovers).0;
-        let idx = index as usize;
-        if idx >= list.len() {
-            return ScanErrorCode::InvalidPath as i32;
-        }
+    catch_ffi_panic(
+        ScanErrorCode::Internal as i32,
+        std::panic::AssertUnwindSafe(|| {
+            if leftovers.is_null() || out_actual_len.is_null() {
+                return ScanErrorCode::Internal as i32;
+            }
+            let list = &(*leftovers).0;
+            let idx = index as usize;
+            if idx >= list.len() {
+                return ScanErrorCode::InvalidPath as i32;
+            }
 
-        let l = &list[idx];
-        let path_str = l.path.to_string_lossy();
-        let val = match field_id {
-            0 => &l.id,
-            1 => &l.app_name,
-            2 => path_str.as_ref(),
-            _ => return ScanErrorCode::InvalidPath as i32,
-        };
+            let l = &list[idx];
+            let path_str = l.path.to_string_lossy();
+            let val = match field_id {
+                0 => &l.id,
+                1 => &l.app_name,
+                2 => path_str.as_ref(),
+                _ => return ScanErrorCode::InvalidPath as i32,
+            };
 
-        copy_str_to_wide_buf(val, out_buffer, buffer_len, out_actual_len)
-    }))
+            copy_str_to_wide_buf(val, out_buffer, buffer_len, out_actual_len)
+        }),
+    )
 }
 
 /// Frees an `AppLeftoversHandle`. Safe to call with null.
@@ -1243,11 +1359,14 @@ pub unsafe extern "C" fn app_leftovers_string(
 /// `leftovers` must be null or a valid pointer from `app_leftovers_detect`.
 #[no_mangle]
 pub unsafe extern "C" fn app_leftovers_destroy(leftovers: *mut AppLeftoversHandle) {
-    catch_ffi_panic((), std::panic::AssertUnwindSafe(|| {
-        if !leftovers.is_null() {
-            drop(Box::from_raw(leftovers));
-        }
-    }))
+    catch_ffi_panic(
+        (),
+        std::panic::AssertUnwindSafe(|| {
+            if !leftovers.is_null() {
+                drop(Box::from_raw(leftovers));
+            }
+        }),
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -1280,24 +1399,27 @@ pub unsafe extern "C" fn dev_catalog_create(
     tree_handle: *const TreeHandle,
     out_catalog: *mut *mut DevCatalogHandle,
 ) -> i32 {
-    catch_ffi_panic(ScanErrorCode::Internal as i32, std::panic::AssertUnwindSafe(|| {
-        if out_catalog.is_null() {
-            return ScanErrorCode::Internal as i32;
-        }
-        *out_catalog = std::ptr::null_mut();
+    catch_ffi_panic(
+        ScanErrorCode::Internal as i32,
+        std::panic::AssertUnwindSafe(|| {
+            if out_catalog.is_null() {
+                return ScanErrorCode::Internal as i32;
+            }
+            *out_catalog = std::ptr::null_mut();
 
-        let tree = if !tree_handle.is_null() {
-            Some(&(*tree_handle).0)
-        } else {
-            None
-        };
+            let tree = if !tree_handle.is_null() {
+                Some(&(*tree_handle).0)
+            } else {
+                None
+            };
 
-        let artifacts = storage_tree::detect_dev_artifacts(tree);
-        let boxed = Box::new(DevCatalogHandle(artifacts));
-        *out_catalog = Box::into_raw(boxed);
+            let artifacts = storage_tree::detect_dev_artifacts(tree);
+            let boxed = Box::new(DevCatalogHandle(artifacts));
+            *out_catalog = Box::into_raw(boxed);
 
-        ScanErrorCode::Ok as i32
-    }))
+            ScanErrorCode::Ok as i32
+        }),
+    )
 }
 
 /// Returns the number of developer artifacts discovered.
@@ -1306,13 +1428,16 @@ pub unsafe extern "C" fn dev_catalog_create(
 /// `catalog` must be null or a valid pointer from `dev_catalog_create`.
 #[no_mangle]
 pub unsafe extern "C" fn dev_catalog_count(catalog: *const DevCatalogHandle) -> u32 {
-    catch_ffi_panic(0u32, std::panic::AssertUnwindSafe(|| {
-        if catalog.is_null() {
-            0u32
-        } else {
-            (*catalog).0.len() as u32
-        }
-    }))
+    catch_ffi_panic(
+        0u32,
+        std::panic::AssertUnwindSafe(|| {
+            if catalog.is_null() {
+                0u32
+            } else {
+                (*catalog).0.len() as u32
+            }
+        }),
+    )
 }
 
 /// Retrieves numeric metadata for the developer artifact at `index`.
@@ -1325,29 +1450,32 @@ pub unsafe extern "C" fn dev_catalog_item(
     index: u32,
     out_info: *mut DevArtifactFfi,
 ) -> i32 {
-    catch_ffi_panic(ScanErrorCode::Internal as i32, std::panic::AssertUnwindSafe(|| {
-        if catalog.is_null() || out_info.is_null() {
-            return ScanErrorCode::Internal as i32;
-        }
-        let list = &(*catalog).0;
-        let idx = index as usize;
-        if idx >= list.len() {
-            return ScanErrorCode::InvalidPath as i32;
-        }
+    catch_ffi_panic(
+        ScanErrorCode::Internal as i32,
+        std::panic::AssertUnwindSafe(|| {
+            if catalog.is_null() || out_info.is_null() {
+                return ScanErrorCode::Internal as i32;
+            }
+            let list = &(*catalog).0;
+            let idx = index as usize;
+            if idx >= list.len() {
+                return ScanErrorCode::InvalidPath as i32;
+            }
 
-        let item = &list[idx];
-        *out_info = DevArtifactFfi {
-            ecosystem: item.ecosystem as u32,
-            kind: item.kind as u32,
-            size: item.size,
-            file_count: item.file_count,
-            is_dormant: if item.is_dormant { 1 } else { 0 },
-            days_inactive: item.days_inactive,
-            risk_level: item.risk_level as i32,
-        };
+            let item = &list[idx];
+            *out_info = DevArtifactFfi {
+                ecosystem: item.ecosystem as u32,
+                kind: item.kind as u32,
+                size: item.size,
+                file_count: item.file_count,
+                is_dormant: if item.is_dormant { 1 } else { 0 },
+                days_inactive: item.days_inactive,
+                risk_level: item.risk_level as i32,
+            };
 
-        ScanErrorCode::Ok as i32
-    }))
+            ScanErrorCode::Ok as i32
+        }),
+    )
 }
 
 /// Retrieves a string field for the developer artifact at `index`.
@@ -1364,30 +1492,33 @@ pub unsafe extern "C" fn dev_catalog_string(
     buffer_len: u32,
     out_actual_len: *mut u32,
 ) -> i32 {
-    catch_ffi_panic(ScanErrorCode::Internal as i32, std::panic::AssertUnwindSafe(|| {
-        if catalog.is_null() || out_actual_len.is_null() {
-            return ScanErrorCode::Internal as i32;
-        }
-        let list = &(*catalog).0;
-        let idx = index as usize;
-        if idx >= list.len() {
-            return ScanErrorCode::InvalidPath as i32;
-        }
+    catch_ffi_panic(
+        ScanErrorCode::Internal as i32,
+        std::panic::AssertUnwindSafe(|| {
+            if catalog.is_null() || out_actual_len.is_null() {
+                return ScanErrorCode::Internal as i32;
+            }
+            let list = &(*catalog).0;
+            let idx = index as usize;
+            if idx >= list.len() {
+                return ScanErrorCode::InvalidPath as i32;
+            }
 
-        let item = &list[idx];
-        let path_str = item.path.to_string_lossy();
-        let val = match field_id {
-            0 => &item.id,
-            1 => &item.name,
-            2 => &item.project_name,
-            3 => path_str.as_ref(),
-            4 => &item.description,
-            5 => &item.cleanup_command,
-            _ => return ScanErrorCode::InvalidPath as i32,
-        };
+            let item = &list[idx];
+            let path_str = item.path.to_string_lossy();
+            let val = match field_id {
+                0 => &item.id,
+                1 => &item.name,
+                2 => &item.project_name,
+                3 => path_str.as_ref(),
+                4 => &item.description,
+                5 => &item.cleanup_command,
+                _ => return ScanErrorCode::InvalidPath as i32,
+            };
 
-        copy_str_to_wide_buf(val, out_buffer, buffer_len, out_actual_len)
-    }))
+            copy_str_to_wide_buf(val, out_buffer, buffer_len, out_actual_len)
+        }),
+    )
 }
 
 /// Frees a `DevCatalogHandle`. Safe to call with null.
@@ -1396,11 +1527,14 @@ pub unsafe extern "C" fn dev_catalog_string(
 /// `catalog` must be null or a valid pointer from `dev_catalog_create`.
 #[no_mangle]
 pub unsafe extern "C" fn dev_catalog_destroy(catalog: *mut DevCatalogHandle) {
-    catch_ffi_panic((), std::panic::AssertUnwindSafe(|| {
-        if !catalog.is_null() {
-            drop(Box::from_raw(catalog));
-        }
-    }))
+    catch_ffi_panic(
+        (),
+        std::panic::AssertUnwindSafe(|| {
+            if !catalog.is_null() {
+                drop(Box::from_raw(catalog));
+            }
+        }),
+    )
 }
 
 /// Safely cleans a developer artifact directory or cache (ADR-015 §4).
@@ -1415,31 +1549,31 @@ pub unsafe extern "C" fn dev_clean_artifact(
     send_to_recycle_bin: u8,
     out_report: *mut CleanupReportFfi,
 ) -> i32 {
-    catch_ffi_panic(ScanErrorCode::Internal as i32, std::panic::AssertUnwindSafe(|| {
-        if path.is_null() || out_report.is_null() {
-            return ScanErrorCode::Internal as i32;
-        }
+    catch_ffi_panic(
+        ScanErrorCode::Internal as i32,
+        std::panic::AssertUnwindSafe(|| {
+            if path.is_null() || out_report.is_null() {
+                return ScanErrorCode::Internal as i32;
+            }
 
-        let path_buf = match wide_ptr_to_pathbuf(path) {
-            Some(p) => p,
-            None => return ScanErrorCode::InvalidPath as i32,
-        };
+            let path_buf = match wide_ptr_to_pathbuf(path) {
+                Some(p) => p,
+                None => return ScanErrorCode::InvalidPath as i32,
+            };
 
-        let report = storage_tree::clean_dev_artifact(
-            &path_buf,
-            dry_run != 0,
-            send_to_recycle_bin != 0,
-        );
+            let report =
+                storage_tree::clean_dev_artifact(&path_buf, dry_run != 0, send_to_recycle_bin != 0);
 
-        *out_report = CleanupReportFfi {
-            files_reclaimed: report.files_reclaimed,
-            bytes_reclaimed: report.bytes_reclaimed,
-            files_failed: report.files_failed,
-            is_dry_run: if report.is_dry_run { 1 } else { 0 },
-        };
+            *out_report = CleanupReportFfi {
+                files_reclaimed: report.files_reclaimed,
+                bytes_reclaimed: report.bytes_reclaimed,
+                files_failed: report.files_failed,
+                is_dry_run: if report.is_dry_run { 1 } else { 0 },
+            };
 
-        ScanErrorCode::Ok as i32
-    }))
+            ScanErrorCode::Ok as i32
+        }),
+    )
 }
 
 // ---------------------------------------------------------------------------
@@ -1476,26 +1610,29 @@ pub unsafe extern "C" fn index_save_tree(
     tree_handle: *const TreeHandle,
     root_path: *const u16,
 ) -> i32 {
-    catch_ffi_panic(ScanErrorCode::Internal as i32, std::panic::AssertUnwindSafe(|| {
-        if db_path.is_null() || tree_handle.is_null() || root_path.is_null() {
-            return ScanErrorCode::Internal as i32;
-        }
+    catch_ffi_panic(
+        ScanErrorCode::Internal as i32,
+        std::panic::AssertUnwindSafe(|| {
+            if db_path.is_null() || tree_handle.is_null() || root_path.is_null() {
+                return ScanErrorCode::Internal as i32;
+            }
 
-        let db_buf = match wide_ptr_to_pathbuf(db_path) {
-            Some(p) => p,
-            None => return ScanErrorCode::InvalidPath as i32,
-        };
-        let root_buf = match wide_ptr_to_pathbuf(root_path) {
-            Some(p) => p,
-            None => return ScanErrorCode::InvalidPath as i32,
-        };
+            let db_buf = match wide_ptr_to_pathbuf(db_path) {
+                Some(p) => p,
+                None => return ScanErrorCode::InvalidPath as i32,
+            };
+            let root_buf = match wide_ptr_to_pathbuf(root_path) {
+                Some(p) => p,
+                None => return ScanErrorCode::InvalidPath as i32,
+            };
 
-        let tree = &(*tree_handle).0;
-        match storage_tree::save_tree_to_db(&db_buf, tree, &root_buf) {
-            Ok(()) => ScanErrorCode::Ok as i32,
-            Err(_) => ScanErrorCode::Internal as i32,
-        }
-    }))
+            let tree = &(*tree_handle).0;
+            match storage_tree::save_tree_to_db(&db_buf, tree, &root_buf) {
+                Ok(()) => ScanErrorCode::Ok as i32,
+                Err(_) => ScanErrorCode::Internal as i32,
+            }
+        }),
+    )
 }
 
 /// Hydrates an in-memory `StorageTree` directly from the SQLite index in < 100ms (ADR-016).
@@ -1508,31 +1645,34 @@ pub unsafe extern "C" fn index_load_tree(
     root_path: *const u16,
     out_tree: *mut *mut TreeHandle,
 ) -> i32 {
-    catch_ffi_panic(ScanErrorCode::Internal as i32, std::panic::AssertUnwindSafe(|| {
-        if db_path.is_null() || root_path.is_null() || out_tree.is_null() {
-            return ScanErrorCode::Internal as i32;
-        }
-        *out_tree = std::ptr::null_mut();
-
-        let db_buf = match wide_ptr_to_pathbuf(db_path) {
-            Some(p) => p,
-            None => return ScanErrorCode::InvalidPath as i32,
-        };
-        let root_buf = match wide_ptr_to_pathbuf(root_path) {
-            Some(p) => p,
-            None => return ScanErrorCode::InvalidPath as i32,
-        };
-
-        match storage_tree::load_tree_from_db(&db_buf, &root_buf) {
-            Ok(Some(tree)) => {
-                let boxed = Box::new(TreeHandle(tree));
-                *out_tree = Box::into_raw(boxed);
-                ScanErrorCode::Ok as i32
+    catch_ffi_panic(
+        ScanErrorCode::Internal as i32,
+        std::panic::AssertUnwindSafe(|| {
+            if db_path.is_null() || root_path.is_null() || out_tree.is_null() {
+                return ScanErrorCode::Internal as i32;
             }
-            Ok(None) => ScanErrorCode::InvalidPath as i32,
-            Err(_) => ScanErrorCode::Internal as i32,
-        }
-    }))
+            *out_tree = std::ptr::null_mut();
+
+            let db_buf = match wide_ptr_to_pathbuf(db_path) {
+                Some(p) => p,
+                None => return ScanErrorCode::InvalidPath as i32,
+            };
+            let root_buf = match wide_ptr_to_pathbuf(root_path) {
+                Some(p) => p,
+                None => return ScanErrorCode::InvalidPath as i32,
+            };
+
+            match storage_tree::load_tree_from_db(&db_buf, &root_buf) {
+                Ok(Some(tree)) => {
+                    let boxed = Box::new(TreeHandle(tree));
+                    *out_tree = Box::into_raw(boxed);
+                    ScanErrorCode::Ok as i32
+                }
+                Ok(None) => ScanErrorCode::InvalidPath as i32,
+                Err(_) => ScanErrorCode::Internal as i32,
+            }
+        }),
+    )
 }
 
 /// Incrementally synchronizes filesystem changes into the tree and database (ADR-016).
@@ -1546,35 +1686,42 @@ pub unsafe extern "C" fn index_sync_tree(
     root_path: *const u16,
     out_report: *mut IndexSyncReportFfi,
 ) -> i32 {
-    catch_ffi_panic(ScanErrorCode::Internal as i32, std::panic::AssertUnwindSafe(|| {
-        if db_path.is_null() || tree_handle.is_null() || root_path.is_null() || out_report.is_null() {
-            return ScanErrorCode::Internal as i32;
-        }
-
-        let db_buf = match wide_ptr_to_pathbuf(db_path) {
-            Some(p) => p,
-            None => return ScanErrorCode::InvalidPath as i32,
-        };
-        let root_buf = match wide_ptr_to_pathbuf(root_path) {
-            Some(p) => p,
-            None => return ScanErrorCode::InvalidPath as i32,
-        };
-
-        let tree = &mut (*tree_handle).0;
-        match storage_tree::sync_tree_incremental(&db_buf, tree, &root_buf) {
-            Ok(report) => {
-                *out_report = IndexSyncReportFfi {
-                    nodes_added: report.nodes_added,
-                    nodes_updated: report.nodes_updated,
-                    nodes_removed: report.nodes_removed,
-                    bytes_delta: report.bytes_delta,
-                    sync_duration_ms: report.sync_duration_ms,
-                };
-                ScanErrorCode::Ok as i32
+    catch_ffi_panic(
+        ScanErrorCode::Internal as i32,
+        std::panic::AssertUnwindSafe(|| {
+            if db_path.is_null()
+                || tree_handle.is_null()
+                || root_path.is_null()
+                || out_report.is_null()
+            {
+                return ScanErrorCode::Internal as i32;
             }
-            Err(_) => ScanErrorCode::Internal as i32,
-        }
-    }))
+
+            let db_buf = match wide_ptr_to_pathbuf(db_path) {
+                Some(p) => p,
+                None => return ScanErrorCode::InvalidPath as i32,
+            };
+            let root_buf = match wide_ptr_to_pathbuf(root_path) {
+                Some(p) => p,
+                None => return ScanErrorCode::InvalidPath as i32,
+            };
+
+            let tree = &mut (*tree_handle).0;
+            match storage_tree::sync_tree_incremental(&db_buf, tree, &root_buf) {
+                Ok(report) => {
+                    *out_report = IndexSyncReportFfi {
+                        nodes_added: report.nodes_added,
+                        nodes_updated: report.nodes_updated,
+                        nodes_removed: report.nodes_removed,
+                        bytes_delta: report.bytes_delta,
+                        sync_duration_ms: report.sync_duration_ms,
+                    };
+                    ScanErrorCode::Ok as i32
+                }
+                Err(_) => ScanErrorCode::Internal as i32,
+            }
+        }),
+    )
 }
 
 /// Retrieves indexed volume metrics (ADR-016).
@@ -1587,35 +1734,38 @@ pub unsafe extern "C" fn index_get_stats(
     root_path: *const u16,
     out_stats: *mut IndexStatsFfi,
 ) -> i32 {
-    catch_ffi_panic(ScanErrorCode::Internal as i32, std::panic::AssertUnwindSafe(|| {
-        if db_path.is_null() || root_path.is_null() || out_stats.is_null() {
-            return ScanErrorCode::Internal as i32;
-        }
-
-        let db_buf = match wide_ptr_to_pathbuf(db_path) {
-            Some(p) => p,
-            None => return ScanErrorCode::InvalidPath as i32,
-        };
-        let root_buf = match wide_ptr_to_pathbuf(root_path) {
-            Some(p) => p,
-            None => return ScanErrorCode::InvalidPath as i32,
-        };
-
-        match storage_tree::get_index_stats(&db_buf, &root_buf) {
-            Ok(Some(stats)) => {
-                *out_stats = IndexStatsFfi {
-                    volume_id: stats.volume_id,
-                    node_count: stats.node_count,
-                    total_size: stats.total_size,
-                    last_scan_time: stats.last_scan_time,
-                    last_usn: stats.last_usn,
-                };
-                ScanErrorCode::Ok as i32
+    catch_ffi_panic(
+        ScanErrorCode::Internal as i32,
+        std::panic::AssertUnwindSafe(|| {
+            if db_path.is_null() || root_path.is_null() || out_stats.is_null() {
+                return ScanErrorCode::Internal as i32;
             }
-            Ok(None) => ScanErrorCode::InvalidPath as i32,
-            Err(_) => ScanErrorCode::Internal as i32,
-        }
-    }))
+
+            let db_buf = match wide_ptr_to_pathbuf(db_path) {
+                Some(p) => p,
+                None => return ScanErrorCode::InvalidPath as i32,
+            };
+            let root_buf = match wide_ptr_to_pathbuf(root_path) {
+                Some(p) => p,
+                None => return ScanErrorCode::InvalidPath as i32,
+            };
+
+            match storage_tree::get_index_stats(&db_buf, &root_buf) {
+                Ok(Some(stats)) => {
+                    *out_stats = IndexStatsFfi {
+                        volume_id: stats.volume_id,
+                        node_count: stats.node_count,
+                        total_size: stats.total_size,
+                        last_scan_time: stats.last_scan_time,
+                        last_usn: stats.last_usn,
+                    };
+                    ScanErrorCode::Ok as i32
+                }
+                Ok(None) => ScanErrorCode::InvalidPath as i32,
+                Err(_) => ScanErrorCode::Internal as i32,
+            }
+        }),
+    )
 }
 
 /// Deletes an indexed volume from SQLite (ADR-016).
@@ -1628,28 +1778,31 @@ pub unsafe extern "C" fn index_delete_volume(
     root_path: *const u16,
     out_deleted: *mut u8,
 ) -> i32 {
-    catch_ffi_panic(ScanErrorCode::Internal as i32, std::panic::AssertUnwindSafe(|| {
-        if db_path.is_null() || root_path.is_null() || out_deleted.is_null() {
-            return ScanErrorCode::Internal as i32;
-        }
-
-        let db_buf = match wide_ptr_to_pathbuf(db_path) {
-            Some(p) => p,
-            None => return ScanErrorCode::InvalidPath as i32,
-        };
-        let root_buf = match wide_ptr_to_pathbuf(root_path) {
-            Some(p) => p,
-            None => return ScanErrorCode::InvalidPath as i32,
-        };
-
-        match storage_tree::delete_indexed_volume(&db_buf, &root_buf) {
-            Ok(deleted) => {
-                *out_deleted = if deleted { 1 } else { 0 };
-                ScanErrorCode::Ok as i32
+    catch_ffi_panic(
+        ScanErrorCode::Internal as i32,
+        std::panic::AssertUnwindSafe(|| {
+            if db_path.is_null() || root_path.is_null() || out_deleted.is_null() {
+                return ScanErrorCode::Internal as i32;
             }
-            Err(_) => ScanErrorCode::Internal as i32,
-        }
-    }))
+
+            let db_buf = match wide_ptr_to_pathbuf(db_path) {
+                Some(p) => p,
+                None => return ScanErrorCode::InvalidPath as i32,
+            };
+            let root_buf = match wide_ptr_to_pathbuf(root_path) {
+                Some(p) => p,
+                None => return ScanErrorCode::InvalidPath as i32,
+            };
+
+            match storage_tree::delete_indexed_volume(&db_buf, &root_buf) {
+                Ok(deleted) => {
+                    *out_deleted = if deleted { 1 } else { 0 };
+                    ScanErrorCode::Ok as i32
+                }
+                Err(_) => ScanErrorCode::Internal as i32,
+            }
+        }),
+    )
 }
 
 #[cfg(test)]
@@ -1721,7 +1874,9 @@ mod tests {
 
     #[test]
     fn scan_drive_reports_invalid_path_without_panicking() {
-        let missing: Vec<u16> = "Z:\\this_should_not_exist_ffi_test\0".encode_utf16().collect();
+        let missing: Vec<u16> = "Z:\\this_should_not_exist_ffi_test\0"
+            .encode_utf16()
+            .collect();
         unsafe {
             let cancel = cancel_token_create();
             let mut result: *mut ScanResultHandle = std::ptr::null_mut();
@@ -1752,12 +1907,23 @@ mod tests {
     /// Helper: scan a temp directory and return the raw ScanResultHandle.
     unsafe fn scan_temp_dir(dir: &std::path::Path) -> *mut ScanResultHandle {
         use std::os::windows::ffi::OsStrExt;
-        let wide: Vec<u16> = dir.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+        let wide: Vec<u16> = dir
+            .as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
         let cancel = cancel_token_create();
         let mut result: *mut ScanResultHandle = std::ptr::null_mut();
         let mut err_msg: *mut u16 = std::ptr::null_mut();
 
-        let code = scan_drive(wide.as_ptr(), cancel, None, std::ptr::null_mut(), &mut result, &mut err_msg);
+        let code = scan_drive(
+            wide.as_ptr(),
+            cancel,
+            None,
+            std::ptr::null_mut(),
+            &mut result,
+            &mut err_msg,
+        );
         assert_eq!(code, ScanErrorCode::Ok as i32, "scan_drive failed");
         assert!(!result.is_null());
         cancel_token_destroy(cancel);
@@ -1801,7 +1967,15 @@ mod tests {
             let mut child_ids = [0u64; 10];
             let mut out_count: u32 = 0;
             let mut out_total: u32 = 0;
-            let code = tree_children(tree, root_id, 0, 10, child_ids.as_mut_ptr(), &mut out_count, &mut out_total);
+            let code = tree_children(
+                tree,
+                root_id,
+                0,
+                10,
+                child_ids.as_mut_ptr(),
+                &mut out_count,
+                &mut out_total,
+            );
             assert_eq!(code, ScanErrorCode::Ok as i32);
             assert_eq!(out_total, 2);
             assert_eq!(out_count, 2);
@@ -1826,7 +2000,8 @@ mod tests {
             std::fs::write(
                 dir.path().join(format!("file{i:02}.bin")),
                 vec![b'x'; (i as usize + 1) * 100],
-            ).unwrap();
+            )
+            .unwrap();
         }
 
         unsafe {
@@ -1897,7 +2072,9 @@ mod tests {
             let code2 = tree_create(scan_result, &mut tree2, &mut err2);
             assert_eq!(code2, ScanErrorCode::Internal as i32);
             assert!(tree2.is_null());
-            if !err2.is_null() { free_error_message(err2); }
+            if !err2.is_null() {
+                free_error_message(err2);
+            }
 
             tree_destroy(tree1);
             scan_result_destroy(scan_result);
@@ -2001,12 +2178,26 @@ mod tests {
             let mut child_ids = [0u64; 10];
             let mut child_count = 0u32;
             let mut total_children = 0u32;
-            tree_children(tree, root, 0, 10, child_ids.as_mut_ptr(), &mut child_count, &mut total_children);
+            tree_children(
+                tree,
+                root,
+                0,
+                10,
+                child_ids.as_mut_ptr(),
+                &mut child_count,
+                &mut total_children,
+            );
             assert_eq!(child_count, 1);
 
             let mut sub_name_buf = [0u16; 64];
             let mut sub_name_len = 0u32;
-            tree_node_name(tree, child_ids[0], sub_name_buf.as_mut_ptr(), 64, &mut sub_name_len);
+            tree_node_name(
+                tree,
+                child_ids[0],
+                sub_name_buf.as_mut_ptr(),
+                64,
+                &mut sub_name_len,
+            );
             let sub_name = String::from_utf16_lossy(&sub_name_buf[..sub_name_len as usize]);
             assert_eq!(sub_name, "sub_dir");
 
@@ -2051,11 +2242,11 @@ mod tests {
             assert!(total >= 2);
             assert!(count >= 2);
 
-            for i in 0..count as usize {
-                assert!(rects[i].width > 0.0);
-                assert!(rects[i].height > 0.0);
-                assert!(rects[i].x >= 0.0 && rects[i].x + rects[i].width <= 1000.5);
-                assert!(rects[i].y >= 0.0 && rects[i].y + rects[i].height <= 800.5);
+            for rect in rects.iter().take(count as usize) {
+                assert!(rect.width > 0.0);
+                assert!(rect.height > 0.0);
+                assert!(rect.x >= 0.0 && rect.x + rect.width <= 1000.5);
+                assert!(rect.y >= 0.0 && rect.y + rect.height <= 800.5);
             }
 
             tree_destroy(tree);
@@ -2077,7 +2268,10 @@ mod tests {
             let mut err_msg: *mut u16 = std::ptr::null_mut();
             tree_create(scan_result, &mut tree, &mut err_msg);
 
-            let query_str: Vec<u16> = "ext:vhdx".encode_utf16().chain(std::iter::once(0)).collect();
+            let query_str: Vec<u16> = "ext:vhdx"
+                .encode_utf16()
+                .chain(std::iter::once(0))
+                .collect();
             let mut results = [std::mem::zeroed::<SearchResultFfi>(); 10];
             let mut count = 0u32;
 
@@ -2092,7 +2286,10 @@ mod tests {
             assert_eq!(code, ScanErrorCode::Ok as i32);
             assert_eq!(count, 1);
             assert_eq!(results[0].size, 20480);
-            assert_eq!(results[0].category, storage_tree::FileCategory::Other as i32);
+            assert_eq!(
+                results[0].category,
+                storage_tree::FileCategory::Other as i32
+            );
 
             tree_destroy(tree);
             scan_result_destroy(scan_result);
@@ -2143,7 +2340,10 @@ mod tests {
             assert!(report.files_reclaimed >= 1);
 
             // Verify is_path_protected helper via FFI
-            let sys_path: Vec<u16> = "C:\\Windows\\System32".encode_utf16().chain(std::iter::once(0)).collect();
+            let sys_path: Vec<u16> = "C:\\Windows\\System32"
+                .encode_utf16()
+                .chain(std::iter::once(0))
+                .collect();
             assert_eq!(cleanup_is_path_protected(sys_path.as_ptr()), 1);
 
             tree_destroy(tree);
@@ -2226,7 +2426,10 @@ mod tests {
             }
 
             // Test cleaning safety guardrail via dev_clean_artifact
-            let git_path: Vec<u16> = "C:\\Repo\\.git".encode_utf16().chain(std::iter::once(0)).collect();
+            let git_path: Vec<u16> = "C:\\Repo\\.git"
+                .encode_utf16()
+                .chain(std::iter::once(0))
+                .collect();
             let mut report = std::mem::zeroed::<CleanupReportFfi>();
             let clean_code = dev_clean_artifact(git_path.as_ptr(), 1, 1, &mut report);
             assert_eq!(clean_code, ScanErrorCode::Ok as i32);
@@ -2248,8 +2451,16 @@ mod tests {
         std::fs::write(test_dir.join("test.bin"), vec![b'a'; 1024]).unwrap();
 
         let db_path = dir.path().join("index.db");
-        let db_wide: Vec<u16> = db_path.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
-        let root_wide: Vec<u16> = test_dir.as_os_str().encode_wide().chain(std::iter::once(0)).collect();
+        let db_wide: Vec<u16> = db_path
+            .as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
+        let root_wide: Vec<u16> = test_dir
+            .as_os_str()
+            .encode_wide()
+            .chain(std::iter::once(0))
+            .collect();
 
         unsafe {
             let scan_result = scan_temp_dir(&test_dir);
@@ -2278,7 +2489,12 @@ mod tests {
 
             // 4. Sync tree
             let mut sync_rep = std::mem::zeroed::<IndexSyncReportFfi>();
-            let sync_code = index_sync_tree(db_wide.as_ptr(), loaded_tree, root_wide.as_ptr(), &mut sync_rep);
+            let sync_code = index_sync_tree(
+                db_wide.as_ptr(),
+                loaded_tree,
+                root_wide.as_ptr(),
+                &mut sync_rep,
+            );
             assert_eq!(sync_code, ScanErrorCode::Ok as i32);
 
             // 5. Delete volume
@@ -2293,4 +2509,3 @@ mod tests {
         }
     }
 }
-

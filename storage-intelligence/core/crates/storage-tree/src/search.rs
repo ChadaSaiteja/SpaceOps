@@ -3,9 +3,9 @@
 //! Provides sub-5ms in-memory queries with rich token filtering (name, extension, size,
 //! category, kind), space-aware relevance ranking, and bounded top-K result limits.
 
-use common::NodeId;
 use crate::tree::{NodeKind, StorageTree};
 use crate::treemap::{classify_extension, FileCategory};
+use common::NodeId;
 use std::cmp::Reverse;
 use std::collections::BinaryHeap;
 use std::path::PathBuf;
@@ -44,7 +44,10 @@ impl SearchQuery {
                 }
             } else if let Some(size_spec) = lower.strip_prefix("size:") {
                 parse_size_filter(size_spec, &mut query);
-            } else if let Some(cat_str) = lower.strip_prefix("type:").or_else(|| lower.strip_prefix("cat:")) {
+            } else if let Some(cat_str) = lower
+                .strip_prefix("type:")
+                .or_else(|| lower.strip_prefix("cat:"))
+            {
                 query.category = parse_category(cat_str);
             } else if let Some(kind_str) = lower.strip_prefix("kind:") {
                 query.kind = match kind_str {
@@ -54,7 +57,11 @@ impl SearchQuery {
                 };
             } else if lower.starts_with(">") || lower.starts_with("<") {
                 parse_size_filter(&lower, &mut query);
-            } else if lower.starts_with('.') && lower.len() > 1 && !lower.contains('\\') && !lower.contains('/') {
+            } else if lower.starts_with('.')
+                && lower.len() > 1
+                && !lower.contains('\\')
+                && !lower.contains('/')
+            {
                 query.extension = Some(lower[1..].to_string());
             } else {
                 text_tokens.push(lower);
@@ -150,7 +157,8 @@ impl StorageTree {
         }
 
         // Min-heap tracking top K results: (score, size, node_index)
-        let mut heap: BinaryHeap<Reverse<(u32, u64, usize)>> = BinaryHeap::with_capacity(max_results + 1);
+        let mut heap: BinaryHeap<Reverse<(u32, u64, usize)>> =
+            BinaryHeap::with_capacity(max_results + 1);
 
         for (idx, node) in self.nodes.iter().enumerate() {
             // 1. Kind filter
@@ -209,7 +217,7 @@ impl StorageTree {
             // ADR-012: Space-aware size weighting (larger files score higher within same match tier)
             let size_boost = if node.size > 0 {
                 // Log2 scale boost capped at 300 points
-                (node.size.ilog2() * 5).min(300) as u32
+                (node.size.ilog2() * 5).min(300)
             } else {
                 0
             };
@@ -227,14 +235,17 @@ impl StorageTree {
         }
 
         // Extract and sort results descending
-        let mut ranked_indices: Vec<(u32, u64, usize)> = heap.into_iter().map(|Reverse(x)| x).collect();
+        let mut ranked_indices: Vec<(u32, u64, usize)> =
+            heap.into_iter().map(|Reverse(x)| x).collect();
         ranked_indices.sort_by(|a, b| b.0.cmp(&a.0).then_with(|| b.1.cmp(&a.1)));
 
         // Reconstruct paths only for the top K results
         let mut results = Vec::with_capacity(ranked_indices.len());
         for (score, _, idx) in ranked_indices {
             let node = &self.nodes[idx];
-            let path = self.full_path(node.id).unwrap_or_else(|| PathBuf::from(&node.name));
+            let path = self
+                .full_path(node.id)
+                .unwrap_or_else(|| PathBuf::from(&node.name));
             let category = classify_extension(node.extension.as_deref());
 
             results.push(SearchResult {
@@ -255,8 +266,8 @@ impl StorageTree {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::{FileAttributeFlags, NodeId, ScanEvent};
     use crate::tree::StorageTree;
+    use common::{FileAttributeFlags, NodeId, ScanEvent};
 
     fn build_test_tree() -> StorageTree {
         let events = vec![

@@ -100,5 +100,3 @@ pub fn dir_metadata_from_fast_entry(entry: &winfs::FastDirEntry) -> DirMetadata 
         is_reparse_point: entry.is_reparse_point,
     }
 }
-
-

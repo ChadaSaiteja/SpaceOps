@@ -5,8 +5,8 @@ use std::io;
 use std::os::windows::ffi::OsStringExt;
 use windows::Win32::Foundation::HANDLE;
 use windows::Win32::System::Ioctl::{
-    FSCTL_QUERY_USN_JOURNAL, FSCTL_READ_USN_JOURNAL, READ_USN_JOURNAL_DATA_V0,
-    USN_JOURNAL_DATA_V0, USN_RECORD_V2,
+    FSCTL_QUERY_USN_JOURNAL, FSCTL_READ_USN_JOURNAL, READ_USN_JOURNAL_DATA_V0, USN_JOURNAL_DATA_V0,
+    USN_RECORD_V2,
 };
 use windows::Win32::System::IO::DeviceIoControl;
 
@@ -122,7 +122,8 @@ pub fn read_usn_changes(
                 break;
             }
 
-            let major_version = u16::from_le_bytes(buffer[offset + 4..offset + 6].try_into().unwrap());
+            let major_version =
+                u16::from_le_bytes(buffer[offset + 4..offset + 6].try_into().unwrap());
             if major_version == 2 {
                 let file_ref =
                     u64::from_le_bytes(buffer[offset + 8..offset + 16].try_into().unwrap())
@@ -145,6 +146,7 @@ pub fn read_usn_changes(
                 let name_start = offset + name_offset;
                 let name_end = name_start + name_len;
                 let file_name = if name_end <= offset + record_len {
+                    #[allow(clippy::chunks_exact_to_as_chunks)]
                     let chars: Vec<u16> = buffer[name_start..name_end]
                         .chunks_exact(2)
                         .map(|c| u16::from_le_bytes([c[0], c[1]]))

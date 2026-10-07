@@ -5,8 +5,8 @@
 //! (ADR-009 #2). Children pre-sorted by size descending during build.
 
 use common::{FileAttributeFlags, NodeId, ScanEvent};
-use std::collections::BinaryHeap;
 use std::cmp::Reverse;
+use std::collections::BinaryHeap;
 use std::path::PathBuf;
 use std::time::SystemTime;
 
@@ -144,16 +144,24 @@ impl StorageTree {
         let mut next_tree_id: u64 = 0;
 
         // Helper: find the max scanner NodeId to pre-size the lookup table.
-        let max_scanner_id = events.iter().filter_map(|e| match e {
-            ScanEvent::EnteredDirectory { id, .. } => Some(id.0),
-            ScanEvent::DirectoryComplete { id, .. } => Some(id.0),
-            _ => None,
-        }).max().unwrap_or(0);
+        let max_scanner_id = events
+            .iter()
+            .filter_map(|e| match e {
+                ScanEvent::EnteredDirectory { id, .. } => Some(id.0),
+                ScanEvent::DirectoryComplete { id, .. } => Some(id.0),
+                _ => None,
+            })
+            .max()
+            .unwrap_or(0);
         scanner_id_to_index.resize(max_scanner_id as usize + 1, usize::MAX);
 
         for event in &events {
             match event {
-                ScanEvent::EnteredDirectory { parent_id, id, meta } => {
+                ScanEvent::EnteredDirectory {
+                    parent_id,
+                    id,
+                    meta,
+                } => {
                     let tree_index = nodes.len();
                     let kind = if meta.is_reparse_point {
                         NodeKind::ReparsePoint
@@ -224,7 +232,11 @@ impl StorageTree {
                     children[parent_idx].push(node_id);
                 }
 
-                ScanEvent::Inaccessible { parent_id, path, reason: _ } => {
+                ScanEvent::Inaccessible {
+                    parent_id,
+                    path,
+                    reason: _,
+                } => {
                     let _tree_index = nodes.len();
                     let node_id = NodeId(next_tree_id);
                     next_tree_id += 1;
@@ -372,7 +384,10 @@ impl StorageTree {
         }
 
         let prefix = format!("{}\\", root_clean);
-        if !target_clean.to_ascii_lowercase().starts_with(&prefix.to_ascii_lowercase()) {
+        if !target_clean
+            .to_ascii_lowercase()
+            .starts_with(&prefix.to_ascii_lowercase())
+        {
             return None;
         }
 
@@ -390,10 +405,7 @@ impl StorageTree {
                     break;
                 }
             }
-            match found {
-                Some(next_id) => current = next_id,
-                None => return None,
-            }
+            current = found?;
         }
         Some(current)
     }
@@ -514,13 +526,18 @@ impl StorageTree {
             if delta_size > 0 {
                 self.nodes[p_idx].size = self.nodes[p_idx].size.saturating_add(delta_size as u64);
             } else if delta_size < 0 {
-                self.nodes[p_idx].size = self.nodes[p_idx].size.saturating_sub((-delta_size) as u64);
+                self.nodes[p_idx].size =
+                    self.nodes[p_idx].size.saturating_sub((-delta_size) as u64);
             }
 
             if delta_files > 0 {
-                self.nodes[p_idx].file_count = self.nodes[p_idx].file_count.saturating_add(delta_files as u64);
+                self.nodes[p_idx].file_count = self.nodes[p_idx]
+                    .file_count
+                    .saturating_add(delta_files as u64);
             } else if delta_files < 0 {
-                self.nodes[p_idx].file_count = self.nodes[p_idx].file_count.saturating_sub((-delta_files) as u64);
+                self.nodes[p_idx].file_count = self.nodes[p_idx]
+                    .file_count
+                    .saturating_sub((-delta_files) as u64);
             }
 
             let children_vec = &mut self.children[p_idx];
@@ -542,7 +559,7 @@ impl StorageTree {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use common::{DirMetadata, FileMetadata, FileAttributeFlags, NodeId, ScanEvent};
+    use common::{DirMetadata, FileAttributeFlags, FileMetadata, NodeId, ScanEvent};
     use std::ffi::OsString;
 
     fn dir_meta(name: &str, is_reparse: bool) -> DirMetadata {
@@ -714,9 +731,24 @@ mod tests {
                 id: NodeId(2),
                 meta: dir_meta("level2", false),
             },
-            ScanEvent::DirectoryComplete { id: NodeId(2), total_size: 0, file_count: 0, dir_count: 0 },
-            ScanEvent::DirectoryComplete { id: NodeId(1), total_size: 0, file_count: 0, dir_count: 1 },
-            ScanEvent::DirectoryComplete { id: NodeId(0), total_size: 0, file_count: 0, dir_count: 2 },
+            ScanEvent::DirectoryComplete {
+                id: NodeId(2),
+                total_size: 0,
+                file_count: 0,
+                dir_count: 0,
+            },
+            ScanEvent::DirectoryComplete {
+                id: NodeId(1),
+                total_size: 0,
+                file_count: 0,
+                dir_count: 1,
+            },
+            ScanEvent::DirectoryComplete {
+                id: NodeId(0),
+                total_size: 0,
+                file_count: 0,
+                dir_count: 2,
+            },
         ];
 
         let tree = StorageTree::build(events).unwrap();
@@ -725,7 +757,10 @@ mod tests {
         let ancestors = tree.ancestors(NodeId(2));
         assert_eq!(ancestors.len(), 3);
         // Bottom-up: level2, level1, root
-        let names: Vec<&str> = ancestors.iter().map(|id| tree.node(*id).unwrap().name).collect();
+        let names: Vec<&str> = ancestors
+            .iter()
+            .map(|id| tree.node(*id).unwrap().name)
+            .collect();
         assert_eq!(names, vec!["level2", "level1", "root"]);
     }
 
@@ -746,8 +781,18 @@ mod tests {
                 parent_id: NodeId(1),
                 meta: file_meta("readme.md", 50, Some("md")),
             },
-            ScanEvent::DirectoryComplete { id: NodeId(1), total_size: 50, file_count: 1, dir_count: 0 },
-            ScanEvent::DirectoryComplete { id: NodeId(0), total_size: 50, file_count: 1, dir_count: 1 },
+            ScanEvent::DirectoryComplete {
+                id: NodeId(1),
+                total_size: 50,
+                file_count: 1,
+                dir_count: 0,
+            },
+            ScanEvent::DirectoryComplete {
+                id: NodeId(0),
+                total_size: 50,
+                file_count: 1,
+                dir_count: 1,
+            },
         ];
 
         let tree = StorageTree::build(events).unwrap();
@@ -765,11 +810,26 @@ mod tests {
                 id: NodeId(0),
                 meta: dir_meta("root", false),
             },
-            ScanEvent::FileFound { parent_id: NodeId(0), meta: file_meta("a.txt", 100, None) },
-            ScanEvent::FileFound { parent_id: NodeId(0), meta: file_meta("b.txt", 500, None) },
-            ScanEvent::FileFound { parent_id: NodeId(0), meta: file_meta("c.txt", 300, None) },
-            ScanEvent::FileFound { parent_id: NodeId(0), meta: file_meta("d.txt", 50, None) },
-            ScanEvent::FileFound { parent_id: NodeId(0), meta: file_meta("e.txt", 800, None) },
+            ScanEvent::FileFound {
+                parent_id: NodeId(0),
+                meta: file_meta("a.txt", 100, None),
+            },
+            ScanEvent::FileFound {
+                parent_id: NodeId(0),
+                meta: file_meta("b.txt", 500, None),
+            },
+            ScanEvent::FileFound {
+                parent_id: NodeId(0),
+                meta: file_meta("c.txt", 300, None),
+            },
+            ScanEvent::FileFound {
+                parent_id: NodeId(0),
+                meta: file_meta("d.txt", 50, None),
+            },
+            ScanEvent::FileFound {
+                parent_id: NodeId(0),
+                meta: file_meta("e.txt", 800, None),
+            },
             ScanEvent::DirectoryComplete {
                 id: NodeId(0),
                 total_size: 1750,
@@ -794,15 +854,31 @@ mod tests {
                 id: NodeId(0),
                 meta: dir_meta("root", false),
             },
-            ScanEvent::FileFound { parent_id: NodeId(0), meta: file_meta("top.txt", 100, None) },
+            ScanEvent::FileFound {
+                parent_id: NodeId(0),
+                meta: file_meta("top.txt", 100, None),
+            },
             ScanEvent::EnteredDirectory {
                 parent_id: Some(NodeId(0)),
                 id: NodeId(1),
                 meta: dir_meta("sub", false),
             },
-            ScanEvent::FileFound { parent_id: NodeId(1), meta: file_meta("deep.txt", 900, None) },
-            ScanEvent::DirectoryComplete { id: NodeId(1), total_size: 900, file_count: 1, dir_count: 0 },
-            ScanEvent::DirectoryComplete { id: NodeId(0), total_size: 1000, file_count: 2, dir_count: 1 },
+            ScanEvent::FileFound {
+                parent_id: NodeId(1),
+                meta: file_meta("deep.txt", 900, None),
+            },
+            ScanEvent::DirectoryComplete {
+                id: NodeId(1),
+                total_size: 900,
+                file_count: 1,
+                dir_count: 0,
+            },
+            ScanEvent::DirectoryComplete {
+                id: NodeId(0),
+                total_size: 1000,
+                file_count: 2,
+                dir_count: 1,
+            },
         ];
 
         let tree = StorageTree::build(events).unwrap();
@@ -826,8 +902,18 @@ mod tests {
                 id: NodeId(1),
                 meta: dir_meta("junction_link", true),
             },
-            ScanEvent::DirectoryComplete { id: NodeId(1), total_size: 0, file_count: 0, dir_count: 0 },
-            ScanEvent::DirectoryComplete { id: NodeId(0), total_size: 0, file_count: 0, dir_count: 1 },
+            ScanEvent::DirectoryComplete {
+                id: NodeId(1),
+                total_size: 0,
+                file_count: 0,
+                dir_count: 0,
+            },
+            ScanEvent::DirectoryComplete {
+                id: NodeId(0),
+                total_size: 0,
+                file_count: 0,
+                dir_count: 1,
+            },
         ];
 
         let tree = StorageTree::build(events).unwrap();
@@ -851,7 +937,12 @@ mod tests {
                 path: PathBuf::from("root\\blocked"),
                 reason: common::InaccessibleReason::PermissionDenied,
             },
-            ScanEvent::DirectoryComplete { id: NodeId(0), total_size: 0, file_count: 0, dir_count: 0 },
+            ScanEvent::DirectoryComplete {
+                id: NodeId(0),
+                total_size: 0,
+                file_count: 0,
+                dir_count: 0,
+            },
         ];
 
         let tree = StorageTree::build(events).unwrap();
@@ -872,7 +963,12 @@ mod tests {
                 id: NodeId(0),
                 meta: dir_meta("root", false),
             },
-            ScanEvent::DirectoryComplete { id: NodeId(0), total_size: 0, file_count: 0, dir_count: 0 },
+            ScanEvent::DirectoryComplete {
+                id: NodeId(0),
+                total_size: 0,
+                file_count: 0,
+                dir_count: 0,
+            },
         ];
 
         let tree = StorageTree::build(events).unwrap();
@@ -891,7 +987,12 @@ mod tests {
                 parent_id: NodeId(0),
                 meta: file_meta("file.txt", 100, None),
             },
-            ScanEvent::DirectoryComplete { id: NodeId(0), total_size: 100, file_count: 1, dir_count: 0 },
+            ScanEvent::DirectoryComplete {
+                id: NodeId(0),
+                total_size: 100,
+                file_count: 1,
+                dir_count: 0,
+            },
         ];
 
         let tree = StorageTree::build(events).unwrap();
@@ -908,9 +1009,18 @@ mod tests {
                 id: NodeId(0),
                 meta: dir_meta("root", false),
             },
-            ScanEvent::FileFound { parent_id: NodeId(0), meta: file_meta("tiny.txt", 10, None) },
-            ScanEvent::FileFound { parent_id: NodeId(0), meta: file_meta("huge.bin", 9999, None) },
-            ScanEvent::FileFound { parent_id: NodeId(0), meta: file_meta("mid.doc", 500, None) },
+            ScanEvent::FileFound {
+                parent_id: NodeId(0),
+                meta: file_meta("tiny.txt", 10, None),
+            },
+            ScanEvent::FileFound {
+                parent_id: NodeId(0),
+                meta: file_meta("huge.bin", 9999, None),
+            },
+            ScanEvent::FileFound {
+                parent_id: NodeId(0),
+                meta: file_meta("mid.doc", 500, None),
+            },
             ScanEvent::DirectoryComplete {
                 id: NodeId(0),
                 total_size: 10509,
@@ -921,7 +1031,10 @@ mod tests {
 
         let tree = StorageTree::build(events).unwrap();
         let children = tree.children(tree.root()).unwrap();
-        let names: Vec<&str> = children.iter().map(|id| tree.node(*id).unwrap().name).collect();
+        let names: Vec<&str> = children
+            .iter()
+            .map(|id| tree.node(*id).unwrap().name)
+            .collect();
         assert_eq!(names, vec!["huge.bin", "mid.doc", "tiny.txt"]);
     }
 
@@ -976,7 +1089,11 @@ mod tests {
         let elapsed = start.elapsed();
 
         assert_eq!(tree.node_count(), 1 + 100 + 33300); // root + 100 dirs + 33300 files
-        assert!(elapsed.as_secs() < 1, "build took {:?}, expected < 1s", elapsed);
+        assert!(
+            elapsed.as_secs() < 1,
+            "build took {:?}, expected < 1s",
+            elapsed
+        );
     }
 
     #[test]
@@ -987,8 +1104,16 @@ mod tests {
                 id: NodeId(0),
                 meta: dir_meta("root", false),
             },
-            ScanEvent::FileFound { parent_id: NodeId(0), meta: file_meta("f.txt", 100, None) },
-            ScanEvent::DirectoryComplete { id: NodeId(0), total_size: 100, file_count: 1, dir_count: 0 },
+            ScanEvent::FileFound {
+                parent_id: NodeId(0),
+                meta: file_meta("f.txt", 100, None),
+            },
+            ScanEvent::DirectoryComplete {
+                id: NodeId(0),
+                total_size: 100,
+                file_count: 1,
+                dir_count: 0,
+            },
         ];
 
         let tree = StorageTree::build(events).unwrap();
@@ -1007,7 +1132,12 @@ mod tests {
                 parent_id: NodeId(0),
                 meta: file_meta("photo.jpg", 5000, Some("jpg")),
             },
-            ScanEvent::DirectoryComplete { id: NodeId(0), total_size: 5000, file_count: 1, dir_count: 0 },
+            ScanEvent::DirectoryComplete {
+                id: NodeId(0),
+                total_size: 5000,
+                file_count: 1,
+                dir_count: 0,
+            },
         ];
 
         let tree = StorageTree::build(events).unwrap();
@@ -1039,9 +1169,24 @@ mod tests {
                 parent_id: NodeId(2),
                 meta: file_meta("app.exe", 1048576, Some("exe")),
             },
-            ScanEvent::DirectoryComplete { id: NodeId(2), total_size: 1048576, file_count: 1, dir_count: 0 },
-            ScanEvent::DirectoryComplete { id: NodeId(1), total_size: 1048576, file_count: 1, dir_count: 1 },
-            ScanEvent::DirectoryComplete { id: NodeId(0), total_size: 1048576, file_count: 1, dir_count: 2 },
+            ScanEvent::DirectoryComplete {
+                id: NodeId(2),
+                total_size: 1048576,
+                file_count: 1,
+                dir_count: 0,
+            },
+            ScanEvent::DirectoryComplete {
+                id: NodeId(1),
+                total_size: 1048576,
+                file_count: 1,
+                dir_count: 1,
+            },
+            ScanEvent::DirectoryComplete {
+                id: NodeId(0),
+                total_size: 1048576,
+                file_count: 1,
+                dir_count: 2,
+            },
         ];
 
         let tree = StorageTree::build(events).unwrap();
@@ -1058,7 +1203,8 @@ mod tests {
         assert_eq!(vendor_info.size, 1048576);
 
         // Case-insensitivity match
-        let case_match = tree.find_by_path(Path::new(r"c:\testroot\program files\appvendor\app.exe"));
+        let case_match =
+            tree.find_by_path(Path::new(r"c:\testroot\program files\appvendor\app.exe"));
         assert!(case_match.is_some());
         let app_info = tree.node(case_match.unwrap()).unwrap();
         assert_eq!(app_info.name, "app.exe");

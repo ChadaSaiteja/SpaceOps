@@ -87,9 +87,8 @@ pub fn scan_mft(
     progress_interval: Duration,
     on_progress: &(dyn Fn(ScanProgress) + Send + Sync),
 ) -> Result<(Vec<ScanEvent>, ScanSummary, i64), MftScanError> {
-    let drive_letter = volume::extract_drive_letter(root).ok_or_else(|| {
-        MftScanError::Fatal(ScanError::InvalidPath(root.to_path_buf()))
-    })?;
+    let drive_letter = volume::extract_drive_letter(root)
+        .ok_or_else(|| MftScanError::Fatal(ScanError::InvalidPath(root.to_path_buf())))?;
 
     if !volume::is_ntfs_volume(root) {
         return Err(MftScanError::MidScanFailure(
@@ -98,12 +97,13 @@ pub fn scan_mft(
     }
 
     let volume_handle = open_volume(drive_letter).map_err(|e| {
-        MftScanError::MidScanFailure(format!("Failed to open raw volume \\\\.\\{drive_letter}:: {e}"))
+        MftScanError::MidScanFailure(format!(
+            "Failed to open raw volume \\\\.\\{drive_letter}:: {e}"
+        ))
     })?;
 
-    let cluster_size = get_volume_cluster_size(drive_letter).map_err(|e| {
-        MftScanError::MidScanFailure(format!("Failed to query cluster size: {e}"))
-    })?;
+    let cluster_size = get_volume_cluster_size(drive_letter)
+        .map_err(|e| MftScanError::MidScanFailure(format!("Failed to query cluster size: {e}")))?;
 
     // Query USN journal to capture the baseline high USN
     let journal_info = usn::query_usn_journal(volume_handle.raw()).ok();
@@ -183,8 +183,13 @@ pub fn scan_mft(
         },
     });
 
-    let (total_size, file_count, dir_count) =
-        emit_mft_subtree(ROOT_MFT_RECORD, root_node_id, &records, &parent_to_children, &mut events);
+    let (total_size, file_count, dir_count) = emit_mft_subtree(
+        ROOT_MFT_RECORD,
+        root_node_id,
+        &records,
+        &parent_to_children,
+        &mut events,
+    );
 
     events.push(ScanEvent::DirectoryComplete {
         id: root_node_id,

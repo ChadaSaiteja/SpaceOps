@@ -66,7 +66,10 @@ pub fn is_ntfs_volume(root: &Path) -> bool {
     };
 
     if res.is_ok() {
-        let len = fs_name.iter().position(|&c| c == 0).unwrap_or(fs_name.len());
+        let len = fs_name
+            .iter()
+            .position(|&c| c == 0)
+            .unwrap_or(fs_name.len());
         let name = String::from_utf16_lossy(&fs_name[..len]);
         name.eq_ignore_ascii_case("NTFS")
     } else {

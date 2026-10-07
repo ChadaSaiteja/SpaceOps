@@ -33,12 +33,24 @@ pub struct IndexSyncReport {
 
 fn pack_attributes(f: &FileAttributeFlags) -> u32 {
     let mut bits = 0u32;
-    if f.readonly { bits |= 1; }
-    if f.hidden { bits |= 2; }
-    if f.system { bits |= 4; }
-    if f.reparse_point { bits |= 8; }
-    if f.compressed { bits |= 16; }
-    if f.sparse { bits |= 32; }
+    if f.readonly {
+        bits |= 1;
+    }
+    if f.hidden {
+        bits |= 2;
+    }
+    if f.system {
+        bits |= 4;
+    }
+    if f.reparse_point {
+        bits |= 8;
+    }
+    if f.compressed {
+        bits |= 16;
+    }
+    if f.sparse {
+        bits |= 32;
+    }
     bits
 }
 
@@ -54,7 +66,11 @@ fn unpack_attributes(bits: u32) -> FileAttributeFlags {
 }
 
 fn time_to_secs(t: Option<SystemTime>) -> Option<i64> {
-    t.and_then(|time| time.duration_since(UNIX_EPOCH).ok().map(|d| d.as_secs() as i64))
+    t.and_then(|time| {
+        time.duration_since(UNIX_EPOCH)
+            .ok()
+            .map(|d| d.as_secs() as i64)
+    })
 }
 
 fn secs_to_time(s: Option<i64>) -> Option<SystemTime> {
@@ -119,19 +135,20 @@ pub fn save_tree_to_db(db_path: &Path, tree: &StorageTree, root_path: &Path) -> 
     let root_path_str = root_path.to_string_lossy().to_string();
 
     // Query USN journal parameters if available on NTFS
-    let (journal_id, high_usn) = if let Some(drive) = scanner::mft::volume::extract_drive_letter(root_path) {
-        if let Ok(vol_handle) = scanner::mft::volume::open_volume(drive) {
-            if let Ok(info) = scanner::mft::usn::query_usn_journal(vol_handle.raw()) {
-                (info.journal_id as i64, info.next_usn)
+    let (journal_id, high_usn) =
+        if let Some(drive) = scanner::mft::volume::extract_drive_letter(root_path) {
+            if let Ok(vol_handle) = scanner::mft::volume::open_volume(drive) {
+                if let Ok(info) = scanner::mft::usn::query_usn_journal(vol_handle.raw()) {
+                    (info.journal_id as i64, info.next_usn)
+                } else {
+                    (0, 0)
+                }
             } else {
                 (0, 0)
             }
         } else {
             (0, 0)
-        }
-    } else {
-        (0, 0)
-    };
+        };
 
     let total_bytes = tree.node(tree.root()).map(|n| n.size).unwrap_or(0) as i64;
     let now_secs = SystemTime::now()
@@ -380,7 +397,10 @@ pub fn sync_tree_incremental(
                         {
                             if let Some(path) = tree.full_path(nid) {
                                 if let Ok(meta) = path.metadata() {
-                                    let new_size = scanner::winfs::round_up_to_cluster(meta.len(), cluster_size);
+                                    let new_size = scanner::winfs::round_up_to_cluster(
+                                        meta.len(),
+                                        cluster_size,
+                                    );
                                     let old_size = tree.nodes[node_id].size;
                                     let new_mod = meta.modified().ok();
                                     let old_mod = tree.nodes[node_id].modified;
@@ -431,7 +451,10 @@ pub fn sync_tree_incremental(
 
                                     if let Some(cid) = child_id_opt {
                                         if let Ok(fmeta) = entry.metadata() {
-                                            let new_size = scanner::winfs::round_up_to_cluster(fmeta.len(), cluster_size);
+                                            let new_size = scanner::winfs::round_up_to_cluster(
+                                                fmeta.len(),
+                                                cluster_size,
+                                            );
                                             let old_size = tree.nodes[cid.0 as usize].size;
                                             let new_mod = fmeta.modified().ok();
                                             let old_mod = tree.nodes[cid.0 as usize].modified;
@@ -439,7 +462,8 @@ pub fn sync_tree_incremental(
                                             if new_size != old_size || new_mod != old_mod {
                                                 if new_size != old_size {
                                                     tree.update_node_size(cid, new_size, 1);
-                                                    report.bytes_delta += new_size as i64 - old_size as i64;
+                                                    report.bytes_delta +=
+                                                        new_size as i64 - old_size as i64;
                                                 }
                                                 tree.nodes[cid.0 as usize].modified = new_mod;
                                                 report.nodes_updated += 1;
@@ -578,7 +602,9 @@ mod tests {
 
         save_tree_to_db(&db_path, &tree, root).unwrap();
 
-        let stats = get_index_stats(&db_path, root).unwrap().expect("stats must exist");
+        let stats = get_index_stats(&db_path, root)
+            .unwrap()
+            .expect("stats must exist");
         assert_eq!(stats.node_count, 3); // root + sub + hello.txt
         assert_eq!(stats.total_size, 4096);
         assert!(stats.last_scan_time > 0);

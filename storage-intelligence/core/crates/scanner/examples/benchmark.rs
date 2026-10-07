@@ -30,12 +30,21 @@ fn build_synthetic_tree(root: &Path, file_count: u64) {
 
 fn run_scan(root: &Path) -> Duration {
     let start = Instant::now();
-    let result = scanner::scan(root, &CancellationToken::new(), Duration::from_millis(200), &|_| {});
+    let result = scanner::scan(
+        root,
+        &CancellationToken::new(),
+        Duration::from_millis(200),
+        &|_| {},
+    );
     let elapsed = start.elapsed();
     let (_, summary) = result.expect("scan should succeed on synthetic tree");
     println!(
         "    files={} dirs={} bytes={} inaccessible={} elapsed={:?}",
-        summary.total_files, summary.total_dirs, summary.total_size, summary.inaccessible_count, elapsed
+        summary.total_files,
+        summary.total_dirs,
+        summary.total_size,
+        summary.inaccessible_count,
+        elapsed
     );
     elapsed
 }
@@ -52,7 +61,10 @@ fn main() {
     build_synthetic_tree(tmp.path(), file_count);
     println!("  tree built in {:?}", build_start.elapsed());
 
-    println!("\nParallel scan (rayon default thread pool, {} threads available):", rayon::current_num_threads());
+    println!(
+        "\nParallel scan (rayon default thread pool, {} threads available):",
+        rayon::current_num_threads()
+    );
     let parallel_elapsed = run_scan(tmp.path());
 
     println!("\nSingle-threaded scan (rayon pool forced to 1 thread):");

@@ -130,7 +130,7 @@ pub fn detect_dev_artifacts(tree: Option<&StorageTree>) -> Vec<DevArtifact> {
                                     Path::new(&pnode.name)
                                         .file_name()
                                         .and_then(|n| n.to_str())
-                                        .unwrap_or(&pnode.name)
+                                        .unwrap_or(pnode.name)
                                         .to_string()
                                 })
                                 .unwrap_or_else(|| "Unknown Project".to_string());
@@ -173,7 +173,7 @@ pub fn detect_dev_artifacts(tree: Option<&StorageTree>) -> Vec<DevArtifact> {
     probe_global_dev_caches(&mut artifacts, &mut seen_paths, tree);
 
     // Sort by size descending
-    artifacts.sort_by(|a, b| b.size.cmp(&a.size));
+    artifacts.sort_by_key(|a| std::cmp::Reverse(a.size));
     artifacts
 }
 
@@ -186,7 +186,16 @@ fn probe_global_dev_caches(
     let user_profile = std::env::var_os("USERPROFILE").map(PathBuf::from);
     let local_app_data = std::env::var_os("LOCALAPPDATA").map(PathBuf::from);
 
-    let candidates: &[(DevEcosystem, DevArtifactKind, RiskLevel, &str, &str, &str, Option<PathBuf>)] = &[
+    #[allow(clippy::type_complexity)]
+    let candidates: &[(
+        DevEcosystem,
+        DevArtifactKind,
+        RiskLevel,
+        &str,
+        &str,
+        &str,
+        Option<PathBuf>,
+    )] = &[
         // NuGet packages
         (
             DevEcosystem::DotNet,
@@ -195,7 +204,9 @@ fn probe_global_dev_caches(
             "Global NuGet Package Cache",
             "Cached NuGet package tarballs; re-downloaded on build",
             "dotnet nuget locals all --clear",
-            user_profile.as_ref().map(|p| p.join(".nuget").join("packages")),
+            user_profile
+                .as_ref()
+                .map(|p| p.join(".nuget").join("packages")),
         ),
         // Cargo registry cache
         (
@@ -205,7 +216,9 @@ fn probe_global_dev_caches(
             "Cargo Registry Package Cache",
             "Crates downloaded by cargo; re-downloaded when building",
             "cargo cache -a",
-            user_profile.as_ref().map(|p| p.join(".cargo").join("registry").join("cache")),
+            user_profile
+                .as_ref()
+                .map(|p| p.join(".cargo").join("registry").join("cache")),
         ),
         // Cargo git checkouts
         (
@@ -215,7 +228,9 @@ fn probe_global_dev_caches(
             "Cargo Git Dependencies Cache",
             "Git repository clones checked out by cargo",
             "cargo cache -g",
-            user_profile.as_ref().map(|p| p.join(".cargo").join("git").join("db")),
+            user_profile
+                .as_ref()
+                .map(|p| p.join(".cargo").join("git").join("db")),
         ),
         // npm cache
         (
@@ -235,7 +250,9 @@ fn probe_global_dev_caches(
             "Global pnpm Content Store",
             "Shared content-addressable pnpm package files",
             "pnpm store prune",
-            local_app_data.as_ref().map(|p| p.join("pnpm").join("store")),
+            local_app_data
+                .as_ref()
+                .map(|p| p.join("pnpm").join("store")),
         ),
         // pip cache
         (
@@ -255,7 +272,9 @@ fn probe_global_dev_caches(
             "Gradle Global Cache",
             "Downloaded Java artifacts, wrappers, and caches",
             "gradle --stop && rm .gradle/caches",
-            user_profile.as_ref().map(|p| p.join(".gradle").join("caches")),
+            user_profile
+                .as_ref()
+                .map(|p| p.join(".gradle").join("caches")),
         ),
         // Docker WSL virtual disk
         (
@@ -265,7 +284,9 @@ fn probe_global_dev_caches(
             "Docker Desktop WSL Virtual Disk",
             "Virtual ext4.vhdx storing all Docker container layers and volumes",
             "docker system prune -a --volumes",
-            local_app_data.as_ref().map(|p| p.join("Docker").join("wsl").join("data").join("ext4.vhdx")),
+            local_app_data
+                .as_ref()
+                .map(|p| p.join("Docker").join("wsl").join("data").join("ext4.vhdx")),
         ),
     ];
 
@@ -353,11 +374,7 @@ fn get_quick_path_size(path: &Path) -> (u64, u64) {
 }
 
 /// Safely cleans a developer artifact directory or cache using Windows Recycle Bin guardrails (ADR-015 §4).
-pub fn clean_dev_artifact(
-    path: &Path,
-    dry_run: bool,
-    send_to_recycle_bin: bool,
-) -> CleanupReport {
+pub fn clean_dev_artifact(path: &Path, dry_run: bool, send_to_recycle_bin: bool) -> CleanupReport {
     // 1. Immutable safety guardrail
     if is_path_protected(path) {
         return CleanupReport {

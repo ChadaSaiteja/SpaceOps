@@ -72,7 +72,10 @@ pub struct CleanupReport {
 /// No deletion operation may ever delete, intersect, or contain these paths.
 pub fn is_path_protected(path: &Path) -> bool {
     let path_str = path.to_string_lossy();
-    let norm = path_str.trim().trim_end_matches(['\\', '/']).to_ascii_lowercase();
+    let norm = path_str
+        .trim()
+        .trim_end_matches(['\\', '/'])
+        .to_ascii_lowercase();
 
     // 1. Root drives (e.g. C:, D:, C:\, D:\)
     if norm.len() <= 3 && norm.ends_with(':') {
@@ -94,7 +97,9 @@ pub fn is_path_protected(path: &Path) -> bool {
     for prefix in &protected_prefixes {
         if norm == *prefix || norm.starts_with(&format!("{}\\", prefix)) {
             // Note: C:\Windows\Temp and C:\Windows\SoftwareDistribution\Download are allowed exceptions
-            if norm.starts_with("c:\\windows\\temp") || norm.starts_with("c:\\windows\\softwaredistribution\\download") {
+            if norm.starts_with("c:\\windows\\temp")
+                || norm.starts_with("c:\\windows\\softwaredistribution\\download")
+            {
                 continue;
             }
             return true;
@@ -108,7 +113,10 @@ pub fn is_path_protected(path: &Path) -> bool {
 
     // 3. User root & critical profile folders
     if let Ok(user_profile) = std::env::var("USERPROFILE") {
-        let up_norm = user_profile.trim().trim_end_matches(['\\', '/']).to_ascii_lowercase();
+        let up_norm = user_profile
+            .trim()
+            .trim_end_matches(['\\', '/'])
+            .to_ascii_lowercase();
         if norm == up_norm {
             return true;
         }
@@ -127,7 +135,13 @@ pub fn is_path_protected(path: &Path) -> bool {
     }
 
     // 4. System state files
-    let system_files = ["pagefile.sys", "swapfile.sys", "hiberfil.sys", "ntldr", "bootmgr"];
+    let system_files = [
+        "pagefile.sys",
+        "swapfile.sys",
+        "hiberfil.sys",
+        "ntldr",
+        "bootmgr",
+    ];
     if let Some(file_name) = path.file_name().and_then(|n| n.to_str()) {
         let lower = file_name.to_ascii_lowercase();
         if system_files.contains(&lower.as_str()) {
@@ -141,30 +155,22 @@ pub fn is_path_protected(path: &Path) -> bool {
 impl StorageTree {
     /// Detects all cleanup candidates across the in-memory StorageTree arena and well-known locations (ADR-013).
     pub fn detect_cleanup_candidates(&self) -> Vec<CleanupCandidate> {
-        let mut candidates = Vec::new();
-
-        // 1. User Temp Files
-        candidates.push(self.detect_user_temp());
-
-        // 2. System Temp Files
-        candidates.push(self.detect_system_temp());
-
-        // 3. Windows Update Download Cache
-        candidates.push(self.detect_windows_update_cache());
-
-        // 4. Crash Dumps
-        candidates.push(self.detect_crash_dumps());
-
-        // 5. Thumbnail Cache
-        candidates.push(self.detect_thumbcache());
-
-        // 6. Recycle Bin
-        candidates.push(self.detect_recycle_bin());
-
-        // 7. Stale Logs
-        candidates.push(self.detect_stale_logs());
-
-        candidates
+        vec![
+            // 1. User Temp Files
+            self.detect_user_temp(),
+            // 2. System Temp Files
+            self.detect_system_temp(),
+            // 3. Windows Update Download Cache
+            self.detect_windows_update_cache(),
+            // 4. Crash Dumps
+            self.detect_crash_dumps(),
+            // 5. Thumbnail Cache
+            self.detect_thumbcache(),
+            // 6. Recycle Bin
+            self.detect_recycle_bin(),
+            // 7. Stale Logs
+            self.detect_stale_logs(),
+        ]
     }
 
     fn detect_user_temp(&self) -> CleanupCandidate {
@@ -172,15 +178,20 @@ impl StorageTree {
             .map(|base| PathBuf::from(base).join("Temp"))
             .unwrap_or_else(|_| PathBuf::from("C:\\Users\\Default\\AppData\\Local\\Temp"));
 
-        let (bytes, count, targets) = self.aggregate_path_or_disk(&local_temp, |name| !name.is_empty());
+        let (bytes, count, targets) =
+            self.aggregate_path_or_disk(&local_temp, |name| !name.is_empty());
 
         CleanupCandidate {
             rule_id: CleanupRuleId::UserTemp,
             name: "User Temporary Files".to_string(),
-            description: "Temporary data created by running applications that was not cleaned up.".to_string(),
+            description: "Temporary data created by running applications that was not cleaned up."
+                .to_string(),
             path_display: "%LOCALAPPDATA%\\Temp".to_string(),
-            reason: "Applications store temporary workspaces here; stale files waste space.".to_string(),
-            consequence: "Active applications will recreate temporary files automatically if needed.".to_string(),
+            reason: "Applications store temporary workspaces here; stale files waste space."
+                .to_string(),
+            consequence:
+                "Active applications will recreate temporary files automatically if needed."
+                    .to_string(),
             risk_level: RiskLevel::Low,
             total_bytes: bytes,
             file_count: count,
@@ -196,10 +207,12 @@ impl StorageTree {
         CleanupCandidate {
             rule_id: CleanupRuleId::SystemTemp,
             name: "System Temporary Files".to_string(),
-            description: "Temporary files created by Windows system services and installers.".to_string(),
+            description: "Temporary files created by Windows system services and installers."
+                .to_string(),
             path_display: "C:\\Windows\\Temp".to_string(),
             reason: "Leftover installer caches and service temporary files.".to_string(),
-            consequence: "Safe to remove; Windows services regenerate required temporary state.".to_string(),
+            consequence: "Safe to remove; Windows services regenerate required temporary state."
+                .to_string(),
             risk_level: RiskLevel::Low,
             total_bytes: bytes,
             file_count: count,
@@ -215,10 +228,15 @@ impl StorageTree {
         CleanupCandidate {
             rule_id: CleanupRuleId::WindowsUpdate,
             name: "Windows Update Download Cache".to_string(),
-            description: "Staged installation files for Windows updates that have already been applied.".to_string(),
+            description:
+                "Staged installation files for Windows updates that have already been applied."
+                    .to_string(),
             path_display: "C:\\Windows\\SoftwareDistribution\\Download".to_string(),
-            reason: "Windows retains installation payloads after updates finish installing.".to_string(),
-            consequence: "Windows Update will re-download update files if a rollback or repair is requested.".to_string(),
+            reason: "Windows retains installation payloads after updates finish installing."
+                .to_string(),
+            consequence:
+                "Windows Update will re-download update files if a rollback or repair is requested."
+                    .to_string(),
             risk_level: RiskLevel::Medium,
             total_bytes: bytes,
             file_count: count,
@@ -249,10 +267,15 @@ impl StorageTree {
         CleanupCandidate {
             rule_id: CleanupRuleId::CrashDumps,
             name: "System Crash Dumps & Minidumps".to_string(),
-            description: "Memory dump files generated during past application crashes and BSODs.".to_string(),
+            description: "Memory dump files generated during past application crashes and BSODs."
+                .to_string(),
             path_display: "C:\\Windows\\Minidump & MEMORY.DMP".to_string(),
-            reason: "Post-mortem diagnostic dumps from historical crashes no longer being analyzed.".to_string(),
-            consequence: "Historical crash traces will be removed. New crashes will generate new dumps.".to_string(),
+            reason:
+                "Post-mortem diagnostic dumps from historical crashes no longer being analyzed."
+                    .to_string(),
+            consequence:
+                "Historical crash traces will be removed. New crashes will generate new dumps."
+                    .to_string(),
             risk_level: RiskLevel::Low,
             total_bytes,
             file_count,
@@ -289,7 +312,9 @@ impl StorageTree {
             description: "Cached preview thumbnails for images, videos, and documents.".to_string(),
             path_display: "%LOCALAPPDATA%\\Microsoft\\Windows\\Explorer".to_string(),
             reason: "Thumbnails accumulate for files that may no longer exist.".to_string(),
-            consequence: "File Explorer will regenerate thumbnails on demand when folders are opened.".to_string(),
+            consequence:
+                "File Explorer will regenerate thumbnails on demand when folders are opened."
+                    .to_string(),
             risk_level: RiskLevel::Low,
             total_bytes,
             file_count,
@@ -319,8 +344,11 @@ impl StorageTree {
             name: "Recycle Bin Contents".to_string(),
             description: "Deleted files currently retained in the Windows Recycle Bin.".to_string(),
             path_display: "$Recycle.Bin".to_string(),
-            reason: "Files previously marked for deletion taking up storage until emptied.".to_string(),
-            consequence: "Permanently frees space; previously deleted files can no longer be restored.".to_string(),
+            reason: "Files previously marked for deletion taking up storage until emptied."
+                .to_string(),
+            consequence:
+                "Permanently frees space; previously deleted files can no longer be restored."
+                    .to_string(),
             risk_level: RiskLevel::Low,
             total_bytes,
             file_count,
@@ -353,10 +381,13 @@ impl StorageTree {
         CleanupCandidate {
             rule_id: CleanupRuleId::StaleLogs,
             name: "Stale Diagnostic Logs".to_string(),
-            description: "Historical diagnostic log and backup files in temporary directories.".to_string(),
+            description: "Historical diagnostic log and backup files in temporary directories."
+                .to_string(),
             path_display: "*.log, *.old, *.bak in temp/cache".to_string(),
             reason: "Old log files created during troubleshooting sessions.".to_string(),
-            consequence: "Diagnostic logs will be removed without impacting application functionality.".to_string(),
+            consequence:
+                "Diagnostic logs will be removed without impacting application functionality."
+                    .to_string(),
             risk_level: RiskLevel::Low,
             total_bytes,
             file_count,
@@ -416,7 +447,11 @@ impl StorageTree {
 }
 
 /// Executes safe removal of specified candidate paths (ADR-013).
-pub fn execute_cleanup(paths: &[PathBuf], dry_run: bool, send_to_recycle_bin: bool) -> CleanupReport {
+pub fn execute_cleanup(
+    paths: &[PathBuf],
+    dry_run: bool,
+    send_to_recycle_bin: bool,
+) -> CleanupReport {
     let mut report = CleanupReport {
         files_reclaimed: 0,
         bytes_reclaimed: 0,
@@ -495,6 +530,7 @@ fn send_file_to_recycle_bin(path: &Path) -> bool {
     wide.push(0);
     wide.push(0);
 
+    #[allow(clippy::upper_case_acronyms)]
     #[repr(C)]
     struct SHFILEOPSTRUCTW {
         hwnd: *mut std::ffi::c_void,
@@ -547,7 +583,9 @@ mod tests {
         assert!(is_path_protected(Path::new("D:\\")));
         assert!(is_path_protected(Path::new("C:\\Windows")));
         assert!(is_path_protected(Path::new("C:\\Windows\\System32")));
-        assert!(is_path_protected(Path::new("C:\\Windows\\System32\\ntdll.dll")));
+        assert!(is_path_protected(Path::new(
+            "C:\\Windows\\System32\\ntdll.dll"
+        )));
         assert!(is_path_protected(Path::new("C:\\Windows\\WinSxS")));
         assert!(is_path_protected(Path::new("C:\\Program Files")));
         assert!(is_path_protected(Path::new("C:\\Program Files (x86)")));
@@ -558,7 +596,9 @@ mod tests {
         // Exceptions that are safe cleanup targets
         assert!(!is_path_protected(Path::new("C:\\Windows\\Temp")));
         assert!(!is_path_protected(Path::new("C:\\Windows\\Temp\\junk.tmp")));
-        assert!(!is_path_protected(Path::new("C:\\Windows\\SoftwareDistribution\\Download")));
+        assert!(!is_path_protected(Path::new(
+            "C:\\Windows\\SoftwareDistribution\\Download"
+        )));
     }
 
     #[test]
@@ -567,7 +607,7 @@ mod tests {
         let file_path = dir.path().join("test_temp.tmp");
         std::fs::write(&file_path, vec![b'a'; 1024]).unwrap();
 
-        let report = execute_cleanup(&[file_path.clone()], true, true);
+        let report = execute_cleanup(std::slice::from_ref(&file_path), true, true);
 
         assert!(report.is_dry_run);
         assert_eq!(report.files_reclaimed, 1);
@@ -630,11 +670,17 @@ mod tests {
         let tree = StorageTree::build(events).unwrap();
         let candidates = tree.detect_cleanup_candidates();
 
-        let crash_cand = candidates.iter().find(|c| c.rule_id == CleanupRuleId::CrashDumps).unwrap();
+        let crash_cand = candidates
+            .iter()
+            .find(|c| c.rule_id == CleanupRuleId::CrashDumps)
+            .unwrap();
         assert_eq!(crash_cand.file_count, 1);
         assert_eq!(crash_cand.total_bytes, 50000);
 
-        let log_cand = candidates.iter().find(|c| c.rule_id == CleanupRuleId::StaleLogs).unwrap();
+        let log_cand = candidates
+            .iter()
+            .find(|c| c.rule_id == CleanupRuleId::StaleLogs)
+            .unwrap();
         assert_eq!(log_cand.file_count, 1);
         assert_eq!(log_cand.total_bytes, 12000);
     }

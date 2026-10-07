@@ -1,4 +1,4 @@
-# SpaceOps
+# SpaceOps — Open-Source Storage Analyzer for Windows
 
 <div align="center">
 
@@ -11,15 +11,17 @@
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011-0078D6?logo=windows)](https://microsoft.com/windows)
 [![Rust](https://img.shields.io/badge/Rust-1.75%2B-orange?logo=rust)](https://www.rust-lang.org/)
 [![.NET](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
-[![Tests](https://img.shields.io/badge/Tests-121%20Passed-brightgreen)](tests)
+[![Tests](https://img.shields.io/badge/Tests-121%20Passed-brightgreen)](https://github.com/ChadaSaiteja/SpaceOps/actions/workflows/ci.yml)
 
-[Key Features](#features) •
-[Why SpaceOps?](#why-spaceops) •
-[Comparison](#how-spaceops-compares) •
-[Quick Start](#quick-start) •
+[What is SpaceOps?](#what-is-spaceops) •
+[Features](#what-does-spaceops-detect) •
+[Why is my disk filling up?](#why-is-my-disk-filling-up-on-windows) •
+[Comparison](#how-does-spaceops-compare-to-windirstat-treesize-and-wiztree) •
+[Quick Start](#how-do-i-install-and-run-spaceops) •
 [Architecture](#architecture) •
-[Roadmap](#roadmap) •
-[Contributing](#contributing)
+[Roadmap](#whats-planned-next) •
+[FAQ](#frequently-asked-questions) •
+[Contributing](#community--contributing)
 
 </div>
 
@@ -27,13 +29,19 @@
 
 ## What is SpaceOps?
 
-**SpaceOps** is an open-source storage intelligence application for Windows, built specifically for developers, technical professionals, and power users.
+SpaceOps is a free, open-source **disk analyzer and storage cleaner for Windows 10 and 11**. It scans your drives with a high-speed Rust engine and visualizes disk usage as an interactive treemap, so you can see exactly which folders, files, and developer caches are consuming your disk space — then reclaim space safely through the Windows Recycle Bin.
+
+**Who is it for?** Developers, technical professionals, and power users whose disks are filling up with build artifacts, container images, and package caches.
+
+**How is it different from WinDirStat, TreeSize, or WizTree?** SpaceOps is free and MIT-licensed, detects clutter across 8 developer ecosystems (Node.js, Rust, .NET, Python, Java, Docker/WSL, Git, IDEs), and never deletes permanently — every cleanup routes through the Recycle Bin so you can undo mistakes.
 
 Instead of acting as a blind "disk cleaner" that arbitrarily deletes temporary files, SpaceOps provides deep visibility into your storage. It combines a high-speed **Rust scanning engine** with a 120 FPS hardware-accelerated **Direct2D squarified treemap**, deep detection for **8 developer toolchains**, and a **zero-accident safety model** that routes cleanups to the Windows Recycle Bin.
 
+**Maintained by** [Saiteja Chada](https://github.com/ChadaSaiteja) · MIT licensed · Windows 10/11 x64 and ARM64
+
 ---
 
-## Why SpaceOps?
+## Why is my disk filling up on Windows?
 
 On modern Windows workstations, gigabytes of storage quietly vanish into:
 
@@ -51,7 +59,7 @@ Traditional disk tools treat these as plain directories or risk corrupting activ
 
 ---
 
-## Features
+## What does SpaceOps detect?
 
 ### ⚡ 1. High-Performance Filesystem Scanner
 - **Parallel Traversal**: Multi-threaded traversal using Rayon and Win32 kernel APIs (`FindFirstFileExW`).
@@ -101,7 +109,7 @@ SpaceOps adheres to the safety rule:
 
 ---
 
-## How SpaceOps Compares
+## How does SpaceOps compare to WinDirStat, TreeSize, and WizTree?
 
 | Feature | SpaceOps | WinDirStat | TreeSize Free | WizTree |
 | :--- | :--- | :--- | :--- | :--- |
@@ -139,10 +147,12 @@ Read the full [Architecture Specification](docs/architecture.md) for data flows 
 
 ---
 
-## Quick Start
+## How do I install and run SpaceOps?
 
 ### Option 1: Run the Pre-built Binary
-Download the latest portable release archive from [GitHub Releases](https://github.com/ChadaSaiteja/SpaceOps/releases), extract, and run `StorageIntelligence.exe`.
+When a tagged release is published, the portable archive is attached to [GitHub Releases](https://github.com/ChadaSaiteja/SpaceOps/releases). Extract it and run `StorageIntelligence.exe`.
+
+> **No tagged release is published yet.** Until then, use Option 2 below to build from source.
 
 ### Option 2: Build from Source
 
@@ -166,9 +176,16 @@ cd SpaceOps
 
 For complete setup details and debugging instructions, see the [Developer Guide](docs/development.md).
 
+**More documentation:**
+- [Developer Storage Reference](docs/developer-storage.md) — every artifact pattern SpaceOps detects
+- [Troubleshooting Guide](docs/troubleshooting.md) — fixes for common build and runtime problems
+- [Architecture Specification](docs/architecture.md) — data flows and memory layout
+- [Safety Model](docs/safety-model.md) — deletion guardrails
+- [Changelog](CHANGELOG.md) — release history
+
 ---
 
-## Test Suites & Benchmarks
+## How fast is it? Test suites & benchmark results
 
 SpaceOps is verified by automated test suites across both native Rust and .NET managed layers:
 
@@ -193,7 +210,7 @@ cargo run --release -p storage-tree --example tree_benchmark
 
 ---
 
-## Roadmap
+## What's planned next?
 
 ### Completed (v0.1.0)
 - [x] High-speed Win32 parallel filesystem scanner with cluster allocation sizing
@@ -215,6 +232,31 @@ cargo run --release -p storage-tree --example tree_benchmark
 
 ---
 
+## Frequently Asked Questions
+
+**Is SpaceOps free?**
+Yes. SpaceOps is MIT-licensed open-source software. There is no paid tier, no telemetry, and no network access — it runs entirely offline on your machine.
+
+**Will SpaceOps delete my files permanently?**
+No. Every deletion routes through the Windows Shell COM API to the Recycle Bin, so you can restore files if you make a mistake. `C:\Windows`, `C:\Program Files`, boot manager paths, and user system profiles are hard-blocked and can never be removed, even in execution mode. A dry-run mode reports reclaimable space without touching the filesystem.
+
+**Is it safe to run while I have projects open?**
+Yes. The scanner treats directory junctions, symlinks, and volume mount points as leaves, so it never double-counts or traverses outside your drive. Reparse points are detected and displayed rather than followed.
+
+**How is this different from WinDirStat, TreeSize, or WizTree?**
+SpaceOps is free and open source, uses a hardware-accelerated Direct2D treemap instead of slow GDI rendering, holds a 1M-node tree in roughly 55 MB of RAM, detects developer clutter across 8 ecosystems that competitor tools ignore, and supports incremental resync via the NTFS USN Journal instead of a full rescan.
+
+**Does it need internet access?**
+No. SpaceOps is 100% local with zero telemetry. Once built, it never makes a network request.
+
+**What are the system requirements?**
+Windows 10 version 1809 or later, or Windows 11, on x64 or ARM64. To build from source you also need the .NET 9 SDK, Rust 1.75+, and Visual Studio 2022 Build Tools with the Desktop C++ workload.
+
+**How do I run the tests?**
+The Rust workspace suite has 91 tests and the .NET integration suite has 30, for 121 total. See [Test Suites & Benchmarks](#how-fast-is-it-test-suites--benchmark-results) for the exact commands.
+
+---
+
 ## Community & Contributing
 
 Contributions are warmly welcomed! Please read our [Contributing Guide](CONTRIBUTING.md) to get started.
@@ -222,11 +264,12 @@ Contributions are warmly welcomed! Please read our [Contributing Guide](CONTRIBU
 - **Report a Bug**: [Open an issue](.github/ISSUE_TEMPLATE/bug_report.md)
 - **Suggest a Feature**: [Feature Request template](.github/ISSUE_TEMPLATE/feature_request.md)
 - **Report Performance Bottlenecks**: [Performance template](.github/ISSUE_TEMPLATE/performance.md)
-- **Ask Questions**: Join the conversation in [GitHub Discussions](https://github.com/ChadaSaiteja/SpaceOps/discussions)
+- **Improve the Documentation**: [Documentation template](.github/ISSUE_TEMPLATE/documentation.md)
+- **Ask Questions**: Open a [support request](SUPPORT.md). *GitHub Discussions is not yet enabled on this repository.*
 
 ---
 
-## Security & Safety
+## Is it safe to delete files with SpaceOps?
 
 Because SpaceOps interacts directly with the filesystem, safety is our top priority. Please review our [Safety Model](docs/safety-model.md) to understand our deletion guardrails.
 

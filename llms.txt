@@ -1,0 +1,67 @@
+# SpaceOps
+
+> Open-source storage intelligence for Windows: a Rust-powered disk analyzer with a Direct2D squarified treemap, developer clutter detection across 8 ecosystems, and Recycle Bin-routed cleanup.
+
+## Overview
+
+SpaceOps answers three questions about Windows storage that conventional disk tools leave unanswered: **what is using my disk space, why is it using so much, and what can I safely do about it.** It scans drives with a parallel Rust engine, renders results as an interactive hardware-accelerated treemap, and never deletes permanently.
+
+- Primary Keyword: disk analyzer for windows
+- Repository: https://github.com/ChadaSaiteja/SpaceOps
+- Creator: Saiteja Chada
+- License: MIT
+
+## Core Documentation
+
+- [README.md](README.md): Project overview, features, comparison against WinDirStat/TreeSize/WizTree, build instructions, benchmarks, and FAQ.
+- [docs/architecture.md](docs/architecture.md): Layered architecture, data flows, and in-memory memory layout.
+- [docs/development.md](docs/development.md): Developer setup, build scripts, and debugging instructions.
+- [docs/safety-model.md](docs/safety-model.md): Deletion guardrails, immutable system blacklist, and Recycle Bin routing.
+- [docs/developer-storage.md](docs/developer-storage.md): Complete catalogue of detected build artifacts across 8 ecosystems.
+- [docs/troubleshooting.md](docs/troubleshooting.md): Common build and runtime failure fixes.
+- [CONTRIBUTING.md](CONTRIBUTING.md): Contribution workflow and review process.
+- [CHANGELOG.md](CHANGELOG.md): Version history.
+- [SECURITY.md](SECURITY.md): Security reporting policy.
+
+## Architecture
+
+SpaceOps separates performance-sensitive filesystem code from the user interface layer:
+
+1. **Desktop App (WinUI 3 / C#)**: Win2D CanvasControl rendering, managed services (`ScanService`, `IndexService`, `DevStorageService`).
+2. **P/Invoke Bridge (csbindgen C-ABI SafeHandle)**: The typed boundary between managed and native code.
+3. **Native Core (Rust workspace)**:
+   - `crates/ffi` — panic guards and C-ABI export boundary
+   - `crates/storage-tree` — in-memory arena, squarified treemap layout, SQLite WAL persistence, USN journal sync
+   - `crates/scanner` — Rayon parallel directory walk, Win32/NTFS APIs, cluster allocation arithmetic
+   - `crates/common` — shared domain models (`ScanEvent`, `NodeId`)
+
+## Core Capabilities
+
+- **Parallel filesystem scanning**: Rayon-backed traversal using Win32 `FindFirstFileExW`, measuring true cluster-allocated size rather than logical bytes.
+- **Interactive treemap**: Squarified layout via the Bruls-Huizing-van Wijk algorithm, rendered with Direct2D/Win2D at 60–120 FPS.
+- **Developer clutter detection**: 8 ecosystems (Node.js, Rust, .NET, Python, Java/JVM, Docker/WSL, Git, IDEs) plus dormancy analysis for projects untouched 30+ days.
+- **Zero-accident cleanup**: Immutable system path blacklist, COM `IFileOperation` Recycle Bin routing, and a dry-run mode.
+- **Tokenized search**: Sub-5ms in-memory search with `ext:`, `size:`, and `type:` filters.
+- **Incremental persistence**: SQLite in WAL mode with NTFS USN Journal (`FSCTL_READ_USN_JOURNAL`) resync and timestamp-differential fallback.
+
+## Performance
+
+1,000,000-node synthetic benchmark (`cargo run --release -p storage-tree --example tree_benchmark`):
+
+- Build time: 218 ms (target under 2.0 s)
+- Lookup latency: 26.1 ns (target under 1,000 ns)
+- Subtree top-100 files: 45.7 ms (target under 50 ms)
+- Memory footprint: 55.0 MB RSS (target under 300 MB)
+
+## Testing
+
+- Rust workspace: 91 tests via `cargo test --workspace` in `storage-intelligence/core`
+- .NET integration: 30 tests via `dotnet test storage-intelligence/tests/integration/StorageIntelligence.IntegrationTests.csproj`
+
+## Build and Configuration
+
+- [.github/workflows/ci.yml](.github/workflows/ci.yml): Windows CI running fmt, clippy, tests, and WinUI 3 build.
+- [.github/workflows/release.yml](.github/workflows/release.yml): Tag-triggered release packaging.
+- [global.json](global.json): Pinned .NET SDK version.
+- [storage-intelligence/scripts/build.ps1](storage-intelligence/scripts/build.ps1): Release build script.
+

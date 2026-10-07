@@ -359,11 +359,12 @@ mod tests {
 
     #[test]
     fn directory_junction_is_a_leaf_and_not_traversed() {
-        let root = tempdir().unwrap();
-        let target = root.path().join("target_dir");
+        let target_root = tempdir().unwrap();
+        let target = target_root.path().join("target_dir");
         fs::create_dir(&target).unwrap();
         fs::write(target.join("inside.txt"), b"should not be counted").unwrap();
 
+        let root = tempdir().unwrap();
         let link = root.path().join("link_dir");
         if symlink_dir(&target, &link).is_err() {
             eprintln!("skipping: creating a directory symlink requires Developer Mode or admin");

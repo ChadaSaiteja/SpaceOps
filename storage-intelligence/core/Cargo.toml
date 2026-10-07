@@ -1,0 +1,12 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/common",
+    "crates/scanner",
+    "crates/storage-tree",
+    "crates/ffi",
+]
+
+[workspace.package]
+edition = "2021"
+rust-version = "1.75"

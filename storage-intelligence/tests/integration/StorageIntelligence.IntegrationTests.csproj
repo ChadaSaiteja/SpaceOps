@@ -1,0 +1,40 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net9.0-windows10.0.19041.0</TargetFramework>
+    <Platforms>x86;x64;ARM64</Platforms>
+    <RuntimeIdentifier Condition="'$(RuntimeIdentifier)' == ''">win-$([System.Runtime.InteropServices.RuntimeInformation]::ProcessArchitecture.ToString().ToLowerInvariant())</RuntimeIdentifier>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="coverlet.collector" Version="6.0.2" />
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.12.0" />
+    <PackageReference Include="xunit" Version="2.9.2" />
+    <PackageReference Include="xunit.runner.visualstudio" Version="2.8.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Using Include="Xunit" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\app\StorageIntelligence\StorageIntelligence.csproj" />
+  </ItemGroup>
+
+  <!-- Same native DLL copy as StorageIntelligence.csproj: ProjectReference doesn't
+       propagate the ffi.dll copy step, so it's duplicated here for the test output. -->
+  <Target Name="CopyNativeFfiDll" AfterTargets="Build">
+    <PropertyGroup>
+      <_CargoProfileDir Condition="'$(Configuration)' == 'Debug'">debug</_CargoProfileDir>
+      <_CargoProfileDir Condition="'$(Configuration)' != 'Debug'">release</_CargoProfileDir>
+    </PropertyGroup>
+    <ItemGroup>
+      <_NativeFfiDll Include="$(MSBuildProjectDirectory)\..\..\core\target\$(_CargoProfileDir)\ffi.dll" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_NativeFfiDll)" DestinationFolder="$(OutDir)" Condition="Exists('%(_NativeFfiDll.Identity)')" SkipUnchangedFiles="true" />
+  </Target>
+
+</Project>

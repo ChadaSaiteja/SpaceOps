@@ -1,0 +1,32 @@
+# Rust
+target/
+**/target/
+**/*.rs.bk
+*.pdb
+
+# .NET
+bin/
+obj/
+**/bin/
+**/obj/
+TestResults/
+*.suo
+*.user
+*.userosscache
+*.sln.docstates
+
+# IDE & Editors
+.vs/
+.vscode/
+.idea/
+
+# SQLite & Temp artifacts
+*.db-journal
+*.db-wal
+*.db-shm
+
+# OS
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+.DS_Store

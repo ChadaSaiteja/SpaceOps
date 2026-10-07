@@ -1,0 +1,60 @@
+name: CI
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build-and-test:
+    name: Build & Test (Windows)
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+          components: clippy, rustfmt
+
+      - name: Rust Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: storage-intelligence/core
+
+      - name: Set up .NET SDK
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '9.0.x'
+
+      - name: Verify Rust code formatting
+        run: |
+          cd storage-intelligence/core
+          cargo fmt --all -- --check
+
+      - name: Run Rust Clippy linter
+        run: |
+          cd storage-intelligence/core
+          cargo clippy --all-targets -- -D warnings
+
+      - name: Run Rust workspace tests
+        run: |
+          cd storage-intelligence/core
+          cargo test --workspace --verbose
+
+      - name: Build Rust FFI native release binary
+        run: |
+          cd storage-intelligence/core
+          cargo build --release -p ffi
+
+      - name: Build WinUI 3 Desktop Application
+        run: |
+          dotnet build storage-intelligence/app/StorageIntelligence/StorageIntelligence.csproj -c Release
+
+      - name: Run .NET Integration Test Suite
+        run: |
+          dotnet test storage-intelligence/tests/integration/StorageIntelligence.IntegrationTests.csproj -c Release --verbosity normal

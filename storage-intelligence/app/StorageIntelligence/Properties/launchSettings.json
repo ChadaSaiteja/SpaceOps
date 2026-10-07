@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "StorageIntelligence (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "StorageIntelligence (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}

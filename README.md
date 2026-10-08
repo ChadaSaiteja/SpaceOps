@@ -21,6 +21,7 @@
 [Architecture](#architecture) •
 [Roadmap](#whats-planned-next) •
 [FAQ](#frequently-asked-questions) •
+[Website](https://chadasaiteja.github.io/SpaceOps/) •
 [Contributing](#community--contributing)
 
 </div>
@@ -34,6 +35,8 @@ SpaceOps is a free, open-source **disk analyzer and storage cleaner for Windows 
 **Who is it for?** Developers, technical professionals, and power users whose disks are filling up with build artifacts, container images, and package caches.
 
 **How is it different from WinDirStat, TreeSize, or WizTree?** SpaceOps is free and MIT-licensed, detects clutter across 8 developer ecosystems (Node.js, Rust, .NET, Python, Java, Docker/WSL, Git, IDEs), and never deletes permanently — every cleanup routes through the Recycle Bin so you can undo mistakes.
+
+**Project website:** [chadasaiteja.github.io/SpaceOps](https://chadasaiteja.github.io/SpaceOps/)
 
 Instead of acting as a blind "disk cleaner" that arbitrarily deletes temporary files, SpaceOps provides deep visibility into your storage. It combines a high-speed **Rust scanning engine** with a 120 FPS hardware-accelerated **Direct2D squarified treemap**, deep detection for **8 developer toolchains**, and a **zero-accident safety model** that routes cleanups to the Windows Recycle Bin.
 

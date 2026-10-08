@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SpaceOps — Open-Source Disk Analyzer &amp; Storage Cleaner for Windows</title>
+<title>SpaceOps Ã¢â‚¬â€ Open-Source Disk Analyzer &amp; Storage Cleaner for Windows</title>
 <meta name="description" content="SpaceOps is a free, open-source disk analyzer for Windows 10 and 11. Visualize disk usage with a Rust-powered treemap, detect developer clutter across 8 ecosystems, and clean safely through the Recycle Bin. MIT licensed.">
 <meta name="keywords" content="disk analyzer windows, storage analyzer, disk cleaner windows 11, find large files windows, free space windows, treemap disk usage, node_modules cleanup, docker vhdx cleanup, rust storage scanner, winui3 app, ntfs usn journal">
 <meta name="author" content="Saiteja Chada">
@@ -12,12 +12,12 @@
 
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="SpaceOps">
-<meta property="og:title" content="SpaceOps — Open-Source Disk Analyzer for Windows">
+<meta property="og:title" content="SpaceOps Ã¢â‚¬â€ Open-Source Disk Analyzer for Windows">
 <meta property="og:description" content="Understand your storage. Clean it safely. A Rust-powered disk analyzer with a Direct2D treemap and Recycle Bin-routed cleanup.">
 <meta property="og:url" content="https://chadasaiteja.github.io/SpaceOps/">
 <meta property="og:image" content="https://chadasaiteja.github.io/SpaceOps/og-image.png">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="SpaceOps — Open-Source Disk Analyzer for Windows">
+<meta name="twitter:title" content="SpaceOps Ã¢â‚¬â€ Open-Source Disk Analyzer for Windows">
 <meta name="twitter:description" content="Understand your storage. Clean it safely.">
 <meta name="twitter:image" content="https://chadasaiteja.github.io/SpaceOps/og-image.png">
 
@@ -121,7 +121,6 @@
   .hero{padding:88px 0 64px;text-align:center;position:relative;overflow:hidden}
   .hero::before{content:"";position:absolute;top:-220px;left:50%;transform:translateX(-50%);width:820px;height:480px;background:radial-gradient(circle,rgba(0,245,212,.13),transparent 68%);pointer-events:none}
   .badge{display:inline-flex;align-items:center;gap:8px;padding:6px 15px;border:1px solid var(--border);border-radius:999px;background:var(--bg-card);color:var(--text-sub);font-size:.78rem;font-family:var(--font-mono);margin-bottom:26px}
-  .badge .dot{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 9px var(--accent)}
   h1{font-size:clamp(2.1rem,5.4vw,3.6rem);font-weight:800;letter-spacing:-.025em;line-height:1.1;margin-bottom:20px}
   .grad{background:linear-gradient(100deg,var(--accent),var(--blue) 55%,var(--purple));-webkit-background-clip:text;background-clip:text;color:transparent}
   .lede{font-size:1.1rem;color:var(--text-sub);max-width:660px;margin:0 auto 34px}
@@ -166,7 +165,7 @@
   .faq summary{cursor:pointer;font-weight:600;font-size:.97rem;list-style:none;display:flex;justify-content:space-between;gap:14px}
   .faq summary::-webkit-details-marker{display:none}
   .faq summary::after{content:"+";color:var(--accent);font-family:var(--font-mono);font-size:1.2rem;line-height:1;flex-shrink:0}
-  .faq details[open] summary::after{content:"−"}
+  .faq details[open] summary::after{content:"Ã¢Ë†â€™"}
   .faq p{color:var(--text-sub);font-size:.92rem;margin-top:11px}
 
   pre{background:var(--bg-surface);border:1px solid var(--border);border-radius:11px;padding:19px;overflow-x:auto;font-family:var(--font-mono);font-size:.84rem;line-height:1.65}
@@ -186,6 +185,38 @@
     .hero{padding:58px 0 44px}
     .lede{font-size:1rem}
     .logo{font-size:.95rem}
+  }
+
+  /* ---- Dark mode (default: respects system preference) ---- */
+  @media (prefers-color-scheme: light){
+    :root{
+      --bg-base:#f7f8fa; --bg-surface:#ffffff; --bg-card:#ffffff; --bg-card-hover:#f1f5f9;
+      --border:#dde3ec; --accent:#0d9488; --accent-dim:rgba(13,148,136,.10);
+      --purple:#7c3aed; --pink:#db2777; --blue:#2563eb; --amber:#b45309;
+      --text-main:#111827; --text-sub:#4b5563; --text-muted:#6b7280;
+    }
+    .btn-primary{color:#ffffff}
+    pre .c{color:#6b7280}
+    pre .p{color:#7c3aed}
+    .install, .chip{background:var(--bg-surface)}
+    header{background:rgba(247,248,250,.85)}
+    .hero::before{background:radial-gradient(circle,rgba(13,148,136,.10),transparent 68%)}
+    .cta-box{background:linear-gradient(140deg,rgba(13,148,136,.06),rgba(124,58,237,.06));border-color:rgba(13,148,136,.28)}
+    .logo span{color:var(--accent)}
+    .card:hover{border-color:rgba(13,148,136,.4)}
+    th{background:var(--bg-surface)}
+  }
+
+  /* ---- Reduced motion: collapse all transitions and transforms ---- */
+  @media (prefers-reduced-motion: reduce){
+    html{scroll-behavior:auto}
+    *, *::before, *::after{
+      animation-duration:.01ms !important;
+      animation-iteration-count:1 !important;
+      transition-duration:.01ms !important;
+    }
+    .card:hover{transform:none}
+    .btn:hover,.chip:hover,.install:hover{transform:none}
   }
 </style>
 </head>
@@ -208,7 +239,7 @@
 <main id="top">
 <section class="hero">
   <div class="wrap">
-    <div class="badge"><span class="dot"></span> v0.1.0 &middot; MIT Licensed &middot; Windows 10 / 11</div>
+    <div class="badge">MIT Licensed &middot; Windows 10 / 11</div>
     <h1>Understand your storage.<br><span class="grad">Clean it safely.</span></h1>
     <p class="lede">SpaceOps is a free, open-source disk analyzer for Windows. A high-speed Rust scanning engine maps every byte on your drive into an interactive treemap, finds developer clutter across 8 ecosystems, and routes every cleanup through the Recycle Bin so nothing is ever gone for good.</p>
     <div class="cta">
@@ -265,7 +296,6 @@
 <section id="compare">
   <div class="wrap">
     <div class="sec-head">
-      <div class="eyebrow">Head to head</div>
       <h2>How SpaceOps compares</h2>
       <p class="sec-sub">Against the tools most Windows users reach for first.</p>
     </div>
@@ -290,7 +320,6 @@
 <section id="faq">
   <div class="wrap">
     <div class="sec-head">
-      <div class="eyebrow">Questions</div>
       <h2>Frequently asked questions</h2>
     </div>
     <div class="faq">
@@ -307,7 +336,6 @@
 <section id="docs">
   <div class="wrap">
     <div class="sec-head">
-      <div class="eyebrow">Get started</div>
       <h2>Build from source</h2>
     </div>
     <pre><span class="c"># 1. Clone the repository</span>

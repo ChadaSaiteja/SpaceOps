@@ -40,6 +40,10 @@ SpaceOps is a free, open-source **disk analyzer and storage cleaner for Windows 
 
 Instead of acting as a blind "disk cleaner" that arbitrarily deletes temporary files, SpaceOps provides deep visibility into your storage. It combines a high-speed **Rust scanning engine** with a 120 FPS hardware-accelerated **Direct2D squarified treemap**, deep detection for **8 developer toolchains**, and a **zero-accident safety model** that routes cleanups to the Windows Recycle Bin.
 
+<p align="center">
+  <img src="brand/icon.svg" alt="SpaceOps logo" width="88" height="88">
+</p>
+
 **Maintained by** [Saiteja Chada](https://github.com/ChadaSaiteja) · MIT licensed · Windows 10/11 x64 and ARM64
 
 ---

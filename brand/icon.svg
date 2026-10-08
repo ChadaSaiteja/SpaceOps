@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-label="SpaceOps">
+  <title>SpaceOps</title>
+  <rect width="64" height="64" rx="14" fill="#06090e"/>
+  <rect x="10" y="10" width="26" height="26" rx="3" fill="#00f5d4"/>
+  <rect x="39" y="10" width="15" height="12" rx="2.5" fill="#9d4edd"/>
+  <rect x="39" y="25" width="15" height="29" rx="3" fill="#3a86ff"/>
+  <rect x="10" y="39" width="26" height="15" rx="3" fill="#f72585"/>
+</svg>

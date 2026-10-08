@@ -5,6 +5,7 @@ on:
     branches: [ main ]
     paths:
       - 'index.html'
+      - 'brand/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -33,8 +34,9 @@ jobs:
 
       - name: Stage site output
         run: |
-          mkdir -p _site
+          mkdir -p _site/brand
           cp index.html _site/index.html
+          cp brand/icon.svg _site/brand/icon.svg
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

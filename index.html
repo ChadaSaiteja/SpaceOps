@@ -15,13 +15,15 @@
 <meta property="og:title" content="SpaceOps &mdash; Open-Source Disk Analyzer for Windows">
 <meta property="og:description" content="Understand your storage. Clean it safely. A Rust-powered disk analyzer with a Direct2D treemap and Recycle Bin-routed cleanup.">
 <meta property="og:url" content="https://chadasaiteja.github.io/SpaceOps/">
-<meta property="og:image" content="https://chadasaiteja.github.io/SpaceOps/og-image.png">
-<meta name="twitter:card" content="summary_large_image">
+<meta property="og:image" content="https://chadasaiteja.github.io/SpaceOps/brand/icon.svg">
+<meta property="og:image:type" content="image/svg+xml">
+<meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="SpaceOps &mdash; Open-Source Disk Analyzer for Windows">
 <meta name="twitter:description" content="Understand your storage. Clean it safely.">
-<meta name="twitter:image" content="https://chadasaiteja.github.io/SpaceOps/og-image.png">
+<meta name="twitter:image" content="https://chadasaiteja.github.io/SpaceOps/brand/icon.svg">
 
-<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2306090e'/><rect x='18' y='18' width='38' height='38' rx='5' fill='%2300f5d4'/><rect x='62' y='18' width='20' height='20' rx='4' fill='%239d4edd'/><rect x='62' y='44' width='20' height='38' rx='4' fill='%233a86ff'/><rect x='18' y='62' width='38' height='20' rx='5' fill='%23f72585'/></svg>">
+<link rel="icon" href="brand/icon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="brand/icon.svg">
 
 <script type="application/ld+json">
 {
@@ -108,7 +110,7 @@
   header{position:sticky;top:0;z-index:50;background:rgba(6,9,14,.82);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
   .nav{display:flex;align-items:center;justify-content:space-between;height:60px}
   .logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.05rem;color:var(--text-main)}
-  .logo span{color:var(--accent)}
+  .logo img{display:block;border-radius:5px}
   .nav ul{display:flex;gap:26px;list-style:none}
   .nav a{color:var(--text-sub);font-size:.9rem;font-weight:500}
   .nav a:hover{color:var(--text-main);text-decoration:none}
@@ -202,7 +204,6 @@
     header{background:rgba(247,248,250,.85)}
     .hero::before{background:radial-gradient(circle,rgba(13,148,136,.10),transparent 68%)}
     .cta-box{background:linear-gradient(140deg,rgba(13,148,136,.06),rgba(124,58,237,.06));border-color:rgba(13,148,136,.28)}
-    .logo span{color:var(--accent)}
     .card:hover{border-color:rgba(13,148,136,.4)}
     th{background:var(--bg-surface)}
   }
@@ -224,7 +225,7 @@
 
 <header>
   <div class="wrap nav">
-    <a class="logo" href="#top"><span>&#9635;</span> SpaceOps</a>
+    <a class="logo" href="#top"><img src="brand/icon.svg" alt="SpaceOps logo" width="26" height="26"> SpaceOps</a>
     <ul>
       <li><a href="#features">Features</a></li>
       <li><a href="#benchmarks">Benchmarks</a></li>

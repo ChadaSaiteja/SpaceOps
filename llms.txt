@@ -22,6 +22,7 @@ SpaceOps answers three questions about Windows storage that conventional disk to
 - [CONTRIBUTING.md](CONTRIBUTING.md): Contribution workflow and review process.
 - [CHANGELOG.md](CHANGELOG.md): Version history.
 - [SECURITY.md](SECURITY.md): Security reporting policy.
+- [brand/icon.svg](brand/icon.svg): Project logo and favicon mark.
 
 ## Architecture
 

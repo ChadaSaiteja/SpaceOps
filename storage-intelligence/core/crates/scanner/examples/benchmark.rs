@@ -9,8 +9,43 @@
 //! 1M-file target should be validated on real hardware before shipping).
 
 use common::CancellationToken;
+use std::alloc::{GlobalAlloc, Layout, System};
 use std::path::Path;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
+
+/// Counting allocator: gives deterministic allocation-count / peak-heap metrics that are
+/// immune to the disk-cache and background-load noise that dominates scan wall time.
+struct CountingAlloc;
+static ALLOCS: AtomicUsize = AtomicUsize::new(0);
+static LIVE: AtomicUsize = AtomicUsize::new(0);
+static PEAK: AtomicUsize = AtomicUsize::new(0);
+
+unsafe impl GlobalAlloc for CountingAlloc {
+    unsafe fn alloc(&self, l: Layout) -> *mut u8 {
+        ALLOCS.fetch_add(1, Ordering::Relaxed);
+        let live = LIVE.fetch_add(l.size(), Ordering::Relaxed) + l.size();
+        PEAK.fetch_max(live, Ordering::Relaxed);
+        System.alloc(l)
+    }
+    unsafe fn dealloc(&self, p: *mut u8, l: Layout) {
+        LIVE.fetch_sub(l.size(), Ordering::Relaxed);
+        System.dealloc(p, l)
+    }
+    unsafe fn realloc(&self, p: *mut u8, l: Layout, new_size: usize) -> *mut u8 {
+        ALLOCS.fetch_add(1, Ordering::Relaxed);
+        if new_size >= l.size() {
+            let live = LIVE.fetch_add(new_size - l.size(), Ordering::Relaxed) + new_size - l.size();
+            PEAK.fetch_max(live, Ordering::Relaxed);
+        } else {
+            LIVE.fetch_sub(l.size() - new_size, Ordering::Relaxed);
+        }
+        System.realloc(p, l, new_size)
+    }
+}
+
+#[global_allocator]
+static GLOBAL: CountingAlloc = CountingAlloc;
 
 fn build_synthetic_tree(root: &Path, file_count: u64) {
     let files_per_dir = 100u64;
@@ -62,7 +97,18 @@ fn main() {
             .unwrap_or(1)
             .max(1);
         println!("Read-only scan of {} ({runs} runs)", dir.display());
-        let mut times: Vec<Duration> = (0..runs).map(|_| run_scan(dir)).collect();
+        let mut times: Vec<Duration> = Vec::new();
+        for _ in 0..runs {
+            let allocs_before = ALLOCS.load(Ordering::Relaxed);
+            PEAK.store(LIVE.load(Ordering::Relaxed), Ordering::Relaxed);
+            let live_before = LIVE.load(Ordering::Relaxed);
+            times.push(run_scan(dir));
+            println!(
+                "    allocs={} peak_heap_delta_mb={:.1}",
+                ALLOCS.load(Ordering::Relaxed) - allocs_before,
+                (PEAK.load(Ordering::Relaxed) - live_before) as f64 / 1048576.0
+            );
+        }
         times.sort();
         println!(
             "SUMMARY min={:?} median={:?} max={:?}",

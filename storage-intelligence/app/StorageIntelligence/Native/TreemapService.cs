@@ -154,18 +154,8 @@ public static unsafe class TreemapService
     /// <summary>
     /// Returns default hex color for category per ADR-010.
     /// </summary>
-    public static string GetCategoryColorHex(FileCategory category) => category switch
-    {
-        FileCategory.Video => "#8A2BE2",       // Purple
-        FileCategory.Audio => "#FF1493",       // Pink
-        FileCategory.Image => "#FF8C00",       // Amber/Orange
-        FileCategory.Document => "#1E90FF",    // Blue
-        FileCategory.Archive => "#32CD32",     // Lime Green
-        FileCategory.Executable => "#DC143C",  // Crimson
-        FileCategory.Code => "#00CED1",        // Cyan
-        FileCategory.System => "#708090",      // Slate Gray
-        _ => "#696969",                        // Dim Gray / Other
-    };
+    public static string GetCategoryColorHex(FileCategory category) =>
+        StorageIntelligence.Styles.Palette.CategoryHex(category);
 
     /// <summary>
     /// Classifies an extension string into a FileCategory (PRD §8).

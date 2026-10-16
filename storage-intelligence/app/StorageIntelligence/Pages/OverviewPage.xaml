@@ -1,0 +1,205 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="StorageIntelligence.Pages.OverviewPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:pages="using:StorageIntelligence.Pages"
+    Background="Transparent">
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto">
+        <StackPanel Padding="22,18" Spacing="14">
+
+            <!-- Title -->
+            <StackPanel Spacing="2">
+                <TextBlock Text="Overview" Style="{StaticResource SpacePageTitleStyle}" />
+                <TextBlock x:Name="SubtitleText" Text="Where your storage goes, and what you can safely reclaim." Style="{StaticResource SpaceCaptionStyle}" />
+            </StackPanel>
+
+            <!-- Empty state (before the first scan) -->
+            <Border x:Name="EmptyStatePanel" Style="{StaticResource SpaceCardStyle}" Padding="32">
+                <StackPanel Spacing="14" HorizontalAlignment="Center" MaxWidth="460">
+                    <Border Width="64" Height="64" CornerRadius="18" HorizontalAlignment="Center" Background="{StaticResource SpaceNavOnBrush}">
+                        <FontIcon Glyph="&#xEDA2;" FontSize="30" Foreground="{StaticResource SpaceAccentBrush}" />
+                    </Border>
+                    <TextBlock Text="No scan yet" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" />
+                    <TextBlock
+                        x:Name="EmptyHintText"
+                        Text="Scan a drive or folder to see usage by category, your biggest space consumers and how much you can reclaim."
+                        TextWrapping="Wrap"
+                        TextAlignment="Center"
+                        Foreground="{StaticResource SpaceSubBrush}" />
+                    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                        <Button x:Name="EmptyScanButton" Style="{ThemeResource AccentButtonStyle}" Click="QuickScan_Click">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xE768;" FontSize="14" />
+                                <TextBlock Text="Scan now" />
+                            </StackPanel>
+                        </Button>
+                        <Button Click="QuickSync_Click">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon Glyph="&#xE895;" FontSize="14" Foreground="{StaticResource SpaceAccent2Brush}" />
+                                <TextBlock Text="Load cached index" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </StackPanel>
+            </Border>
+
+            <!-- Populated state -->
+            <Grid x:Name="ContentPanel" Visibility="Collapsed" ColumnSpacing="14" RowSpacing="14">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" MinWidth="300" />
+                    <ColumnDefinition Width="*" MinWidth="300" />
+                </Grid.ColumnDefinitions>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="Auto" />
+                </Grid.RowDefinitions>
+
+                <!-- Usage donut by category -->
+                <Border Grid.Row="0" Grid.Column="0" Style="{StaticResource SpaceCardStyle}">
+                    <StackPanel Spacing="12">
+                        <TextBlock Text="USAGE BY CATEGORY" Style="{StaticResource SpaceSectionTitleStyle}" />
+                        <Grid ColumnSpacing="18">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+
+                            <Grid Width="170" Height="170" VerticalAlignment="Top">
+                                <Canvas x:Name="DonutCanvas" Width="170" Height="170" />
+                                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="0">
+                                    <TextBlock x:Name="DonutTotalText" Text="—" FontSize="20" FontWeight="Bold" FontFamily="Cascadia Mono, Consolas" HorizontalAlignment="Center" />
+                                    <TextBlock Text="scanned" FontSize="11" Foreground="{StaticResource SpaceSubBrush}" HorizontalAlignment="Center" />
+                                </StackPanel>
+                            </Grid>
+
+                            <ItemsControl Grid.Column="1" x:Name="SliceList" VerticalAlignment="Center">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="pages:SliceRowViewModel">
+                                        <Grid ColumnSpacing="8" Margin="0,3">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="*" />
+                                                <ColumnDefinition Width="Auto" />
+                                                <ColumnDefinition Width="44" />
+                                            </Grid.ColumnDefinitions>
+                                            <Rectangle Width="10" Height="10" RadiusX="3" RadiusY="3" Fill="{x:Bind Brush}" VerticalAlignment="Center" />
+                                            <TextBlock Grid.Column="1" Text="{x:Bind Name}" FontSize="12" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Grid.Column="2" Text="{x:Bind SizeText}" FontSize="12" FontFamily="Cascadia Mono, Consolas" />
+                                            <TextBlock Grid.Column="3" Text="{x:Bind PercentText}" FontSize="11" Foreground="{StaticResource SpaceSubBrush}" HorizontalAlignment="Right" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </Grid>
+                        <TextBlock x:Name="SliceFootnote" Text="" FontSize="11" Foreground="{StaticResource SpaceMutedBrush}" TextWrapping="Wrap" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Top 5 consumers -->
+                <Border Grid.Row="0" Grid.Column="1" Style="{StaticResource SpaceCardStyle}">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="TOP 5 CONSUMERS" Style="{StaticResource SpaceSectionTitleStyle}" />
+                        <ItemsControl x:Name="ConsumerList">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="pages:ConsumerRowViewModel">
+                                    <Grid ColumnSpacing="10" Margin="0,5">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="Auto" />
+                                            <ColumnDefinition Width="*" />
+                                            <ColumnDefinition Width="Auto" />
+                                        </Grid.ColumnDefinitions>
+                                        <Border Width="32" Height="32" CornerRadius="8" Background="{StaticResource SpaceNavOnBrush}" VerticalAlignment="Center">
+                                            <FontIcon Glyph="{x:Bind Glyph}" FontSize="15" Foreground="{StaticResource SpaceAmberBrush}" />
+                                        </Border>
+                                        <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                                            <TextBlock Text="{x:Bind Name}" FontSize="13" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                            <ProgressBar Minimum="0" Maximum="100" Value="{x:Bind Percent}" Height="5" CornerRadius="3" Foreground="{x:Bind Brush}" />
+                                        </StackPanel>
+                                        <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                            <TextBlock Text="{x:Bind SizeText}" FontSize="13" FontWeight="Bold" FontFamily="Cascadia Mono, Consolas" HorizontalAlignment="Right" Foreground="{StaticResource SpaceAccentBrush}" />
+                                            <TextBlock Text="{x:Bind PercentText}" FontSize="11" Foreground="{StaticResource SpaceSubBrush}" HorizontalAlignment="Right" />
+                                        </StackPanel>
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                        <TextBlock x:Name="ConsumerEmptyText" Text="Nothing to show." FontSize="12" Foreground="{StaticResource SpaceSubBrush}" Visibility="Collapsed" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Reclaimable now -->
+                <Border Grid.Row="1" Grid.Column="0" Style="{StaticResource SpaceCardStyle}">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="RECLAIMABLE NOW" Style="{StaticResource SpaceSectionTitleStyle}" />
+                        <StackPanel Orientation="Horizontal" Spacing="12">
+                            <TextBlock x:Name="ReclaimTotalText" Text="—" FontSize="30" FontWeight="Bold" FontFamily="Cascadia Mono, Consolas" Foreground="{StaticResource SpaceAccentBrush}" />
+                            <ProgressRing x:Name="ReclaimRing" Width="20" Height="20" IsActive="False" VerticalAlignment="Center" />
+                        </StackPanel>
+                        <Grid RowSpacing="6">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <TextBlock x:Name="ReclaimLeftoverLabel" Grid.Row="2" Text="App leftovers" FontSize="12" Foreground="{StaticResource SpaceSubBrush}" />
+                            <TextBlock x:Name="ReclaimLeftoverValue" Grid.Row="2" Grid.Column="1" Text="—" FontSize="12" FontFamily="Cascadia Mono, Consolas" />
+                            <TextBlock x:Name="ReclaimJunkLabel" Text="System junk" FontSize="12" Foreground="{StaticResource SpaceSubBrush}" />
+                            <TextBlock x:Name="ReclaimJunkValue" Grid.Column="1" Text="—" FontSize="12" FontFamily="Cascadia Mono, Consolas" />
+                            <TextBlock x:Name="ReclaimDevLabel" Grid.Row="1" Text="Dormant developer artifacts" FontSize="12" Foreground="{StaticResource SpaceSubBrush}" />
+                            <TextBlock x:Name="ReclaimDevValue" Grid.Row="1" Grid.Column="1" Text="—" FontSize="12" FontFamily="Cascadia Mono, Consolas" />
+                        </Grid>
+                        <TextBlock Text="Cleanup always routes through the Recycle Bin by default, and protected system paths are never touched." FontSize="11" Foreground="{StaticResource SpaceMutedBrush}" TextWrapping="Wrap" />
+                        <Button Style="{ThemeResource AccentButtonStyle}" Click="ReviewCleanup_Click" HorizontalAlignment="Left">
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <FontIcon Glyph="&#xE74D;" FontSize="13" />
+                                <TextBlock Text="Review and clean" />
+                            </StackPanel>
+                        </Button>
+                    </StackPanel>
+                </Border>
+
+                <!-- Quick actions -->
+                <Border Grid.Row="1" Grid.Column="1" Style="{StaticResource SpaceCardStyle}">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="QUICK ACTIONS" Style="{StaticResource SpaceSectionTitleStyle}" />
+                        <Grid RowSpacing="8" ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <Grid.RowDefinitions>
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
+                            </Grid.RowDefinitions>
+                            <Button Grid.Row="0" Grid.Column="0" HorizontalAlignment="Stretch" Click="QuickScan_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE72C;" FontSize="13" /><TextBlock Text="Rescan" /></StackPanel>
+                            </Button>
+                            <Button Grid.Row="0" Grid.Column="1" HorizontalAlignment="Stretch" Click="QuickSync_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE895;" FontSize="13" Foreground="{StaticResource SpaceAccent2Brush}" /><TextBlock Text="Sync index" /></StackPanel>
+                            </Button>
+                            <Button Grid.Row="1" Grid.Column="0" HorizontalAlignment="Stretch" Click="QuickTreemap_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xF0E2;" FontSize="13" /><TextBlock Text="Open treemap" /></StackPanel>
+                            </Button>
+                            <Button Grid.Row="1" Grid.Column="1" HorizontalAlignment="Stretch" Click="ReviewCleanup_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE74D;" FontSize="13" Foreground="{StaticResource SpaceOrangeBrush}" /><TextBlock Text="Smart cleanup" /></StackPanel>
+                            </Button>
+                            <Button Grid.Row="2" Grid.Column="0" HorizontalAlignment="Stretch" Click="QuickDeveloper_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE943;" FontSize="13" Foreground="{StaticResource SpaceGreenBrush}" /><TextBlock Text="Developer storage" /></StackPanel>
+                            </Button>
+                            <Button Grid.Row="2" Grid.Column="1" HorizontalAlignment="Stretch" Click="QuickApplications_Click">
+                                <StackPanel Orientation="Horizontal" Spacing="8"><FontIcon Glyph="&#xE71D;" FontSize="13" Foreground="{StaticResource SpaceAccentBrush}" /><TextBlock Text="Applications" /></StackPanel>
+                            </Button>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </StackPanel>
+    </ScrollViewer>
+</Page>

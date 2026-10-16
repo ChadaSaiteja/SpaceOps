@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<Page
+    x:Class="StorageIntelligence.Pages.TreemapPage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:StorageIntelligence.Controls"
+    xmlns:local="using:StorageIntelligence"
+    xmlns:styles="using:StorageIntelligence.Styles"
+    Background="Transparent">
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <!-- Navigation / Breadcrumb / Search bar -->
+            <RowDefinition Height="Auto" />
+            <!-- Treemap + details -->
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <Border
+            Grid.Row="0"
+            Background="{StaticResource SpaceBgBrush}"
+            BorderBrush="{StaticResource SpaceBorderBrush}"
+            BorderThickness="0,0,0,1"
+            Padding="18,8">
+            <Grid ColumnSpacing="12">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="340" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Button
+                    x:Name="UpButton"
+                    Grid.Column="0"
+                    Style="{ThemeResource SubtleButtonStyle}"
+                    Click="UpButton_Click"
+                    IsEnabled="False"
+                    ToolTipService.ToolTip="Navigate to parent folder"
+                    Margin="0,0,4,0">
+                    <FontIcon Glyph="&#xE72B;" FontSize="14" />
+                </Button>
+
+                <BreadcrumbBar
+                    x:Name="Breadcrumbs"
+                    Grid.Column="1"
+                    ItemClicked="Breadcrumbs_ItemClicked"
+                    VerticalAlignment="Center" />
+
+                <!-- Real-time Search and Filter Engine (Phase 5, ADR-012) -->
+                <AutoSuggestBox
+                    x:Name="SearchBox"
+                    Grid.Column="2"
+                    PlaceholderText="Search files, ext:vhdx, size:>1GB..."
+                    QueryIcon="Find"
+                    TextChanged="SearchBox_TextChanged"
+                    SuggestionChosen="SearchBox_SuggestionChosen"
+                    QuerySubmitted="SearchBox_QuerySubmitted"
+                    VerticalAlignment="Center">
+                    <AutoSuggestBox.ItemTemplate>
+                        <DataTemplate x:DataType="local:SearchResultViewModel">
+                            <Grid ColumnSpacing="10" Margin="0,4" MinWidth="300">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <Border Grid.Column="0" Width="26" Height="26" CornerRadius="4" Background="{x:Bind CategoryBrush}" VerticalAlignment="Center">
+                                    <FontIcon Glyph="{x:Bind Glyph}" FontSize="12" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                </Border>
+                                <StackPanel Grid.Column="1" VerticalAlignment="Center">
+                                    <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis" MaxWidth="190" />
+                                    <TextBlock Text="{x:Bind FullPath}" FontSize="10" Foreground="{StaticResource SpaceMutedBrush}" TextTrimming="CharacterEllipsis" MaxWidth="190" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
+                                    <TextBlock Text="{x:Bind FormattedSize}" FontWeight="SemiBold" FontSize="11" HorizontalAlignment="Right" />
+                                    <TextBlock Text="{x:Bind CategoryText}" FontSize="10" Foreground="{StaticResource SpaceMutedBrush}" HorizontalAlignment="Right" />
+                                </StackPanel>
+                            </Grid>
+                        </DataTemplate>
+                    </AutoSuggestBox.ItemTemplate>
+                </AutoSuggestBox>
+
+                <!-- Quick Depth Selector -->
+                <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <TextBlock Text="Depth:" VerticalAlignment="Center" FontSize="12" Foreground="{StaticResource SpaceSubBrush}" />
+                    <ComboBox x:Name="DepthComboBox" SelectionChanged="DepthComboBox_SelectionChanged" SelectedIndex="1" Width="76">
+                        <ComboBoxItem Content="1" Tag="1" />
+                        <ComboBoxItem Content="2" Tag="2" />
+                        <ComboBoxItem Content="3" Tag="3" />
+                    </ComboBox>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="1" Padding="18,14" ColumnSpacing="14">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" MinWidth="300" />
+                <ColumnDefinition Width="320" MinWidth="260" MaxWidth="480" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Treemap viewport -->
+            <Border
+                Grid.Column="0"
+                CornerRadius="12"
+                BorderBrush="{StaticResource SpaceBorderBrush}"
+                BorderThickness="1"
+                Background="{StaticResource SpaceTreemapBgBrush}">
+                <controls:TreemapControl
+                    x:Name="Treemap"
+                    NodeSelected="Treemap_NodeSelected"
+                    DrillDownChanged="Treemap_DrillDownChanged" />
+            </Border>
+
+            <!-- Details and category legend -->
+            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto">
+                <StackPanel Spacing="14">
+                    <!-- Selection details card -->
+                    <Border Style="{StaticResource SpaceCardStyle}">
+                        <StackPanel Spacing="12">
+                            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                <FontIcon x:Name="DetailIcon" Glyph="&#xE8B7;" FontSize="24" Foreground="{StaticResource SpaceAccentBrush}" />
+                                <TextBlock x:Name="DetailTitle" Text="No Selection" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="220" />
+                            </StackPanel>
+
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Path:" FontSize="11" Foreground="{StaticResource SpaceMutedBrush}" />
+                                <TextBlock x:Name="DetailPath" Text="—" FontSize="12" TextWrapping="Wrap" MaxHeight="60" TextTrimming="CharacterEllipsis" />
+                            </StackPanel>
+
+                            <!-- Big size figure and share-of-scan bar -->
+                            <StackPanel Spacing="6">
+                                <TextBlock x:Name="DetailSize" Text="—" FontSize="30" FontWeight="Bold" FontFamily="Cascadia Mono, Consolas" Foreground="{StaticResource SpaceAccentBrush}" />
+                                <ProgressBar x:Name="DetailShareBar" Minimum="0" Maximum="100" Value="0" Height="6" CornerRadius="3" />
+                                <TextBlock x:Name="DetailShareText" Text="" FontSize="11" Foreground="{StaticResource SpaceSubBrush}" />
+                            </StackPanel>
+
+                            <Grid ColumnSpacing="8">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Spacing="2">
+                                    <TextBlock Text="Category" FontSize="11" Foreground="{StaticResource SpaceMutedBrush}" />
+                                    <TextBlock x:Name="DetailCategory" Text="—" FontSize="13" />
+                                </StackPanel>
+                                <!-- Dormancy / protection status tag -->
+                                <Border x:Name="DetailStatusTag" Grid.Column="1" CornerRadius="99" Padding="10,3" VerticalAlignment="Center" Visibility="Collapsed" Background="{StaticResource SpaceNavOnBrush}">
+                                    <TextBlock x:Name="DetailStatusText" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource SpaceOnAccentBrush}" />
+                                </Border>
+                            </Grid>
+
+                            <Grid x:Name="DirStatsGrid" ColumnSpacing="8" Visibility="Collapsed">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Grid.Column="0" Spacing="2">
+                                    <TextBlock Text="Files" FontSize="11" Foreground="{StaticResource SpaceMutedBrush}" />
+                                    <TextBlock x:Name="DetailFileCount" Text="0" FontSize="13" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Spacing="2">
+                                    <TextBlock Text="Subdirectories" FontSize="11" Foreground="{StaticResource SpaceMutedBrush}" />
+                                    <TextBlock x:Name="DetailDirCount" Text="0" FontSize="13" />
+                                </StackPanel>
+                            </Grid>
+
+                            <StackPanel Orientation="Horizontal" Spacing="8" Margin="0,4,0,0">
+                                <Button x:Name="DrillDownButton" Style="{ThemeResource AccentButtonStyle}" Click="DrillDownButton_Click" IsEnabled="False" Content="Drill Down" />
+                                <Button x:Name="OpenExplorerButton" Click="OpenExplorerButton_Click" IsEnabled="False" Content="Show in Explorer" />
+                            </StackPanel>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Category color legend (colors come from Styles/Palette.cs) -->
+                    <Border Style="{StaticResource SpaceCardStyle}">
+                        <StackPanel Spacing="10">
+                            <TextBlock Text="FILE TYPES" Style="{StaticResource SpaceSectionTitleStyle}" />
+                            <ItemsRepeater x:Name="LegendRepeater">
+                                <ItemsRepeater.Layout>
+                                    <UniformGridLayout MinItemWidth="120" MinRowSpacing="6" MinColumnSpacing="8" />
+                                </ItemsRepeater.Layout>
+                                <ItemsRepeater.ItemTemplate>
+                                    <DataTemplate x:DataType="styles:CategoryLegendItem">
+                                        <StackPanel Orientation="Horizontal" Spacing="8">
+                                            <Rectangle Width="14" Height="14" RadiusX="3" RadiusY="3" Fill="{x:Bind Brush}" />
+                                            <TextBlock Text="{x:Bind Name}" FontSize="12" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ItemsRepeater.ItemTemplate>
+                            </ItemsRepeater>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</Page>

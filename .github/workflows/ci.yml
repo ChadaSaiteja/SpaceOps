@@ -55,4 +55,6 @@ jobs:
         run: |
           dotnet build storage-intelligence/app/StorageIntelligence/StorageIntelligence.csproj -c Release
 
-
+      - name: Run C# integration tests (FFI boundary)
+        run: |
+          dotnet test storage-intelligence/tests/integration/StorageIntelligence.IntegrationTests.csproj -c Release --verbosity normal

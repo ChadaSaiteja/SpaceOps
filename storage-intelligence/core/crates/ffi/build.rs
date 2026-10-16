@@ -16,6 +16,7 @@ fn main() {
         .input_extern_file("src/search.rs")
         .input_extern_file("src/cleanup.rs")
         .input_extern_file("src/apps.rs")
+        .input_extern_file("src/developer.rs")
         .input_extern_file("src/lib.rs")
         .csharp_dll_name("ffi")
         .csharp_namespace("StorageIntelligence.Native")

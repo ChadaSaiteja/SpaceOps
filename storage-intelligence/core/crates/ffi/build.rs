@@ -7,6 +7,8 @@ fn main() {
     let out_dir = std::path::Path::new("../../../app/StorageIntelligence/Native");
     let _ = std::fs::create_dir_all(out_dir);
 
+    // Input order matters: csbindgen emits functions and structs in input order, so this
+    // list mirrors the original single-file layout to keep NativeMethods.g.cs byte-stable.
     let result = csbindgen::Builder::default()
         .input_extern_file("src/error.rs")
         .input_extern_file("src/scan.rs")
@@ -17,7 +19,7 @@ fn main() {
         .input_extern_file("src/cleanup.rs")
         .input_extern_file("src/apps.rs")
         .input_extern_file("src/developer.rs")
-        .input_extern_file("src/lib.rs")
+        .input_extern_file("src/index.rs")
         .csharp_dll_name("ffi")
         .csharp_namespace("StorageIntelligence.Native")
         .csharp_class_name("NativeMethods")

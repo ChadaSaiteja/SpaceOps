@@ -276,7 +276,8 @@ fn run_benchmark(target_nodes: usize) -> BenchmarkResult {
         assert_eq!(loaded.node_count(), tree.node_count());
 
         let mut tree = tree;
-        let leaf = tree.children(special_node_id).expect("special dir")[0];
+        let kids = tree.children(special_node_id).expect("special dir");
+        let leaf = kids[kids.len() / 2];
         let info = tree.node(leaf).expect("leaf");
         let (size, files) = (info.size, info.file_count);
         let t = Instant::now();

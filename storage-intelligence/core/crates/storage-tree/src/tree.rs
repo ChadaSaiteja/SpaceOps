@@ -543,6 +543,7 @@ impl StorageTree {
         }
 
         let mut curr_parent = self.nodes[idx].parent;
+        let mut changed = node_id;
         while let Some(pid) = curr_parent {
             let p_idx = pid.0 as usize;
             if p_idx >= self.nodes.len() {
@@ -565,15 +566,32 @@ impl StorageTree {
                     .saturating_sub((-delta_files) as u64);
             }
 
-            let children_vec = &mut self.children[p_idx];
-            children_vec.sort_unstable_by(|a, b| {
-                let size_a = self.nodes[a.0 as usize].size;
-                let size_b = self.nodes[b.0 as usize].size;
-                size_b.cmp(&size_a)
-            });
+            // Only `changed` moved relative to its siblings, so re-place just that
+            // entry instead of re-sorting the whole child list at every ancestor.
+            reposition_child(&mut self.children[p_idx], &self.nodes, changed);
+            changed = pid;
 
             curr_parent = self.nodes[p_idx].parent;
         }
+    }
+}
+
+/// Restores size-descending order of `list` after the size of `changed` (and only
+/// `changed`) was modified, by moving that one entry to its new position.
+fn reposition_child(list: &mut [NodeId], nodes: &[TreeNode], changed: NodeId) {
+    let size_of = |id: NodeId| nodes[id.0 as usize].size;
+    let Some(mut pos) = list.iter().position(|&c| c == changed) else {
+        list.sort_unstable_by_key(|&id| Reverse(size_of(id)));
+        return;
+    };
+    let size = size_of(changed);
+    while pos > 0 && size_of(list[pos - 1]) < size {
+        list.swap(pos - 1, pos);
+        pos -= 1;
+    }
+    while pos + 1 < list.len() && size_of(list[pos + 1]) > size {
+        list.swap(pos, pos + 1);
+        pos += 1;
     }
 }
 
@@ -912,6 +930,72 @@ mod tests {
         assert_eq!(top1.len(), 1);
         assert_eq!(tree.node(top1[0]).unwrap().name, "deep.txt");
         assert_eq!(tree.node(top1[0]).unwrap().size, 900);
+    }
+
+    #[test]
+    fn update_node_size_keeps_children_sorted_and_propagates() {
+        let mut events = vec![ScanEvent::EnteredDirectory {
+            parent_id: None,
+            id: NodeId(0),
+            meta: dir_meta("root", false),
+        }];
+        let mut total = 0u64;
+        for d in 1..=5u64 {
+            events.push(ScanEvent::EnteredDirectory {
+                parent_id: Some(NodeId(0)),
+                id: NodeId(d),
+                meta: dir_meta(&format!("d{d}"), false),
+            });
+            let mut dir_total = 0u64;
+            for f in 0..20u64 {
+                let size = (d * 31 + f * 17) % 97 * 10;
+                dir_total += size;
+                events.push(ScanEvent::FileFound {
+                    parent_id: NodeId(d),
+                    meta: file_meta(&format!("f{d}_{f}"), size, None),
+                });
+            }
+            total += dir_total;
+            events.push(ScanEvent::DirectoryComplete {
+                id: NodeId(d),
+                total_size: dir_total,
+                file_count: 20,
+                dir_count: 0,
+            });
+        }
+        events.push(ScanEvent::DirectoryComplete {
+            id: NodeId(0),
+            total_size: total,
+            file_count: 100,
+            dir_count: 5,
+        });
+        let mut tree = StorageTree::build(events).unwrap();
+        let root = tree.root();
+        let mut expected_total = tree.node(root).unwrap().size;
+
+        let mut seed = 7u64;
+        for _ in 0..200 {
+            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+            let leaves: Vec<NodeId> = (0..tree.node_count() as u64)
+                .map(NodeId)
+                .filter(|id| tree.node(*id).unwrap().kind == NodeKind::File)
+                .collect();
+            let leaf = leaves[(seed >> 33) as usize % leaves.len()];
+            let old = tree.node(leaf).unwrap().size;
+            let new = (seed >> 20) % 2000;
+            tree.update_node_size(leaf, new, 1);
+            expected_total = expected_total - old + new;
+
+            assert_eq!(tree.node(root).unwrap().size, expected_total);
+            for i in 0..tree.node_count() as u64 {
+                let kids = tree.children(NodeId(i)).unwrap();
+                let sizes: Vec<u64> = kids.iter().map(|k| tree.node(*k).unwrap().size).collect();
+                assert!(
+                    sizes.windows(2).all(|w| w[0] >= w[1]),
+                    "children of {i} unsorted"
+                );
+            }
+        }
     }
 
     #[test]

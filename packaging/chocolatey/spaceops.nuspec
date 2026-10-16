@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- DRAFT: fill after first release. Not submitted. Replace every FILL-AFTER-FIRST-RELEASE. -->
+<package xmlns="http://schemas.microsoft.com/packaging/2015/06/nuspec.xsd">
+  <metadata>
+    <id>spaceops</id>
+    <version>FILL-AFTER-FIRST-RELEASE</version>
+    <title>SpaceOps</title>
+    <authors>Saiteja Chada</authors>
+    <owners>ChadaSaiteja</owners>
+    <projectUrl>https://chadasaiteja.github.io/SpaceOps/</projectUrl>
+    <projectSourceUrl>https://github.com/ChadaSaiteja/SpaceOps</projectSourceUrl>
+    <bugTrackerUrl>https://github.com/ChadaSaiteja/SpaceOps/issues</bugTrackerUrl>
+    <docsUrl>https://github.com/ChadaSaiteja/SpaceOps/blob/main/README.md</docsUrl>
+    <licenseUrl>https://github.com/ChadaSaiteja/SpaceOps/blob/main/LICENSE</licenseUrl>
+    <requireLicenseAcceptance>false</requireLicenseAcceptance>
+    <iconUrl>https://chadasaiteja.github.io/SpaceOps/icon-512.png</iconUrl>
+    <copyright>Copyright (c) 2026 Saiteja Chada and SpaceOps Contributors</copyright>
+    <tags>disk-analyzer disk-space storage treemap developer-tools cleanup windows open-source</tags>
+    <summary>Free, open-source disk analyzer and storage cleaner for Windows.</summary>
+    <description>SpaceOps scans drives with a parallel Rust engine, shows disk usage as an interactive Direct2D treemap, detects developer clutter (node_modules, Rust target, .NET bin/obj, Python venvs, WSL and Docker virtual disks) and routes every cleanup through the Windows Recycle Bin. Runs fully offline with no telemetry.
+
+Release builds are unsigned until a code-signing certificate is obtained.</description>
+    <releaseNotes>https://github.com/ChadaSaiteja/SpaceOps/releases/tag/vFILL-AFTER-FIRST-RELEASE</releaseNotes>
+  </metadata>
+  <files>
+    <file src="tools\**" target="tools" />
+  </files>
+</package>

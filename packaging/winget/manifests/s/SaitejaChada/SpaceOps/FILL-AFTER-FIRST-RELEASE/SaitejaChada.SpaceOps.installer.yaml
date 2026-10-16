@@ -1,0 +1,20 @@
+# DRAFT - fill after first release. Not submitted.
+PackageIdentifier: SaitejaChada.SpaceOps
+PackageVersion: FILL-AFTER-FIRST-RELEASE   # e.g. 0.2.0
+InstallerType: zip
+NestedInstallerType: portable
+NestedInstallerFiles:
+  - RelativeFilePath: FILL-AFTER-FIRST-RELEASE   # path of the main .exe inside the zip, e.g. StorageIntelligence.exe
+    PortableCommandAlias: spaceops
+Commands:
+  - spaceops
+ReleaseDate: FILL-AFTER-FIRST-RELEASE   # YYYY-MM-DD
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/ChadaSaiteja/SpaceOps/releases/download/vFILL-AFTER-FIRST-RELEASE/SpaceOps-win-x64.zip
+    InstallerSha256: FILL-AFTER-FIRST-RELEASE   # 64 hex chars, uppercase, from SHA256SUMS.txt
+  - Architecture: arm64
+    InstallerUrl: https://github.com/ChadaSaiteja/SpaceOps/releases/download/vFILL-AFTER-FIRST-RELEASE/SpaceOps-win-arm64.zip
+    InstallerSha256: FILL-AFTER-FIRST-RELEASE
+ManifestType: installer
+ManifestVersion: 1.6.0

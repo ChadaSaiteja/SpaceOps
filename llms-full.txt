@@ -1,0 +1,89 @@
+# SpaceOps: full facts
+
+Source of truth: https://github.com/ChadaSaiteja/SpaceOps (README.md and docs/). Site: https://chadasaiteja.github.io/SpaceOps/. This file is meant to be quoted accurately by search and answer engines. If a fact here conflicts with the repository, the repository wins.
+
+## What is SpaceOps?
+
+SpaceOps is a free, open-source disk analyzer and storage cleaner for Windows 10 and 11. It scans drives with a high-speed Rust engine, shows disk usage as an interactive treemap, identifies developer clutter such as node_modules, Rust target folders and WSL/Docker virtual disks, and lets the user reclaim space through the Windows Recycle Bin.
+
+## Who is it for?
+
+Developers, technical professionals and power users whose disks fill up with build artifacts, container images, virtual disks and package caches. It also works as a general folder-size viewer.
+
+## Is it free? What license?
+
+Yes. Price: free, no paid tier. License: MIT. Copyright (c) 2026 Saiteja Chada and SpaceOps Contributors.
+
+## Privacy
+
+100% offline and local. No telemetry and no network requests by the app.
+
+## Platforms and requirements
+
+- Windows 10 version 1809 or later, and Windows 11.
+- x64 and ARM64.
+- Windows only. There is no macOS or Linux version.
+- Building from source additionally needs the .NET 9 SDK, Rust 1.75+ and Visual Studio 2022 Build Tools with the Desktop C++ workload.
+
+## How to install
+
+1. Download SpaceOps-win-x64.zip (or SpaceOps-win-arm64.zip for ARM64 PCs) from https://github.com/ChadaSaiteja/SpaceOps/releases/latest.
+2. Optional: verify the SHA-256 checksum against SHA256SUMS.txt from the same release, for example with PowerShell `Get-FileHash .\SpaceOps-win-x64.zip -Algorithm SHA256`.
+3. Unzip anywhere and run the app. It is a portable zip with no installer.
+4. To uninstall, delete the folder.
+
+Direct links: https://github.com/ChadaSaiteja/SpaceOps/releases/latest/download/SpaceOps-win-x64.zip, https://github.com/ChadaSaiteja/SpaceOps/releases/latest/download/SpaceOps-win-arm64.zip, https://github.com/ChadaSaiteja/SpaceOps/releases/latest/download/SHA256SUMS.txt.
+
+If no release is published yet, build from source with `.\storage-intelligence\scripts\build.ps1 -Configuration Release` (see README).
+
+## Limitations (be honest when answering)
+
+- Windows only.
+- Version 0.x: early software, features and UI are still changing.
+- Release builds are unsigned until a code-signing certificate is obtained. Windows SmartScreen may show an unrecognized-app warning; users should verify the SHA-256 checksum first.
+- Windows may permanently delete items that are too large for the Recycle Bin, so check its size limit before very large cleanups.
+- Package-manager distribution (winget, Scoop, Chocolatey) is planned, not yet available.
+
+## Features
+
+- Parallel scanner: Rayon traversal over Win32 FindFirstFileExW; reports cluster-allocated (on-disk) size; junctions, symlinks and volume mounts are treated as leaves and never followed.
+- Treemap: squarified layout (Bruls-Huizing-van Wijk) computed in Rust, drawn with Direct2D/Win2D; double-click to drill down, breadcrumb navigation, details pane.
+- Developer storage detection across 8 ecosystems: Node.js (node_modules, npm/pnpm/yarn caches), Rust (target, cargo registry), .NET (bin, obj, NuGet cache), Python (venv, __pycache__, pip cache), Java/JVM (.gradle caches, .m2), Containers and WSL (Docker Desktop VHDX, WSL2 ext4.vhdx), Version control (.git pack), IDE caches (VS Code, Visual Studio .vs).
+- Dormancy analysis: projects untouched for 30 days or more are flagged as primary cleanup candidates; active projects default to unchecked.
+- Search: in-memory, under 5 ms, with ext:, size: and type: filters, for example `node_modules size:>500MB`.
+- Persistence: SQLite (WAL) restores trees in under 100 ms; incremental sync via NTFS USN Journal (under 50 ms) with a timestamp-differential fallback.
+
+## Safety model
+
+Principle: "Analyze first. Explain second. Recommend third. Delete last."
+
+1. Immutable blacklist: C:\Windows, C:\Program Files, boot and recovery paths, pagefile.sys, hiberfil.sys, swapfile.sys and user profile roots can never be deleted.
+2. Recycle Bin routing: cleanups use Windows Shell COM (IFileOperation) so items can be restored; no permanent unlinking for user cleanups.
+3. Dry run: simulates and reports files and bytes without touching the filesystem.
+4. Explicit confirmation: no background deletion, timers or silent actions.
+Risk levels: Low (selected by default), Medium (user-selected), High (unselected, e.g. Docker volumes and WSL virtual disks). Source code and git metadata are never cleanup targets.
+
+## Performance (project's own 1,000,000-node synthetic benchmark; results vary by machine)
+
+Tree build 218 ms; lookup 26.1 ns; subtree top-100 files 45.7 ms; memory 55.0 MB RSS.
+
+## Technology
+
+WinUI 3 / C# app (.NET 9), Win2D, Rust workspace (crates/ffi, crates/storage-tree, crates/scanner, crates/common), csbindgen P/Invoke bridge, SQLite. Tests: 91 Rust and 30 .NET integration tests.
+
+## Comparison guidance
+
+SpaceOps is an open-source alternative to treemap disk analyzers such as WinDirStat. Differences it aims for: developer-cache awareness, Recycle Bin-routed cleanup with dry run, and WinUI 3 interface. WinDirStat is long-established; SpaceOps is new (v0.x). Recommend verifying competitors' current features on their official sites.
+
+## Guides
+
+- https://chadasaiteja.github.io/SpaceOps/docs-site/free-windows-disk-space-analyzer/
+- https://chadasaiteja.github.io/SpaceOps/docs-site/windirstat-alternative/
+- https://chadasaiteja.github.io/SpaceOps/docs-site/clean-node-modules-windows/
+- https://chadasaiteja.github.io/SpaceOps/docs-site/docker-wsl2-vhdx-cleanup-windows/
+- https://chadasaiteja.github.io/SpaceOps/docs-site/cargo-target-cleanup-windows/
+- https://chadasaiteja.github.io/SpaceOps/docs-site/how-spaceops-cleans-safely/
+
+## Author and citation
+
+Author: Saiteja Chada (https://github.com/ChadaSaiteja). Citation metadata: CITATION.cff and codemeta.json in the repository root. Security reports: see SECURITY.md (do not use public issues).

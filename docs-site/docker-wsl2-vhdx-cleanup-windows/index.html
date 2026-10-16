@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Shrink Docker &amp; WSL2 ext4.vhdx on Windows | SpaceOps</title>
+<meta name="description" content="Deleting files in WSL2 or Docker does not shrink ext4.vhdx on Windows. Learn how to locate the virtual disk and compact it, with SpaceOps showing its size.">
+<meta name="author" content="Saiteja Chada">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+<meta name="theme-color" content="#06090e">
+<link rel="canonical" href="https://chadasaiteja.github.io/SpaceOps/docs-site/docker-wsl2-vhdx-cleanup-windows/">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="SpaceOps">
+<meta property="og:title" content="Shrink Docker &amp; WSL2 ext4.vhdx on Windows | SpaceOps">
+<meta property="og:description" content="Deleting files in WSL2 or Docker does not shrink ext4.vhdx on Windows. Learn how to locate the virtual disk and compact it, with SpaceOps showing its size.">
+<meta property="og:url" content="https://chadasaiteja.github.io/SpaceOps/docs-site/docker-wsl2-vhdx-cleanup-windows/">
+<meta property="og:image" content="https://chadasaiteja.github.io/SpaceOps/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="SpaceOps logo, a four-tile treemap, with the text: Open-source disk analyzer for Windows">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Shrink Docker &amp; WSL2 ext4.vhdx on Windows | SpaceOps">
+<meta name="twitter:description" content="Deleting files in WSL2 or Docker does not shrink ext4.vhdx on Windows. Learn how to locate the virtual disk and compact it, with SpaceOps showing its size.">
+<meta name="twitter:image" content="https://chadasaiteja.github.io/SpaceOps/og-image.png">
+<link rel="icon" href="../../favicon.ico" sizes="any">
+<link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "headline": "Docker and WSL2 VHDX cleanup on Windows",
+      "description": "Deleting files in WSL2 or Docker does not shrink ext4.vhdx on Windows. Learn how to locate the virtual disk and compact it, with SpaceOps showing its size.",
+      "abstract": "Deleting images or files inside Docker Desktop or WSL2 does not shrink the ext4.vhdx virtual disk on Windows, so you have to compact it: run wsl --shutdown, then compact the VHDX with diskpart (or Optimize-VHD where available). SpaceOps helps by locating the virtual disks on your drive and showing how large they are.",
+      "url": "https://chadasaiteja.github.io/SpaceOps/docs-site/docker-wsl2-vhdx-cleanup-windows/",
+      "mainEntityOfPage": "https://chadasaiteja.github.io/SpaceOps/docs-site/docker-wsl2-vhdx-cleanup-windows/",
+      "inLanguage": "en",
+      "datePublished": "2026-10-16",
+      "dateModified": "2026-10-16",
+      "image": "https://chadasaiteja.github.io/SpaceOps/og-image.png",
+      "author": {
+        "@type": "Person",
+        "name": "Saiteja Chada",
+        "url": "https://github.com/ChadaSaiteja"
+      },
+      "publisher": {
+        "@type": "Person",
+        "name": "Saiteja Chada",
+        "url": "https://github.com/ChadaSaiteja"
+      },
+      "about": {
+        "@type": "SoftwareApplication",
+        "name": "SpaceOps",
+        "url": "https://chadasaiteja.github.io/SpaceOps/",
+        "applicationCategory": "SystemApplication",
+        "operatingSystem": "Windows 10, Windows 11"
+      }
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Why did my disk not free up after deleting Docker images?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "The VHDX only grows on the host; it does not shrink automatically. Compact it after shutting down WSL."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Is it safe to compact a VHDX?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Compaction only reclaims unused blocks, but always stop WSL first and keep a backup of anything important."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can SpaceOps compact the VHDX for me?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "SpaceOps locates and sizes the virtual disks and points you to the safe steps. The commands above are the standard Windows tools, which you run yourself."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Where is my Docker Desktop disk?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Common locations are listed above, but they vary by Docker Desktop version. A SpaceOps scan with the filter ext:vhdx finds them wherever they are."
+          }
+        }
+      ]
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "SpaceOps",
+          "item": "https://chadasaiteja.github.io/SpaceOps/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Docker and WSL2 VHDX cleanup",
+          "item": "https://chadasaiteja.github.io/SpaceOps/docs-site/docker-wsl2-vhdx-cleanup-windows/"
+        }
+      ]
+    }
+  ]
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header>
+  <div class="wrap nav">
+    <a class="logo" href="../../" aria-label="SpaceOps home"><svg viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="20" fill="#06090e"/><rect x="18" y="18" width="38" height="38" rx="5" fill="#00f5d4"/><rect x="62" y="18" width="20" height="20" rx="4" fill="#9d4edd"/><rect x="62" y="44" width="20" height="38" rx="4" fill="#3a86ff"/><rect x="18" y="62" width="38" height="20" rx="5" fill="#f72585"/></svg>SpaceOps</a>
+    <nav aria-label="Primary"><ul>
+      <li><a href="../../#download">Download</a></li>
+      <li><a href="../../#features">Features</a></li>
+      <li><a href="../../#guides">Guides</a></li>
+      <li><a href="../../#faq">FAQ</a></li>
+    </ul></nav>
+    <a class="btn btn-primary btn-sm" href="https://github.com/ChadaSaiteja/SpaceOps" rel="noopener">GitHub &#8599;</a>
+  </div>
+</header>
+
+<main id="main">
+<div class="narrow">
+<article>
+<p class="crumbs"><a href="../../">SpaceOps</a> &rsaquo; Guides &rsaquo; Docker and WSL2 VHDX cleanup</p>
+<h1>Docker and WSL2 VHDX cleanup on Windows</h1>
+<p class="answer">Deleting images or files inside Docker Desktop or WSL2 does not shrink the ext4.vhdx virtual disk on Windows, so you have to compact it: run wsl --shutdown, then compact the VHDX with diskpart (or Optimize-VHD where available). SpaceOps helps by locating the virtual disks on your drive and showing how large they are.</p>
+<p class="updated">Updated 2026-10-16 &middot; SpaceOps v0.x &middot; Windows only</p>
+
+<h2>Why does ext4.vhdx stay large?</h2>
+<p>WSL2 and Docker Desktop store Linux data in a dynamically expanding virtual hard disk. When you delete data inside Linux, the Windows host file keeps its high-water mark until the disk is compacted.</p>
+
+<h2>Where is the VHDX file?</h2>
+<p>SpaceOps' developer-storage reference lists these common locations. They vary by version, so confirm with a scan.</p>
+<ul>
+<li>Docker Desktop (WSL2 backend): <code>%LOCALAPPDATA%\Docker\wsl\data\ext4.vhdx</code></li>
+<li>WSL distributions: <code>%LOCALAPPDATA%\Packages\&lt;Distro&gt;\LocalState\ext4.vhdx</code></li>
+</ul>
+<p>Scan the drive in SpaceOps and search <code>ext:vhdx size:&gt;1GB</code> to see every virtual disk and its size.</p>
+
+<h2>How do I shrink the VHDX?</h2>
+<ol class="howto">
+<li><b>Free space inside first</b>: remove unused Docker images and containers (for example <code>docker system prune</code>) or delete files in your WSL distribution.</li>
+<li><b>Shut down WSL</b>: run <code>wsl --shutdown</code> in PowerShell so the disk is not in use.</li>
+<li><b>Back up</b> anything you cannot recreate; compaction is generally safe, but a backup costs little.</li>
+<li><b>Compact the disk</b> using diskpart, as shown below.</li>
+<li><b>Restart</b> WSL or Docker Desktop and confirm everything works.</li>
+</ol>
+<pre>wsl --shutdown
+diskpart
+  select vdisk file="C:\Users\you\AppData\Local\Docker\wsl\data\ext4.vhdx"
+  attach vdisk readonly
+  compact vdisk
+  detach vdisk
+  exit</pre>
+<p>On Windows editions with Hyper-V tools, <code>Optimize-VHD -Path &lt;file&gt; -Mode Full</code> does the same job. Recent WSL versions may also offer sparse disks via <code>wsl --manage &lt;distro&gt; --set-sparse true</code>; check <code>wsl --help</code> for what your version supports.</p>
+
+<div class="note-box"><p><b>Never delete ext4.vhdx to free space.</b> That file is the Linux filesystem, so deleting it destroys the distribution or Docker data. SpaceOps classifies virtual disks as high risk and leaves them unselected by default.</p></div>
+
+<h2>Frequently asked questions</h2>
+<div class="faq">
+<details open><summary>Why did my disk not free up after deleting Docker images?</summary><p>The VHDX only grows on the host; it does not shrink automatically. Compact it after shutting down WSL.</p></details>
+<details><summary>Is it safe to compact a VHDX?</summary><p>Compaction only reclaims unused blocks, but always stop WSL first and keep a backup of anything important.</p></details>
+<details><summary>Can SpaceOps compact the VHDX for me?</summary><p>SpaceOps locates and sizes the virtual disks and points you to the safe steps. The commands above are the standard Windows tools, which you run yourself.</p></details>
+<details><summary>Where is my Docker Desktop disk?</summary><p>Common locations are listed above, but they vary by Docker Desktop version. A SpaceOps scan with the filter ext:vhdx finds them wherever they are.</p></details>
+</div>
+
+<div class="cta-box">
+<h2>Try SpaceOps</h2>
+<p>Free, open source (MIT), 100% offline. Windows 10/11, x64 and ARM64. Builds are unsigned for now, so verify the checksum.</p>
+<div class="cta">
+<a class="btn btn-primary" href="../../#download">Download latest release</a>
+<a class="btn btn-ghost" href="https://github.com/ChadaSaiteja/SpaceOps" rel="noopener">View on GitHub</a>
+</div>
+</div>
+
+<h2>More guides</h2>
+<div class="related">
+<a href="../free-windows-disk-space-analyzer/">Free Windows disk space analyzer</a>
+<a href="../windirstat-alternative/">WinDirStat alternative</a>
+<a href="../clean-node-modules-windows/">Clean node_modules on Windows</a>
+<a href="../cargo-target-cleanup-windows/">Rust target folder cleanup</a>
+<a href="../how-spaceops-cleans-safely/">How SpaceOps cleans safely</a>
+</div>
+</article>
+</div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="f-links">
+      <a href="../../">Home</a>
+      <a href="https://github.com/ChadaSaiteja/SpaceOps">GitHub</a>
+      <a href="https://github.com/ChadaSaiteja/SpaceOps/blob/main/LICENSE">MIT License</a>
+      <a href="https://github.com/ChadaSaiteja/SpaceOps/blob/main/docs/safety-model.md">Safety model</a>
+      <a href="../../llms.txt">llms.txt</a>
+      <a href="../../sitemap.xml">Sitemap</a>
+    </div>
+    <p>SpaceOps &mdash; open-source storage intelligence for Windows. &copy; 2026 Saiteja Chada and SpaceOps Contributors.</p>
+  </div>
+</footer>
+</body>
+</html>

@@ -409,9 +409,12 @@ impl StorageTree {
         }
         Some(current)
     }
-
     /// Top N largest files anywhere under `root_id` (recursive).
-    /// Uses a min-heap of size `n` for efficient top-N selection. O(total_nodes_under_root).
+    /// Uses a min-heap of size `n` for top-N selection. Because a directory's size is the
+    /// sum of everything below it and children are kept sorted by size descending, whole
+    /// subtrees (and the remaining siblings) are skipped once the heap is full and their
+    /// size is below the current n-th largest file, so the walk typically touches only a
+    /// small fraction of the nodes. Ties are ordered by ascending NodeId.
     pub fn top_files_by_size(&self, root_id: NodeId, n: usize) -> Vec<NodeId> {
         if n == 0 {
             return Vec::new();
@@ -427,7 +430,7 @@ impl StorageTree {
         result.sort_unstable_by(|a, b| {
             let size_a = self.nodes[a.0 as usize].size;
             let size_b = self.nodes[b.0 as usize].size;
-            size_b.cmp(&size_a)
+            size_b.cmp(&size_a).then(a.cmp(b))
         });
         result
     }
@@ -455,6 +458,19 @@ impl StorageTree {
         // Recurse into children for directory/reparse-point nodes.
         if let Some(child_ids) = self.children.get(idx) {
             for &child_id in child_ids {
+                // Children are sorted by size descending: once one is strictly smaller
+                // than the current n-th largest file, it and all later siblings (and
+                // everything below them) cannot enter the top n. Strict `<` keeps tie
+                // semantics identical to the exhaustive walk.
+                if heap.len() >= n {
+                    if let (Some(&Reverse((min_size, _))), Some(child)) =
+                        (heap.peek(), self.nodes.get(child_id.0 as usize))
+                    {
+                        if child.size < min_size {
+                            break;
+                        }
+                    }
+                }
                 self.collect_top_files(child_id, n, heap);
             }
         }
@@ -887,6 +903,64 @@ mod tests {
         assert_eq!(top1.len(), 1);
         assert_eq!(tree.node(top1[0]).unwrap().name, "deep.txt");
         assert_eq!(tree.node(top1[0]).unwrap().size, 900);
+    }
+
+    #[test]
+    fn top_files_pruned_walk_matches_exhaustive_scan() {
+        // Pseudo-random nested tree with many duplicate sizes (ties) and consistent
+        // directory totals; the pruned walk must pick exactly the same sizes as a
+        // brute-force sort of every file.
+        let mut events = vec![ScanEvent::EnteredDirectory {
+            parent_id: None,
+            id: NodeId(0),
+            meta: dir_meta("root", false),
+        }];
+        let mut seed = 12345u64;
+        let mut next = move || {
+            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+            seed >> 33
+        };
+        let mut root_total = 0u64;
+        let mut all_sizes = Vec::new();
+        for d in 1..=30u64 {
+            events.push(ScanEvent::EnteredDirectory {
+                parent_id: Some(NodeId(0)),
+                id: NodeId(d),
+                meta: dir_meta(&format!("d{d}"), false),
+            });
+            let mut dir_total = 0u64;
+            for f in 0..40 {
+                let size = (next() % 50) * 100;
+                dir_total += size;
+                all_sizes.push(size);
+                events.push(ScanEvent::FileFound {
+                    parent_id: NodeId(d),
+                    meta: file_meta(&format!("f{d}_{f}"), size, None),
+                });
+            }
+            root_total += dir_total;
+            events.push(ScanEvent::DirectoryComplete {
+                id: NodeId(d),
+                total_size: dir_total,
+                file_count: 40,
+                dir_count: 0,
+            });
+        }
+        events.push(ScanEvent::DirectoryComplete {
+            id: NodeId(0),
+            total_size: root_total,
+            file_count: 1200,
+            dir_count: 30,
+        });
+        let tree = StorageTree::build(events).unwrap();
+
+        all_sizes.sort_unstable_by(|a, b| b.cmp(a));
+        for n in [1usize, 7, 100, 1200, 2000] {
+            let top = tree.top_files_by_size(tree.root(), n);
+            let got: Vec<u64> = top.iter().map(|id| tree.node(*id).unwrap().size).collect();
+            let want: Vec<u64> = all_sizes.iter().copied().take(n).collect();
+            assert_eq!(got, want, "n = {n}");
+        }
     }
 
     #[test]

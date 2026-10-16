@@ -233,6 +233,32 @@ fn run_benchmark(target_nodes: usize) -> BenchmarkResult {
         top_files.len()
     );
 
+    // Search + treemap layout timings (best of 5 to filter scheduler noise).
+    let best_ms = |f: &dyn Fn() -> usize| -> (f64, usize) {
+        let mut best = f64::MAX;
+        let mut out = 0;
+        for _ in 0..5 {
+            let t = Instant::now();
+            out = f();
+            best = best.min(t.elapsed().as_secs_f64() * 1000.0);
+        }
+        (best, out)
+    };
+    let q_text = storage_tree::SearchQuery::parse("file_7");
+    let q_ext = storage_tree::SearchQuery::parse("ext:txt size:>1KB");
+    let q_cat = storage_tree::SearchQuery::parse("type:code");
+    let (t_text, n1) = best_ms(&|| tree.search(&q_text, 50).len());
+    let (t_ext, n2) = best_ms(&|| tree.search(&q_ext, 50).len());
+    let (t_cat, n3) = best_ms(&|| tree.search(&q_cat, 50).len());
+    let (t_layout, n4) = best_ms(&|| {
+        tree.compute_layout(tree.root(), 1920.0, 1080.0, 4, 2.0)
+            .len()
+    });
+    println!(
+        "EXTRA search(text)={t_text:.2} ms ({n1} hits) search(ext+size)={t_ext:.2} ms ({n2}) \
+         search(type)={t_cat:.2} ms ({n3}) layout(1920x1080,d4)={t_layout:.2} ms ({n4} rects)"
+    );
+
     BenchmarkResult {
         node_count: actual_nodes,
         build_duration,

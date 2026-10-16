@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        SpaceOps theme (Fluent Sidebar, dark teal). Single source of truth for UI chrome colors.
+        File-category colors are defined once in Styles/Palette.cs (shared with the Direct2D treemap
+        and TreemapService.GetCategoryColorHex).
+    -->
+
+    <!-- Surfaces -->
+    <Color x:Key="SpaceBgColor">#FF0B0F17</Color>
+    <Color x:Key="SpaceSurfaceColor">#FF0D121B</Color>
+    <Color x:Key="SpaceCardColor">#FF111724</Color>
+    <Color x:Key="SpaceFieldColor">#FF0A0E16</Color>
+    <Color x:Key="SpaceTreemapBgColor">#FF080B12</Color>
+    <Color x:Key="SpaceBorderColor">#FF1F2A3C</Color>
+    <Color x:Key="SpaceNavHoverColor">#FF141C2A</Color>
+    <Color x:Key="SpaceNavOnColor">#FF182234</Color>
+
+    <!-- Text -->
+    <Color x:Key="SpaceTextColor">#FFF0F4FC</Color>
+    <Color x:Key="SpaceSubColor">#FF8B9BB4</Color>
+    <Color x:Key="SpaceMutedColor">#FF56657E</Color>
+
+    <!-- Accents -->
+    <Color x:Key="SpaceAccentColor">#FF00F5D4</Color>
+    <Color x:Key="SpaceAccent2Color">#FF3A86FF</Color>
+    <Color x:Key="SpaceOnAccentColor">#FF052E25</Color>
+    <Color x:Key="SpacePurpleColor">#FF9D4EDD</Color>
+    <Color x:Key="SpacePinkColor">#FFF72585</Color>
+
+    <!-- Semantic -->
+    <Color x:Key="SpaceGreenColor">#FF34D399</Color>
+    <Color x:Key="SpaceAmberColor">#FFFBBF24</Color>
+    <Color x:Key="SpaceOrangeColor">#FFFF9F1C</Color>
+    <Color x:Key="SpaceRedColor">#FFFB7185</Color>
+    <Color x:Key="SpaceCyanColor">#FF22D3EE</Color>
+
+    <SolidColorBrush x:Key="SpaceBgBrush" Color="{StaticResource SpaceBgColor}" />
+    <SolidColorBrush x:Key="SpaceSurfaceBrush" Color="{StaticResource SpaceSurfaceColor}" />
+    <SolidColorBrush x:Key="SpaceCardBrush" Color="{StaticResource SpaceCardColor}" />
+    <SolidColorBrush x:Key="SpaceFieldBrush" Color="{StaticResource SpaceFieldColor}" />
+    <SolidColorBrush x:Key="SpaceTreemapBgBrush" Color="{StaticResource SpaceTreemapBgColor}" />
+    <SolidColorBrush x:Key="SpaceBorderBrush" Color="{StaticResource SpaceBorderColor}" />
+    <SolidColorBrush x:Key="SpaceNavHoverBrush" Color="{StaticResource SpaceNavHoverColor}" />
+    <SolidColorBrush x:Key="SpaceNavOnBrush" Color="{StaticResource SpaceNavOnColor}" />
+    <SolidColorBrush x:Key="SpaceTextBrush" Color="{StaticResource SpaceTextColor}" />
+    <SolidColorBrush x:Key="SpaceSubBrush" Color="{StaticResource SpaceSubColor}" />
+    <SolidColorBrush x:Key="SpaceMutedBrush" Color="{StaticResource SpaceMutedColor}" />
+    <SolidColorBrush x:Key="SpaceAccentBrush" Color="{StaticResource SpaceAccentColor}" />
+    <SolidColorBrush x:Key="SpaceAccent2Brush" Color="{StaticResource SpaceAccent2Color}" />
+    <SolidColorBrush x:Key="SpaceOnAccentBrush" Color="{StaticResource SpaceOnAccentColor}" />
+    <SolidColorBrush x:Key="SpacePurpleBrush" Color="{StaticResource SpacePurpleColor}" />
+    <SolidColorBrush x:Key="SpacePinkBrush" Color="{StaticResource SpacePinkColor}" />
+    <SolidColorBrush x:Key="SpaceGreenBrush" Color="{StaticResource SpaceGreenColor}" />
+    <SolidColorBrush x:Key="SpaceAmberBrush" Color="{StaticResource SpaceAmberColor}" />
+    <SolidColorBrush x:Key="SpaceOrangeBrush" Color="{StaticResource SpaceOrangeColor}" />
+    <SolidColorBrush x:Key="SpaceRedBrush" Color="{StaticResource SpaceRedColor}" />
+    <SolidColorBrush x:Key="SpaceCyanBrush" Color="{StaticResource SpaceCyanColor}" />
+
+    <LinearGradientBrush x:Key="SpaceAccentGradientBrush" StartPoint="0,0" EndPoint="1,0">
+        <GradientStop Color="{StaticResource SpaceAccentColor}" Offset="0" />
+        <GradientStop Color="{StaticResource SpaceAccent2Color}" Offset="1" />
+    </LinearGradientBrush>
+
+    <!-- Make stock controls follow the palette (accent buttons, accent text, progress) -->
+    <SolidColorBrush x:Key="AccentButtonBackground" Color="{StaticResource SpaceAccentColor}" />
+    <SolidColorBrush x:Key="AccentButtonBackgroundPointerOver" Color="#FF33F7DC" />
+    <SolidColorBrush x:Key="AccentButtonBackgroundPressed" Color="#FF00C9AE" />
+    <SolidColorBrush x:Key="AccentButtonBackgroundDisabled" Color="#FF1B3A3A" />
+    <SolidColorBrush x:Key="AccentButtonForeground" Color="{StaticResource SpaceOnAccentColor}" />
+    <SolidColorBrush x:Key="AccentButtonForegroundPointerOver" Color="{StaticResource SpaceOnAccentColor}" />
+    <SolidColorBrush x:Key="AccentButtonForegroundPressed" Color="{StaticResource SpaceOnAccentColor}" />
+    <SolidColorBrush x:Key="AccentButtonForegroundDisabled" Color="{StaticResource SpaceMutedColor}" />
+    <SolidColorBrush x:Key="AccentButtonBorderBrush" Color="Transparent" />
+    <SolidColorBrush x:Key="AccentButtonBorderBrushPointerOver" Color="Transparent" />
+    <SolidColorBrush x:Key="AccentButtonBorderBrushPressed" Color="Transparent" />
+    <SolidColorBrush x:Key="AccentTextFillColorPrimaryBrush" Color="{StaticResource SpaceAccentColor}" />
+    <SolidColorBrush x:Key="ProgressBarForeground" Color="{StaticResource SpaceAccentColor}" />
+    <SolidColorBrush x:Key="ProgressBarBackground" Color="{StaticResource SpaceBorderColor}" />
+
+    <!-- Reusable styles -->
+    <Style x:Key="SpaceCardStyle" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource SpaceCardBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource SpaceBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="12" />
+        <Setter Property="Padding" Value="16" />
+    </Style>
+
+    <Style x:Key="SpaceRowStyle" TargetType="Border">
+        <Setter Property="Background" Value="{StaticResource SpaceCardBrush}" />
+        <Setter Property="BorderBrush" Value="{StaticResource SpaceBorderBrush}" />
+        <Setter Property="BorderThickness" Value="1" />
+        <Setter Property="CornerRadius" Value="8" />
+        <Setter Property="Padding" Value="12" />
+        <Setter Property="Margin" Value="0,4" />
+    </Style>
+
+    <Style x:Key="SpaceSectionTitleStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="11" />
+        <Setter Property="FontWeight" Value="SemiBold" />
+        <Setter Property="CharacterSpacing" Value="90" />
+        <Setter Property="Foreground" Value="{StaticResource SpaceSubBrush}" />
+    </Style>
+
+    <Style x:Key="SpacePageTitleStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="20" />
+        <Setter Property="FontWeight" Value="Bold" />
+        <Setter Property="Foreground" Value="{StaticResource SpaceTextBrush}" />
+    </Style>
+
+    <Style x:Key="SpaceCaptionStyle" TargetType="TextBlock">
+        <Setter Property="FontSize" Value="12" />
+        <Setter Property="Foreground" Value="{StaticResource SpaceSubBrush}" />
+    </Style>
+
+    <Style x:Key="SpaceMonoStyle" TargetType="TextBlock">
+        <Setter Property="FontFamily" Value="Cascadia Mono, Consolas" />
+    </Style>
+</ResourceDictionary>

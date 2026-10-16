@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Microsoft.UI.Xaml.Media;
 using StorageIntelligence.Native;
+using StorageIntelligence.Styles;
 using Windows.UI;
 
 namespace StorageIntelligence;
@@ -49,25 +50,23 @@ public sealed class DevArtifactViewModel : INotifyPropertyChanged
 
     public SolidColorBrush EcosystemBrush => Info.Ecosystem switch
     {
-        DevEcosystem.NodeJs => new SolidColorBrush(Color.FromArgb(255, 16, 185, 129)),  // Green
-        DevEcosystem.Rust => new SolidColorBrush(Color.FromArgb(255, 249, 115, 22)),   // Orange
-        DevEcosystem.DotNet => new SolidColorBrush(Color.FromArgb(255, 139, 92, 246)), // Purple
-        DevEcosystem.Python => new SolidColorBrush(Color.FromArgb(255, 59, 130, 246)),  // Blue
-        DevEcosystem.Java => new SolidColorBrush(Color.FromArgb(255, 217, 119, 6)),    // Amber
-        DevEcosystem.DockerWsl => new SolidColorBrush(Color.FromArgb(255, 6, 182, 212)),// Cyan
-        DevEcosystem.Git => new SolidColorBrush(Color.FromArgb(255, 239, 68, 68)),     // Red
-        _ => new SolidColorBrush(Color.FromArgb(255, 156, 163, 175)),                  // Gray
+        DevEcosystem.NodeJs => ThemeBrushes.Green,
+        DevEcosystem.Rust => ThemeBrushes.Orange,
+        DevEcosystem.DotNet => ThemeBrushes.Purple,
+        DevEcosystem.Python => ThemeBrushes.Accent2,
+        DevEcosystem.Java => ThemeBrushes.Amber,
+        DevEcosystem.DockerWsl => ThemeBrushes.Cyan,
+        DevEcosystem.Git => ThemeBrushes.Red,
+        _ => ThemeBrushes.Neutral,
     };
 
-    public SolidColorBrush DormancyBrush => IsDormant
-        ? new SolidColorBrush(Color.FromArgb(255, 245, 158, 11))   // Amber
-        : new SolidColorBrush(Color.FromArgb(255, 16, 185, 129));  // Green
+    public SolidColorBrush DormancyBrush => IsDormant ? ThemeBrushes.Amber : ThemeBrushes.Green;
 
     public SolidColorBrush RiskBrush => RiskLevel switch
     {
-        RiskLevel.Low => new SolidColorBrush(Color.FromArgb(255, 16, 185, 129)),
-        RiskLevel.Medium => new SolidColorBrush(Color.FromArgb(255, 245, 158, 11)),
-        _ => new SolidColorBrush(Color.FromArgb(255, 239, 68, 68)),
+        RiskLevel.Low => ThemeBrushes.Green,
+        RiskLevel.Medium => ThemeBrushes.Amber,
+        _ => ThemeBrushes.Red,
     };
 
     public string RiskText => RiskLevel switch

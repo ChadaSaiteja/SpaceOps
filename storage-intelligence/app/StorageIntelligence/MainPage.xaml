@@ -6,6 +6,7 @@
     xmlns:controls="using:StorageIntelligence.Controls"
     xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
     xmlns:local="using:StorageIntelligence"
+    xmlns:styles="using:StorageIntelligence.Styles"
     xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
     mc:Ignorable="d">
 
@@ -82,7 +83,7 @@
                     Click="CleanupButton_Click"
                     VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal" Spacing="6">
-                        <FontIcon Glyph="&#xE74D;" FontSize="14" Foreground="#FF9800" />
+                        <FontIcon Glyph="&#xE74D;" FontSize="14" Foreground="{StaticResource SpaceOrangeBrush}" />
                         <TextBlock Text="Smart Cleanup" />
                     </StackPanel>
                 </Button>
@@ -104,7 +105,7 @@
                     Click="DevStorageButton_Click"
                     VerticalAlignment="Center">
                     <StackPanel Orientation="Horizontal" Spacing="6">
-                        <FontIcon Glyph="&#xE790;" FontSize="14" Foreground="#10B981" />
+                        <FontIcon Glyph="&#xE790;" FontSize="14" Foreground="{StaticResource SpaceGreenBrush}" />
                         <TextBlock Text="Dev Storage" />
                     </StackPanel>
                 </Button>
@@ -116,7 +117,7 @@
                     VerticalAlignment="Center"
                     ToolTipService.ToolTip="Fast incremental sync / load from local SQLite index (ADR-016)">
                     <StackPanel Orientation="Horizontal" Spacing="6">
-                        <FontIcon Glyph="&#xE895;" FontSize="14" Foreground="#3B82F6" />
+                        <FontIcon Glyph="&#xE895;" FontSize="14" Foreground="{StaticResource SpaceAccent2Brush}" />
                         <TextBlock x:Name="SyncButtonText" Text="Sync Index" />
                     </StackPanel>
                 </Button>
@@ -287,70 +288,19 @@
                             Padding="16">
                             <StackPanel Spacing="10">
                                 <TextBlock Text="File Types &amp; Categories" FontWeight="SemiBold" FontSize="14" />
-                                
-                                <Grid RowSpacing="6">
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="*" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <Grid.RowDefinitions>
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                        <RowDefinition Height="Auto" />
-                                    </Grid.RowDefinitions>
-
-                                    <!-- Video -->
-                                    <StackPanel Grid.Row="0" Grid.Column="0" Orientation="Horizontal" Spacing="8">
-                                        <Rectangle Width="14" Height="14" RadiusX="3" RadiusY="3" Fill="#8A2BE2" />
-                                        <TextBlock Text="Video" FontSize="12" />
-                                    </StackPanel>
-                                    <!-- Audio -->
-                                    <StackPanel Grid.Row="0" Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                                        <Rectangle Width="14" Height="14" RadiusX="3" RadiusY="3" Fill="#FF1493" />
-                                        <TextBlock Text="Audio" FontSize="12" />
-                                    </StackPanel>
-
-                                    <!-- Images -->
-                                    <StackPanel Grid.Row="1" Grid.Column="0" Orientation="Horizontal" Spacing="8">
-                                        <Rectangle Width="14" Height="14" RadiusX="3" RadiusY="3" Fill="#FF8C00" />
-                                        <TextBlock Text="Images" FontSize="12" />
-                                    </StackPanel>
-                                    <!-- Documents -->
-                                    <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                                        <Rectangle Width="14" Height="14" RadiusX="3" RadiusY="3" Fill="#1E90FF" />
-                                        <TextBlock Text="Documents" FontSize="12" />
-                                    </StackPanel>
-
-                                    <!-- Archives -->
-                                    <StackPanel Grid.Row="2" Grid.Column="0" Orientation="Horizontal" Spacing="8">
-                                        <Rectangle Width="14" Height="14" RadiusX="3" RadiusY="3" Fill="#32CD32" />
-                                        <TextBlock Text="Archives" FontSize="12" />
-                                    </StackPanel>
-                                    <!-- Executables -->
-                                    <StackPanel Grid.Row="2" Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                                        <Rectangle Width="14" Height="14" RadiusX="3" RadiusY="3" Fill="#DC143C" />
-                                        <TextBlock Text="Programs" FontSize="12" />
-                                    </StackPanel>
-
-                                    <!-- Code -->
-                                    <StackPanel Grid.Row="3" Grid.Column="0" Orientation="Horizontal" Spacing="8">
-                                        <Rectangle Width="14" Height="14" RadiusX="3" RadiusY="3" Fill="#00CED1" />
-                                        <TextBlock Text="Code &amp; Data" FontSize="12" />
-                                    </StackPanel>
-                                    <!-- System -->
-                                    <StackPanel Grid.Row="3" Grid.Column="1" Orientation="Horizontal" Spacing="8">
-                                        <Rectangle Width="14" Height="14" RadiusX="3" RadiusY="3" Fill="#708090" />
-                                        <TextBlock Text="System" FontSize="12" />
-                                    </StackPanel>
-
-                                    <!-- Other -->
-                                    <StackPanel Grid.Row="4" Grid.Column="0" Orientation="Horizontal" Spacing="8">
-                                        <Rectangle Width="14" Height="14" RadiusX="3" RadiusY="3" Fill="#696969" />
-                                        <TextBlock Text="Other" FontSize="12" />
-                                    </StackPanel>
-                                </Grid>
+                                <ItemsRepeater x:Name="LegendRepeater">
+                                    <ItemsRepeater.Layout>
+                                        <UniformGridLayout MinItemWidth="120" MinRowSpacing="6" MinColumnSpacing="8" />
+                                    </ItemsRepeater.Layout>
+                                    <ItemsRepeater.ItemTemplate>
+                                        <DataTemplate x:DataType="styles:CategoryLegendItem">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <Rectangle Width="14" Height="14" RadiusX="3" RadiusY="3" Fill="{x:Bind Brush}" />
+                                                <TextBlock Text="{x:Bind Name}" FontSize="12" />
+                                            </StackPanel>
+                                        </DataTemplate>
+                                    </ItemsRepeater.ItemTemplate>
+                                </ItemsRepeater>
                             </StackPanel>
                         </Border>
                     </StackPanel>
@@ -415,7 +365,7 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                            <FontIcon Glyph="&#xE74D;" FontSize="20" Foreground="#FF9800" />
+                            <FontIcon Glyph="&#xE74D;" FontSize="20" Foreground="{StaticResource SpaceOrangeBrush}" />
                             <TextBlock Text="Smart Storage Cleanup" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
                         </StackPanel>
                         <Button Grid.Column="1" Style="{ThemeResource SubtleButtonStyle}" Click="CloseCleanup_Click" ToolTipService.ToolTip="Close">
@@ -601,7 +551,7 @@
                             </Button>
                             <Button x:Name="ToggleLeftoversButton" Click="ToggleLeftovers_Click" VerticalAlignment="Center">
                                 <StackPanel Orientation="Horizontal" Spacing="6">
-                                    <FontIcon Glyph="&#xE74D;" FontSize="12" Foreground="#FF9800" />
+                                    <FontIcon Glyph="&#xE74D;" FontSize="12" Foreground="{StaticResource SpaceOrangeBrush}" />
                                     <TextBlock x:Name="ToggleLeftoversText" Text="View Leftovers" />
                                 </StackPanel>
                             </Button>
@@ -683,7 +633,7 @@
                                                     <ColumnDefinition Width="Auto" />
                                                 </Grid.ColumnDefinitions>
 
-                                                <Border Grid.Column="0" Width="36" Height="36" CornerRadius="6" Background="#FF9800" VerticalAlignment="Center">
+                                                <Border Grid.Column="0" Width="36" Height="36" CornerRadius="6" Background="{StaticResource SpaceOrangeBrush}" VerticalAlignment="Center">
                                                     <FontIcon Glyph="&#xE74D;" FontSize="16" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                 </Border>
 
@@ -699,7 +649,7 @@
                                                 </StackPanel>
 
                                                 <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="12,0">
-                                                    <TextBlock Text="{x:Bind FormattedSize}" FontWeight="Bold" FontSize="13" HorizontalAlignment="Right" Foreground="#FF9800" />
+                                                    <TextBlock Text="{x:Bind FormattedSize}" FontWeight="Bold" FontSize="13" HorizontalAlignment="Right" Foreground="{StaticResource SpaceOrangeBrush}" />
                                                     <TextBlock Text="{x:Bind FileCountText}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalAlignment="Right" />
                                                 </StackPanel>
 
@@ -759,7 +709,7 @@
                             <ColumnDefinition Width="Auto" />
                         </Grid.ColumnDefinitions>
                         <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                            <FontIcon Glyph="&#xE790;" FontSize="20" Foreground="#10B981" />
+                            <FontIcon Glyph="&#xE790;" FontSize="20" Foreground="{StaticResource SpaceGreenBrush}" />
                             <TextBlock Text="Developer Storage Intelligence" FontSize="18" FontWeight="SemiBold" VerticalAlignment="Center" />
                         </StackPanel>
                         <Button Grid.Column="1" Style="{ThemeResource SubtleButtonStyle}" Click="CloseDevStorage_Click" ToolTipService.ToolTip="Close">
@@ -861,7 +811,7 @@
 
                                             <!-- Size & File Count -->
                                             <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="12,0">
-                                                <TextBlock Text="{x:Bind FormattedSize}" FontWeight="Bold" FontSize="14" HorizontalAlignment="Right" Foreground="#10B981" />
+                                                <TextBlock Text="{x:Bind FormattedSize}" FontWeight="Bold" FontSize="14" HorizontalAlignment="Right" Foreground="{StaticResource SpaceGreenBrush}" />
                                                 <TextBlock Text="{x:Bind FileCountText}" FontSize="11" Foreground="{ThemeResource TextFillColorSecondaryBrush}" HorizontalAlignment="Right" />
                                             </StackPanel>
 

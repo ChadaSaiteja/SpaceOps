@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Microsoft.UI.Xaml.Media;
 using StorageIntelligence.Native;
+using StorageIntelligence.Styles;
 using Windows.UI;
 
 namespace StorageIntelligence;
@@ -50,10 +51,10 @@ public sealed class CleanupCandidateViewModel : INotifyPropertyChanged
 
     public SolidColorBrush RiskBrush => RiskLevel switch
     {
-        RiskLevel.Low => new SolidColorBrush(Color.FromArgb(255, 34, 197, 94)),     // Green
-        RiskLevel.Medium => new SolidColorBrush(Color.FromArgb(255, 245, 158, 11)), // Orange
-        RiskLevel.High => new SolidColorBrush(Color.FromArgb(255, 239, 68, 68)),    // Red
-        _ => new SolidColorBrush(Color.FromArgb(255, 156, 163, 175))
+        RiskLevel.Low => ThemeBrushes.Green,
+        RiskLevel.Medium => ThemeBrushes.Amber,
+        RiskLevel.High => ThemeBrushes.Red,
+        _ => ThemeBrushes.Neutral
     };
 
     public CleanupCandidateViewModel(CleanupCandidateInfo info)

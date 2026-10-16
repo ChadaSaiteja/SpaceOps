@@ -36,6 +36,7 @@ public sealed partial class MainPage : Page
             defaultPath = "C:\\";
         }
         PathTextBox.Text = defaultPath;
+        LegendRepeater.ItemsSource = StorageIntelligence.Styles.Palette.Legend();
     }
 
     private async void ScanButton_Click(object sender, RoutedEventArgs e)

@@ -53,18 +53,8 @@ public sealed partial class TreemapControl : UserControl
     {
         foreach (FileCategory cat in Enum.GetValues<FileCategory>())
         {
-            string hex = TreemapService.GetCategoryColorHex(cat);
-            _categoryColors[cat] = HexToColor(hex);
+            _categoryColors[cat] = StorageIntelligence.Styles.Palette.CategoryColor(cat);
         }
-    }
-
-    private static Color HexToColor(string hex)
-    {
-        if (hex.StartsWith("#")) hex = hex[1..];
-        byte r = Convert.ToByte(hex[0..2], 16);
-        byte g = Convert.ToByte(hex[2..4], 16);
-        byte b = Convert.ToByte(hex[4..6], 16);
-        return Color.FromArgb(255, r, g, b);
     }
 
     /// <summary>

@@ -11,6 +11,7 @@ fn main() {
         .input_extern_file("src/error.rs")
         .input_extern_file("src/scan.rs")
         .input_extern_file("src/handles.rs")
+        .input_extern_file("src/tree.rs")
         .input_extern_file("src/lib.rs")
         .csharp_dll_name("ffi")
         .csharp_namespace("StorageIntelligence.Native")

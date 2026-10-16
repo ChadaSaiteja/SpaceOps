@@ -56,6 +56,9 @@ public sealed partial class TreemapPage : Page
         DetailTitle.Text = "No Selection";
         DetailPath.Text = "—";
         DetailSize.Text = "—";
+        DetailShareBar.Value = 0;
+        DetailShareText.Text = string.Empty;
+        DetailStatusTag.Visibility = Visibility.Collapsed;
         DetailCategory.Text = "—";
         DirStatsGrid.Visibility = Visibility.Collapsed;
         DrillDownButton.IsEnabled = false;
@@ -90,6 +93,7 @@ public sealed partial class TreemapPage : Page
         DetailTitle.Text = info.Name;
         DetailPath.Text = info.FullPath ?? string.Empty;
         DetailSize.Text = Fmt.Bytes(info.Size);
+        UpdateShareAndStatus(info);
 
         if (info.Kind == NodeKind.Directory)
         {
@@ -111,6 +115,74 @@ public sealed partial class TreemapPage : Page
         }
 
         OpenExplorerButton.IsEnabled = !string.IsNullOrEmpty(info.FullPath);
+    }
+
+    private void UpdateShareAndStatus(NodeInfo info)
+    {
+        // Share of the whole scan
+        double share = 0;
+        var tree = _session.Tree;
+        if (tree != null)
+        {
+            try
+            {
+                ulong total = tree.GetNodeInfo(tree.GetRootId()).Size;
+                if (total > 0) share = Math.Min(100.0, info.Size * 100.0 / total);
+            }
+            catch
+            {
+                // leave share at 0
+            }
+        }
+        DetailShareBar.Value = share;
+        DetailShareText.Text = $"{share:0.##}% of scan";
+
+        // Status tag: protected paths first, then dormancy by last write time
+        string? tag = null;
+        Microsoft.UI.Xaml.Media.Brush? brush = null;
+        string? path = info.FullPath;
+        if (!string.IsNullOrEmpty(path))
+        {
+            try
+            {
+                if (CleanupService.IsPathProtected(path))
+                {
+                    tag = "Protected";
+                    brush = ThemeBrushes.Red;
+                }
+                else
+                {
+                    var lastWrite = info.Kind == NodeKind.Directory
+                        ? Directory.GetLastWriteTimeUtc(path)
+                        : File.GetLastWriteTimeUtc(path);
+                    if (lastWrite.Year > 1700)
+                    {
+                        int days = (int)(DateTime.UtcNow - lastWrite).TotalDays;
+                        if (days > 30)
+                        {
+                            tag = $"Dormant {days}d";
+                            brush = ThemeBrushes.Amber;
+                        }
+                        else
+                        {
+                            tag = "Active";
+                            brush = ThemeBrushes.Green;
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                // no tag if the path cannot be inspected
+            }
+        }
+
+        DetailStatusTag.Visibility = tag == null ? Visibility.Collapsed : Visibility.Visible;
+        if (tag != null)
+        {
+            DetailStatusText.Text = tag;
+            DetailStatusTag.Background = brush;
+        }
     }
 
     private void DrillDownButton_Click(object sender, RoutedEventArgs e)

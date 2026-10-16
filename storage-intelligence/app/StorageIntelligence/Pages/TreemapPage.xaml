@@ -128,19 +128,26 @@
                                 <TextBlock x:Name="DetailPath" Text="—" FontSize="12" TextWrapping="Wrap" MaxHeight="60" TextTrimming="CharacterEllipsis" />
                             </StackPanel>
 
+                            <!-- Big size figure and share-of-scan bar -->
+                            <StackPanel Spacing="6">
+                                <TextBlock x:Name="DetailSize" Text="—" FontSize="30" FontWeight="Bold" FontFamily="Cascadia Mono, Consolas" Foreground="{StaticResource SpaceAccentBrush}" />
+                                <ProgressBar x:Name="DetailShareBar" Minimum="0" Maximum="100" Value="0" Height="6" CornerRadius="3" />
+                                <TextBlock x:Name="DetailShareText" Text="" FontSize="11" Foreground="{StaticResource SpaceSubBrush}" />
+                            </StackPanel>
+
                             <Grid ColumnSpacing="8">
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
                                 <StackPanel Grid.Column="0" Spacing="2">
-                                    <TextBlock Text="Allocated Size" FontSize="11" Foreground="{StaticResource SpaceMutedBrush}" />
-                                    <TextBlock x:Name="DetailSize" Text="—" FontSize="14" FontWeight="SemiBold" />
-                                </StackPanel>
-                                <StackPanel Grid.Column="1" Spacing="2">
                                     <TextBlock Text="Category" FontSize="11" Foreground="{StaticResource SpaceMutedBrush}" />
                                     <TextBlock x:Name="DetailCategory" Text="—" FontSize="13" />
                                 </StackPanel>
+                                <!-- Dormancy / protection status tag -->
+                                <Border x:Name="DetailStatusTag" Grid.Column="1" CornerRadius="99" Padding="10,3" VerticalAlignment="Center" Visibility="Collapsed" Background="{StaticResource SpaceNavOnBrush}">
+                                    <TextBlock x:Name="DetailStatusText" FontSize="11" FontWeight="SemiBold" Foreground="{StaticResource SpaceOnAccentBrush}" />
+                                </Border>
                             </Grid>
 
                             <Grid x:Name="DirStatsGrid" ColumnSpacing="8" Visibility="Collapsed">

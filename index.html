@@ -8,6 +8,7 @@
 <meta name="keywords" content="disk analyzer windows, storage analyzer, disk cleaner windows 11, find large files windows, free space windows, treemap disk usage, node_modules cleanup, docker vhdx cleanup, rust storage scanner, winui3 app, ntfs usn journal">
 <meta name="author" content="Saiteja Chada">
 <meta name="robots" content="index, follow">
+<meta name="theme-color" content="#06090e">
 <link rel="canonical" href="https://chadasaiteja.github.io/SpaceOps/">
 
 <meta property="og:type" content="website">
@@ -15,11 +16,9 @@
 <meta property="og:title" content="SpaceOps &mdash; Open-Source Disk Analyzer for Windows">
 <meta property="og:description" content="Understand your storage. Clean it safely. A Rust-powered disk analyzer with a Direct2D treemap and Recycle Bin-routed cleanup.">
 <meta property="og:url" content="https://chadasaiteja.github.io/SpaceOps/">
-<meta property="og:image" content="https://chadasaiteja.github.io/SpaceOps/og-image.png">
-<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="SpaceOps &mdash; Open-Source Disk Analyzer for Windows">
 <meta name="twitter:description" content="Understand your storage. Clean it safely.">
-<meta name="twitter:image" content="https://chadasaiteja.github.io/SpaceOps/og-image.png">
 
 <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect width='100' height='100' rx='20' fill='%2306090e'/><rect x='18' y='18' width='38' height='38' rx='5' fill='%2300f5d4'/><rect x='62' y='18' width='20' height='20' rx='4' fill='%239d4edd'/><rect x='62' y='44' width='20' height='38' rx='4' fill='%233a86ff'/><rect x='18' y='62' width='38' height='20' rx='5' fill='%23f72585'/></svg>">
 
@@ -47,7 +46,6 @@
     "SQLite WAL persistence with NTFS USN Journal incremental sync"
   ],
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
-  "aggregateRating": { "@type": "AggregateRating", "ratingValue": "10", "ratingCount": "1" },
   "softwareRequirements": "Windows 10 version 1809 or later; .NET 9 SDK and Rust 1.75+ required only for building from source"
 }
 </script>
@@ -89,172 +87,242 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <style>
-  :root {
-    --bg-base:#06090e; --bg-surface:#0b0f17; --bg-card:#111724; --bg-card-hover:#172033;
-    --border:#1c2638; --accent:#00f5d4; --accent-dim:rgba(0,245,212,.12);
-    --purple:#9d4edd; --pink:#f72585; --blue:#3a86ff; --amber:#ffb703;
-    --text-main:#f0f4fc; --text-sub:#8b9bb4; --text-muted:#53627c;
+  :root{
+    --bg:#06090e; --surface:#0b0f17; --card:#111724; --card-hover:#172033; --border:#1c2638;
+    --accent:#00f5d4; --accent-dim:rgba(0,245,212,.12); --on-accent:#052e25;
+    --purple:#9d4edd; --pink:#f72585; --blue:#3a86ff; --amber:#ffb703; --danger:#ff4d6d;
+    --text:#f0f4fc; --sub:#9aa9c2; --muted:#6b7b96; --glow:rgba(0,245,212,.14);
     --font-ui:'Plus Jakarta Sans',system-ui,-apple-system,sans-serif;
-    --font-mono:'JetBrains Mono',Consolas,monospace;
-    --max:1120px;
+    --font-mono:'JetBrains Mono',Consolas,monospace; --max:1160px;
+  }
+  @media (prefers-color-scheme: light){
+    :root{--bg:#f6f8fb; --surface:#fff; --card:#fff; --card-hover:#f1f5f9; --border:#dde3ec;
+      --accent:#0d9488; --accent-dim:rgba(13,148,136,.1); --on-accent:#fff; --purple:#7c3aed; --pink:#db2777;
+      --blue:#2563eb; --amber:#b45309; --danger:#dc2626; --text:#0f172a; --sub:#475569; --muted:#64748b; --glow:rgba(13,148,136,.12)}
   }
   *{box-sizing:border-box;margin:0;padding:0}
-  html{scroll-behavior:smooth}
-  body{background:var(--bg-base);color:var(--text-main);font-family:var(--font-ui);line-height:1.65;-webkit-font-smoothing:antialiased}
-  a{color:var(--accent);text-decoration:none}
-  a:hover{text-decoration:underline}
+  html{scroll-behavior:smooth;scroll-padding-top:72px}
+  body{background:var(--bg);color:var(--text);font-family:var(--font-ui);line-height:1.65;-webkit-font-smoothing:antialiased}
+  a{color:var(--accent);text-decoration:none} a:hover{text-decoration:underline}
+  :focus-visible{outline:2px solid var(--accent);outline-offset:3px;border-radius:4px}
   .wrap{max-width:var(--max);margin:0 auto;padding:0 24px}
+  code{font-family:var(--font-mono);font-size:.85em;color:var(--accent);background:var(--accent-dim);padding:1px 6px;border-radius:4px}
+  .skip{position:absolute;left:-999px;top:8px;background:var(--accent);color:var(--on-accent);padding:8px 14px;border-radius:6px;z-index:100}
+  .skip:focus{left:8px}
 
-  header{position:sticky;top:0;z-index:50;background:rgba(6,9,14,.82);backdrop-filter:blur(12px);border-bottom:1px solid var(--border)}
-  .nav{display:flex;align-items:center;justify-content:space-between;height:60px}
-  .logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.05rem;color:var(--text-main)}
-  .logo span{color:var(--accent)}
-  .nav ul{display:flex;gap:26px;list-style:none}
-  .nav a{color:var(--text-sub);font-size:.9rem;font-weight:500}
-  .nav a:hover{color:var(--text-main);text-decoration:none}
-  .btn{display:inline-flex;align-items:center;gap:8px;padding:9px 18px;border-radius:8px;font-weight:600;font-size:.9rem;border:1px solid transparent;transition:.18s}
-  .btn-primary{background:var(--accent);color:#052e25}
-  .btn-primary:hover{filter:brightness(1.1);text-decoration:none}
-  .btn-ghost{border-color:var(--border);color:var(--text-main)}
+  header{position:sticky;top:0;z-index:50;background:color-mix(in srgb,var(--bg) 82%,transparent);backdrop-filter:blur(14px);border-bottom:1px solid var(--border)}
+  .nav{display:flex;align-items:center;justify-content:space-between;height:62px}
+  .logo{display:flex;align-items:center;gap:10px;font-weight:800;font-size:1.08rem;color:var(--text)}
+  .logo svg{width:26px;height:26px}
+  .nav ul{display:flex;gap:28px;list-style:none}
+  .nav ul a{color:var(--sub);font-size:.9rem;font-weight:500}
+  .nav ul a:hover{color:var(--text);text-decoration:none}
+  .btn{display:inline-flex;align-items:center;gap:8px;padding:11px 20px;border-radius:9px;font-weight:600;font-size:.92rem;border:1px solid transparent;transition:transform .18s,filter .18s,border-color .18s;cursor:pointer;font-family:inherit}
+  .btn-primary{background:var(--accent);color:var(--on-accent);box-shadow:0 6px 24px -6px var(--glow)}
+  .btn-primary:hover{filter:brightness(1.08);text-decoration:none;transform:translateY(-1px)}
+  .btn-ghost{border-color:var(--border);color:var(--text);background:var(--card)}
   .btn-ghost:hover{border-color:var(--accent);text-decoration:none}
+  .btn-sm{padding:8px 16px;font-size:.86rem}
 
-  .hero{padding:88px 0 64px;text-align:center;position:relative;overflow:hidden}
-  .hero::before{content:"";position:absolute;top:-220px;left:50%;transform:translateX(-50%);width:820px;height:480px;background:radial-gradient(circle,rgba(0,245,212,.13),transparent 68%);pointer-events:none}
-  .badge{display:inline-flex;align-items:center;gap:8px;padding:6px 15px;border:1px solid var(--border);border-radius:999px;background:var(--bg-card);color:var(--text-sub);font-size:.78rem;font-family:var(--font-mono);margin-bottom:26px}
-  h1{font-size:clamp(2.1rem,5.4vw,3.6rem);font-weight:800;letter-spacing:-.025em;line-height:1.1;margin-bottom:20px}
+  .hero{padding:84px 0 40px;position:relative;overflow:hidden;border-top:none}
+  .hero::before{content:"";position:absolute;inset:-260px 0 auto;height:640px;background:radial-gradient(ellipse at 50% 40%,var(--glow),transparent 62%),radial-gradient(ellipse at 85% 20%,rgba(157,78,221,.12),transparent 50%);pointer-events:none}
+  .hero-in{position:relative;text-align:center}
+  .badge{display:inline-flex;align-items:center;gap:9px;padding:6px 15px;border:1px solid var(--border);border-radius:999px;background:var(--card);color:var(--sub);font-size:.78rem;font-family:var(--font-mono);margin-bottom:26px}
+  .badge i{width:7px;height:7px;border-radius:50%;background:var(--accent);box-shadow:0 0 10px var(--accent)}
+  h1{font-size:clamp(2.3rem,6vw,4.1rem);font-weight:800;letter-spacing:-.03em;line-height:1.06;margin-bottom:22px}
   .grad{background:linear-gradient(100deg,var(--accent),var(--blue) 55%,var(--purple));-webkit-background-clip:text;background-clip:text;color:transparent}
-  .lede{font-size:1.1rem;color:var(--text-sub);max-width:660px;margin:0 auto 34px}
-  .cta{display:flex;gap:13px;justify-content:center;flex-wrap:wrap;margin-bottom:22px}
-  .install{font-family:var(--font-mono);font-size:.82rem;color:var(--text-muted);background:var(--bg-card);border:1px solid var(--border);border-radius:8px;padding:11px 18px;display:inline-block}
+  .lede{font-size:1.14rem;color:var(--sub);max-width:680px;margin:0 auto 34px}
+  .cta{display:flex;gap:13px;justify-content:center;flex-wrap:wrap}
+  .meta-line{margin-top:20px;color:var(--muted);font-size:.82rem;font-family:var(--font-mono);display:flex;gap:18px;justify-content:center;flex-wrap:wrap}
 
-  .logos{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin-top:44px}
-  .chip{font-family:var(--font-mono);font-size:.74rem;color:var(--text-sub);border:1px solid var(--border);background:var(--bg-surface);border-radius:6px;padding:5px 11px}
+  .window{margin:56px auto 0;max-width:1020px;background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 40px 90px -30px rgba(0,0,0,.55);position:relative;text-align:left}
+  .win-bar{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--card)}
+  .dots{display:flex;gap:6px}.dots i{width:10px;height:10px;border-radius:50%;background:var(--border)}
+  .crumbs{font-family:var(--font-mono);font-size:.76rem;color:var(--sub);flex:1}
+  .crumbs b{color:var(--text);font-weight:500}
+  .search{font-family:var(--font-mono);font-size:.72rem;color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:3px 10px;background:var(--surface)}
+  .win-body{display:grid;grid-template-columns:1fr 250px}
+  .tm{display:grid;grid-template-columns:repeat(12,1fr);grid-template-rows:repeat(8,34px);gap:4px;padding:12px;min-height:300px}
+  .tile{border-radius:6px;padding:8px 10px;font-size:.7rem;font-family:var(--font-mono);color:#fff;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;overflow:hidden;border:1px solid rgba(255,255,255,.1);transition:filter .15s,outline-color .15s;outline:2px solid transparent;opacity:0;animation:pop .5s forwards}
+  .tile:hover,.tile.sel{filter:brightness(1.18);outline-color:#fff;z-index:2}
+  .tile small{opacity:.8;font-size:.9em}
+  @keyframes pop{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}
+  .t1{grid-column:1/7;grid-row:1/5;background:linear-gradient(135deg,#0d9488,#0f766e)}
+  .t2{grid-column:7/10;grid-row:1/4;background:linear-gradient(135deg,#3a86ff,#2563eb)}
+  .t3{grid-column:10/13;grid-row:1/4;background:linear-gradient(135deg,#9d4edd,#7c3aed)}
+  .t4{grid-column:1/4;grid-row:5/9;background:linear-gradient(135deg,#f72585,#be185d)}
+  .t5{grid-column:4/7;grid-row:5/9;background:linear-gradient(135deg,#ea8a00,#b45309)}
+  .t6{grid-column:7/11;grid-row:4/9;background:linear-gradient(135deg,#0891b2,#0e7490)}
+  .t7{grid-column:11/13;grid-row:4/7;background:linear-gradient(135deg,#4f46e5,#4338ca)}
+  .t8{grid-column:11/13;grid-row:7/9;background:linear-gradient(135deg,#64748b,#475569)}
+  .tile:nth-child(2){animation-delay:.08s}.tile:nth-child(3){animation-delay:.16s}.tile:nth-child(4){animation-delay:.24s}.tile:nth-child(5){animation-delay:.32s}.tile:nth-child(6){animation-delay:.4s}.tile:nth-child(7){animation-delay:.48s}.tile:nth-child(8){animation-delay:.56s}
+  .side{border-left:1px solid var(--border);padding:16px;background:var(--card);font-size:.82rem;display:flex;flex-direction:column;gap:12px}
+  .side h4{font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-family:var(--font-mono);font-weight:500}
+  .side .path{font-family:var(--font-mono);font-size:.74rem;word-break:break-all;color:var(--text)}
+  .side .big{font-family:var(--font-mono);font-size:1.7rem;font-weight:700;color:var(--accent);line-height:1}
+  .side dl{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;color:var(--sub)}
+  .side dd{text-align:right;font-family:var(--font-mono);color:var(--text)}
+  .bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden}
+  .bar i{display:block;height:100%;width:38%;background:linear-gradient(90deg,var(--accent),var(--blue));transition:width .25s}
+  .tag{display:inline-block;font-size:.68rem;font-family:var(--font-mono);padding:2px 8px;border-radius:999px;background:rgba(255,183,3,.14);color:var(--amber);border:1px solid rgba(255,183,3,.3)}
+  .hint{text-align:center;color:var(--muted);font-size:.78rem;margin-top:14px;font-family:var(--font-mono)}
+  .chips{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin-top:40px}
+  .chip{font-family:var(--font-mono);font-size:.74rem;color:var(--sub);border:1px solid var(--border);background:var(--surface);border-radius:6px;padding:5px 11px}
 
-  section{padding:66px 0;border-top:1px solid var(--border)}
-  .sec-head{text-align:center;margin-bottom:44px}
-  .eyebrow{font-family:var(--font-mono);font-size:.76rem;color:var(--accent);letter-spacing:.1em;text-transform:uppercase;margin-bottom:12px}
-  h2{font-size:clamp(1.6rem,3.4vw,2.15rem);font-weight:800;letter-spacing:-.02em;margin-bottom:13px}
-  .sec-sub{color:var(--text-sub);max-width:600px;margin:0 auto}
-
-  .grid{display:grid;gap:17px}
-  .g3{grid-template-columns:repeat(auto-fit,minmax(290px,1fr))}
+  section{padding:84px 0;border-top:1px solid var(--border)}
+  .sec-head{text-align:center;margin-bottom:48px}
+  .eyebrow{font-family:var(--font-mono);font-size:.76rem;color:var(--accent);letter-spacing:.12em;text-transform:uppercase;margin-bottom:12px}
+  h2{font-size:clamp(1.65rem,3.6vw,2.3rem);font-weight:800;letter-spacing:-.02em;margin-bottom:14px;line-height:1.2}
+  .sec-sub{color:var(--sub);max-width:620px;margin:0 auto}
+  .grid{display:grid;gap:18px}
+  .g3{grid-template-columns:repeat(auto-fit,minmax(300px,1fr))}
   .g2{grid-template-columns:repeat(auto-fit,minmax(340px,1fr))}
-  .card{background:var(--bg-card);border:1px solid var(--border);border-radius:13px;padding:24px;transition:.18s}
-  .card:hover{border-color:rgba(0,245,212,.35);background:var(--bg-card-hover);transform:translateY(-2px)}
-  .card .ico{font-size:1.4rem;margin-bottom:13px;display:block}
-  .card h3{font-size:1.04rem;font-weight:700;margin-bottom:9px}
-  .card p{color:var(--text-sub);font-size:.92rem}
-  .card code{font-family:var(--font-mono);font-size:.83em;color:var(--accent);background:var(--accent-dim);padding:1px 6px;border-radius:4px}
+  .card{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:26px;transition:border-color .18s,background .18s,transform .18s}
+  .card:hover{border-color:color-mix(in srgb,var(--accent) 45%,var(--border));background:var(--card-hover);transform:translateY(-2px)}
+  .ico{width:42px;height:42px;border-radius:10px;display:grid;place-items:center;margin-bottom:16px;background:var(--accent-dim);color:var(--accent)}
+  .ico svg{width:22px;height:22px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .card h3{font-size:1.05rem;font-weight:700;margin-bottom:9px}
+  .card p{color:var(--sub);font-size:.92rem}
 
-  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:17px}
-  .stat{background:var(--bg-card);border:1px solid var(--border);border-radius:13px;padding:26px 20px;text-align:center}
-  .stat .num{font-family:var(--font-mono);font-size:1.85rem;font-weight:700;color:var(--accent);line-height:1.1}
-  .stat .lbl{color:var(--text-muted);font-size:.8rem;margin-top:8px}
+  .split{display:grid;grid-template-columns:1fr 1fr;gap:44px;align-items:center}
+  .split h2{text-align:left}
+  .split p.sec-sub{margin:0 0 20px;text-align:left}
+  .eco{display:flex;flex-wrap:wrap;gap:8px}
+  .eco span{font-size:.8rem;border:1px solid var(--border);background:var(--card);padding:6px 12px;border-radius:8px;color:var(--sub)}
+  .eco span b{color:var(--text);font-weight:600}
+  .panel{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden}
+  .panel-h{padding:12px 16px;border-bottom:1px solid var(--border);background:var(--card);display:flex;justify-content:space-between;font-size:.8rem;font-family:var(--font-mono);color:var(--sub)}
+  .row{display:grid;grid-template-columns:22px 1fr auto;gap:12px;align-items:center;padding:12px 16px;border-bottom:1px solid var(--border);font-size:.85rem}
+  .row .nm{font-family:var(--font-mono);font-size:.78rem;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .row .nm small{display:block;color:var(--muted);font-size:.9em}
+  .row .sz{font-family:var(--font-mono);font-weight:700;color:var(--accent);text-align:right}
+  .row .sz small{display:block;color:var(--amber);font-weight:500;font-size:.8em}
+  .ck{width:16px;height:16px;border:1.5px solid var(--accent);border-radius:4px;background:var(--accent-dim);display:block;position:relative}
+  .ck.on::after{content:"";position:absolute;left:4px;top:1px;width:4px;height:8px;border:solid var(--accent);border-width:0 2px 2px 0;transform:rotate(45deg)}
+  .panel-f{display:flex;justify-content:space-between;align-items:center;padding:14px 16px;background:var(--card);font-size:.84rem;color:var(--sub);gap:10px;flex-wrap:wrap}
+  .panel-f strong{color:var(--text);font-family:var(--font-mono)}
 
-  table{width:100%;border-collapse:collapse;background:var(--bg-card);border:1px solid var(--border);border-radius:13px;overflow:hidden;font-size:.89rem}
-  th,td{padding:12px 15px;text-align:left;border-bottom:1px solid var(--border)}
-  th{background:var(--bg-surface);font-weight:700;font-size:.8rem;text-transform:uppercase;letter-spacing:.05em;color:var(--text-sub)}
+  .steps{counter-reset:s;display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:18px}
+  .step{counter-increment:s;background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px}
+  .step::before{content:"0" counter(s);font-family:var(--font-mono);color:var(--accent);font-size:.8rem;display:block;margin-bottom:12px}
+  .step h3{font-size:1rem;margin-bottom:8px}.step p{color:var(--sub);font-size:.9rem}
+  .step.block{border-color:rgba(255,77,109,.35)}.step.block::before{color:var(--danger)}
+
+  .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:18px}
+  .stat{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:28px 22px;text-align:center}
+  .stat .num{font-family:var(--font-mono);font-size:2.1rem;font-weight:700;color:var(--accent);line-height:1.1}
+  .stat .lbl{color:var(--text);font-size:.88rem;margin-top:8px;font-weight:600}
+  .stat .tgt{color:var(--muted);font-size:.78rem;margin-top:2px}
+  .note{text-align:center;color:var(--muted);font-size:.8rem;margin-top:22px}
+
+  .tbl-wrap{overflow-x:auto;border:1px solid var(--border);border-radius:14px}
+  table{width:100%;border-collapse:collapse;background:var(--card);font-size:.89rem;min-width:640px}
+  th,td{padding:13px 16px;text-align:left;border-bottom:1px solid var(--border)}
+  th{background:var(--surface);font-weight:700;font-size:.76rem;text-transform:uppercase;letter-spacing:.06em;color:var(--sub)}
+  th.us,td.yes{background:var(--accent-dim)}
   tr:last-child td{border-bottom:none}
-  td.yes{color:var(--accent);font-weight:600}
-  td.no{color:var(--text-muted)}
-  .tbl-wrap{overflow-x:auto}
+  td.yes{color:var(--accent);font-weight:600} td.no{color:var(--muted)}
 
-  .faq{background:var(--bg-card);border:1px solid var(--border);border-radius:13px;padding:8px 26px}
-  .faq details{border-bottom:1px solid var(--border);padding:17px 0}
-  .faq details:last-child{border-bottom:none}
-  .faq summary{cursor:pointer;font-weight:600;font-size:.97rem;list-style:none;display:flex;justify-content:space-between;gap:14px}
+  .faq{background:var(--card);border:1px solid var(--border);border-radius:14px;padding:6px 28px;max-width:820px;margin:0 auto}
+  .faq details{border-bottom:1px solid var(--border);padding:18px 0}.faq details:last-child{border-bottom:none}
+  .faq summary{cursor:pointer;font-weight:600;list-style:none;display:flex;justify-content:space-between;gap:14px}
   .faq summary::-webkit-details-marker{display:none}
-  .faq summary::after{content:"+";color:var(--accent);font-family:var(--font-mono);font-size:1.2rem;line-height:1;flex-shrink:0}
+  .faq summary::after{content:"+";color:var(--accent);font-family:var(--font-mono);font-size:1.2rem;line-height:1}
   .faq details[open] summary::after{content:"\2013"}
-  .faq p{color:var(--text-sub);font-size:.92rem;margin-top:11px}
+  .faq p{color:var(--sub);font-size:.92rem;margin-top:11px}
 
-  pre{background:var(--bg-surface);border:1px solid var(--border);border-radius:11px;padding:19px;overflow-x:auto;font-family:var(--font-mono);font-size:.84rem;line-height:1.65}
-  pre .c{color:var(--text-muted)}
-  pre .p{color:var(--purple)}
+  .term{background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;max-width:820px;margin:0 auto}
+  .term-h{display:flex;justify-content:space-between;align-items:center;padding:9px 14px;background:var(--card);border-bottom:1px solid var(--border);font-family:var(--font-mono);font-size:.74rem;color:var(--muted)}
+  .copy{background:none;border:1px solid var(--border);color:var(--sub);border-radius:6px;padding:3px 10px;font:inherit;cursor:pointer}
+  .copy:hover{border-color:var(--accent);color:var(--accent)}
+  pre{padding:20px;overflow-x:auto;font-family:var(--font-mono);font-size:.84rem;line-height:1.75}
+  pre .c{color:var(--muted)} pre .p{color:var(--purple)}
+  .docs{margin:26px auto 0;max-width:820px}
 
-  .cta-box{text-align:center;background:linear-gradient(140deg,rgba(0,245,212,.07),rgba(157,78,221,.07));border:1px solid rgba(0,245,212,.24);border-radius:17px;padding:52px 30px}
-  .cta-box h2{margin-bottom:13px}
-  .cta-box p{color:var(--text-sub);max-width:520px;margin:0 auto 28px}
+  .cta-box{text-align:center;background:linear-gradient(140deg,var(--accent-dim),rgba(157,78,221,.08));border:1px solid color-mix(in srgb,var(--accent) 30%,var(--border));border-radius:20px;padding:60px 30px}
+  .cta-box p{color:var(--sub);max-width:520px;margin:0 auto 28px}
+  footer{border-top:1px solid var(--border);padding:36px 0;text-align:center;color:var(--muted);font-size:.85rem}
+  footer a{color:var(--sub)} .f-links{display:flex;gap:22px;justify-content:center;flex-wrap:wrap;margin-bottom:14px}
 
-  footer{border-top:1px solid var(--border);padding:34px 0;text-align:center;color:var(--text-muted);font-size:.85rem}
-  footer a{color:var(--text-sub)}
-  .f-links{display:flex;gap:22px;justify-content:center;flex-wrap:wrap;margin-bottom:13px}
-
-  @media(max-width:760px){
-    .nav ul{display:none}
-    .hero{padding:58px 0 44px}
-    .lede{font-size:1rem}
-    .logo{font-size:.95rem}
+  @media(max-width:860px){
+    .nav ul{display:none}.split{grid-template-columns:1fr;gap:30px}
+    .win-body{grid-template-columns:1fr}.side{border-left:none;border-top:1px solid var(--border)}
+    .hero{padding:56px 0 30px}section{padding:60px 0}.search{display:none}
+    .tm{grid-template-rows:repeat(8,26px);min-height:260px}.tile{font-size:.62rem;padding:6px}
   }
-
-  /* ---- Dark mode (default: respects system preference) ---- */
-  @media (prefers-color-scheme: light){
-    :root{
-      --bg-base:#f7f8fa; --bg-surface:#ffffff; --bg-card:#ffffff; --bg-card-hover:#f1f5f9;
-      --border:#dde3ec; --accent:#0d9488; --accent-dim:rgba(13,148,136,.10);
-      --purple:#7c3aed; --pink:#db2777; --blue:#2563eb; --amber:#b45309;
-      --text-main:#111827; --text-sub:#4b5563; --text-muted:#6b7280;
-    }
-    .btn-primary{color:#ffffff}
-    pre .c{color:#6b7280}
-    pre .p{color:#7c3aed}
-    .install, .chip{background:var(--bg-surface)}
-    header{background:rgba(247,248,250,.85)}
-    .hero::before{background:radial-gradient(circle,rgba(13,148,136,.10),transparent 68%)}
-    .cta-box{background:linear-gradient(140deg,rgba(13,148,136,.06),rgba(124,58,237,.06));border-color:rgba(13,148,136,.28)}
-    .logo span{color:var(--accent)}
-    .card:hover{border-color:rgba(13,148,136,.4)}
-    th{background:var(--bg-surface)}
-  }
-
-  /* ---- Reduced motion: collapse all transitions and transforms ---- */
   @media (prefers-reduced-motion: reduce){
     html{scroll-behavior:auto}
-    *, *::before, *::after{
-      animation-duration:.01ms !important;
-      animation-iteration-count:1 !important;
-      transition-duration:.01ms !important;
-    }
-    .card:hover{transform:none}
-    .btn:hover,.chip:hover,.install:hover{transform:none}
+    *,*::before,*::after{animation:none !important;transition:none !important}
+    .tile{opacity:1}.card:hover,.btn:hover{transform:none}
   }
 </style>
 </head>
 <body>
-
+<a class="skip" href="#top">Skip to content</a>
 <header>
   <div class="wrap nav">
-    <a class="logo" href="#top"><span>&#9635;</span> SpaceOps</a>
-    <ul>
+    <a class="logo" href="#top" aria-label="SpaceOps home">
+      <svg viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="20" fill="#06090e"/><rect x="18" y="18" width="38" height="38" rx="5" fill="#00f5d4"/><rect x="62" y="18" width="20" height="20" rx="4" fill="#9d4edd"/><rect x="62" y="44" width="20" height="38" rx="4" fill="#3a86ff"/><rect x="18" y="62" width="38" height="20" rx="5" fill="#f72585"/></svg>
+      SpaceOps
+    </a>
+    <nav aria-label="Primary"><ul>
       <li><a href="#features">Features</a></li>
+      <li><a href="#developers">Developers</a></li>
+      <li><a href="#safety">Safety</a></li>
       <li><a href="#benchmarks">Benchmarks</a></li>
-      <li><a href="#compare">Comparison</a></li>
+      <li><a href="#compare">Compare</a></li>
       <li><a href="#faq">FAQ</a></li>
-      <li><a href="#docs">Docs</a></li>
-    </ul>
-    <a class="btn btn-primary" href="https://github.com/ChadaSaiteja/SpaceOps" target="_blank" rel="noopener">GitHub &#8599;</a>
+    </ul></nav>
+    <a class="btn btn-primary btn-sm" href="https://github.com/ChadaSaiteja/SpaceOps" target="_blank" rel="noopener">GitHub &#8599;</a>
   </div>
 </header>
 
 <main id="top">
 <section class="hero">
   <div class="wrap">
-    <div class="badge">MIT Licensed &middot; Windows 10 / 11</div>
-    <h1>Understand your storage.<br><span class="grad">Clean it safely.</span></h1>
-    <p class="lede">SpaceOps is a free, open-source disk analyzer for Windows. A high-speed Rust scanning engine maps every byte on your drive into an interactive treemap, finds developer clutter across 8 ecosystems, and routes every cleanup through the Recycle Bin so nothing is ever gone for good.</p>
-    <div class="cta">
-      <a class="btn btn-primary" href="https://github.com/ChadaSaiteja/SpaceOps/releases">Download for Windows</a>
-      <a class="btn btn-ghost" href="https://github.com/ChadaSaiteja/SpaceOps#readme">View on GitHub</a>
+    <div class="hero-in">
+      <div class="badge"><i></i>MIT licensed &middot; Windows 10 / 11 &middot; v0.1.0</div>
+      <h1>Find what&rsquo;s eating your disk.<br><span class="grad">Clean it without regret.</span></h1>
+      <p class="lede">SpaceOps is a free, open-source disk analyzer for Windows. A parallel Rust engine maps every byte into an interactive treemap, flags developer clutter across 8 ecosystems, and sends every deletion to the Recycle Bin.</p>
+      <div class="cta">
+        <a class="btn btn-primary" href="https://github.com/ChadaSaiteja/SpaceOps/releases">Download for Windows</a>
+        <a class="btn btn-ghost" href="#build">Build from source</a>
+      </div>
+      <div class="meta-line"><span>100% offline</span><span>Zero telemetry</span><span>x64 &amp; ARM64</span></div>
     </div>
-    <div class="install">git clone https://github.com/ChadaSaiteja/SpaceOps.git</div>
-    <div class="logos">
-      <span class="chip">Rust</span>
-      <span class="chip">.NET 9</span>
-      <span class="chip">WinUI 3</span>
-      <span class="chip">Direct2D</span>
-      <span class="chip">SQLite WAL</span>
-      <span class="chip">NTFS USN</span>
-      <span class="chip">Zero Telemetry</span>
+
+    <div class="window" role="group" aria-label="Illustrative mockup of the SpaceOps treemap view">
+      <div class="win-bar">
+        <div class="dots"><i></i><i></i><i></i></div>
+        <div class="crumbs">This PC &rsaquo; C: &rsaquo; <b>Users</b> &rsaquo; <b>dev</b></div>
+        <div class="search">ext:vhdx size:&gt;1GB</div>
+      </div>
+      <div class="win-body">
+        <div class="tm" id="tm">
+          <div class="tile t1 sel" data-p="C:\Users\dev\AppData\Local\Docker\ext4.vhdx" data-s="48.2 GB" data-f="3" data-d="Dormant 41d" data-w="38"><b>Docker / WSL2</b><small>48.2 GB</small></div>
+          <div class="tile t2" data-p="C:\code\engine\target" data-s="21.6 GB" data-f="184,302" data-d="Dormant 63d" data-w="17"><b>Rust target/</b><small>21.6 GB</small></div>
+          <div class="tile t3" data-p="C:\code\web\node_modules" data-s="14.9 GB" data-f="412,880" data-d="Dormant 97d" data-w="12"><b>node_modules</b><small>14.9 GB</small></div>
+          <div class="tile t4" data-p="C:\Users\dev\Videos" data-s="17.3 GB" data-f="214" data-d="Active" data-w="14"><b>Videos</b><small>17.3 GB</small></div>
+          <div class="tile t5" data-p="C:\Users\dev\.nuget\packages" data-s="9.8 GB" data-f="96,410" data-d="Cache" data-w="8"><b>NuGet</b><small>9.8 GB</small></div>
+          <div class="tile t6" data-p="C:\Windows\SoftwareDistribution" data-s="11.4 GB" data-f="22,019" data-d="Protected" data-w="9"><b>SoftwareDistribution</b><small>11.4 GB</small></div>
+          <div class="tile t7" data-p="C:\code\ml\.venv" data-s="5.1 GB" data-f="38,771" data-d="Dormant 52d" data-w="4"><b>.venv</b><small>5.1 GB</small></div>
+          <div class="tile t8" data-p="Remaining directories" data-s="3.7 GB" data-f="9,402" data-d="&mdash;" data-w="3"><b>Other</b></div>
+        </div>
+        <aside class="side" aria-live="polite">
+          <h4>Selected</h4>
+          <div class="path" id="sPath">C:\Users\dev\AppData\Local\Docker\ext4.vhdx</div>
+          <div class="big" id="sSize">48.2 GB</div>
+          <div class="bar"><i id="sBar"></i></div>
+          <dl><dt>Files</dt><dd id="sFiles">3</dd><dt>Share of scan</dt><dd id="sShare">38%</dd><dt>Status</dt><dd><span class="tag" id="sTag">Dormant 41d</span></dd></dl>
+          <h4>Scan</h4>
+          <dl><dt>Size</dt><dd>cluster-allocated</dd><dt>Reparse points</dt><dd>leaf nodes</dd></dl>
+        </aside>
+      </div>
+    </div>
+    <p class="hint">Illustrative mockup with sample data &mdash; hover a tile to inspect it</p>
+
+    <div class="chips">
+      <span class="chip">Rust</span><span class="chip">.NET 9</span><span class="chip">WinUI 3</span><span class="chip">Direct2D</span><span class="chip">SQLite WAL</span><span class="chip">NTFS USN</span>
     </div>
   </div>
 </section>
@@ -262,17 +330,52 @@
 <section id="features">
   <div class="wrap">
     <div class="sec-head">
-      <div class="eyebrow">What it detects</div>
-      <h2>Built for people whose disks fill up silently</h2>
-      <p class="sec-sub">Gigabytes disappear into virtual disks, build caches, and forgotten virtual environments. SpaceOps shows exactly where, and why.</p>
+      <div class="eyebrow">Capabilities</div>
+      <h2>Everything you need to answer &ldquo;where did my space go?&rdquo;</h2>
+      <p class="sec-sub">Built for people whose disks fill up silently: virtual disks, build caches, and forgotten environments.</p>
     </div>
     <div class="grid g3">
-      <div class="card"><span class="ico">&#9881;</span><h3>Parallel Rust Scanner</h3><p>Rayon-backed traversal using Win32 <code>FindFirstFileExW</code>, measuring true 4 KB cluster-allocated size instead of misleading logical bytes.</p></div>
-      <div class="card"><span class="ico">&#9638;</span><h3>Accelerated Treemap</h3><p>Squarified layout via the Bruls-Huizing-van Wijk algorithm, rendered with Direct2D at 60&ndash;120 FPS. Double-click to drill into any directory.</p></div>
-      <div class="card"><span class="ico">&#128296;</span><h3>8 Ecosystems Tracked</h3><p>Node.js, Rust, .NET, Python, Java, Docker/WSL, Git, and IDE caches &mdash; plus dormancy flags for projects untouched 30+ days.</p></div>
-      <div class="card"><span class="ico">&#128737;</span><h3>Zero-Accident Cleanup</h3><p>An immutable blacklist guards system paths. All deletions flow through Shell COM to the Recycle Bin, with a dry-run mode that touches nothing.</p></div>
-      <div class="card"><span class="ico">&#128269;</span><h3>Sub-5ms Search</h3><p>Query indexed trees instantly with structured filters: <code>ext:log</code>, <code>size:&gt;1GB</code>, <code>type:dir</code>, or combinations.</p></div>
-      <div class="card"><span class="ico">&#128451;</span><h3>Incremental Sync</h3><p>SQLite WAL persistence restores trees in under 100 ms, with NTFS USN Journal resync reading change records in under 50 ms.</p></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/></svg></div><h3>Parallel Rust scanner</h3><p>Rayon-backed traversal over Win32 <code>FindFirstFileExW</code>, reporting true 4&nbsp;KB cluster-allocated size, not misleading logical bytes.</p></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="10" height="10" rx="1.5"/><rect x="15" y="3" width="6" height="6" rx="1.5"/><rect x="15" y="11" width="6" height="10" rx="1.5"/><rect x="3" y="15" width="10" height="6" rx="1.5"/></svg></div><h3>Accelerated treemap</h3><p>Squarified layout (Bruls&ndash;Huizing&ndash;van Wijk) drawn with Direct2D. Double-click to drill in, use breadcrumbs to climb out.</p></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><path d="M4 7l8-4 8 4v10l-8 4-8-4z"/><path d="M4 7l8 4 8-4M12 11v10"/></svg></div><h3>8 developer ecosystems</h3><p>Node.js, Rust, .NET, Python, Java, Docker/WSL, Git and IDE caches, with dormancy flags for projects untouched 30+ days.</p></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg></div><h3>Zero-accident cleanup</h3><p>Immutable system-path blacklist, Recycle Bin-only deletion through Shell COM, and a dry-run mode that touches nothing.</p></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></div><h3>Sub-5&nbsp;ms search</h3><p>Query indexed trees with structured filters: <code>ext:log</code>, <code>size:&gt;1GB</code>, <code>type:dir</code>, or any combination.</p></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></div><h3>Incremental sync</h3><p>SQLite WAL snapshots restore trees in under 100&nbsp;ms; the NTFS USN Journal resyncs changes in under 50&nbsp;ms, no full rescan.</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="developers">
+  <div class="wrap split">
+    <div>
+      <div class="eyebrow">For developers</div>
+      <h2>Reclaim the gigabytes your toolchains left behind</h2>
+      <p class="sec-sub">Generic cleaners ignore <code>target/</code>, <code>node_modules</code> and WSL disks. SpaceOps recognizes them by structure, measures them, and tells you which projects have gone cold.</p>
+      <div class="eco"><span><b>Node</b> node_modules</span><span><b>Rust</b> target/</span><span><b>.NET</b> bin/ obj/</span><span><b>Python</b> .venv</span><span><b>Java</b> .gradle .m2</span><span><b>Docker</b> ext4.vhdx</span><span><b>Git</b> pack</span><span><b>IDE</b> .vs</span></div>
+    </div>
+    <div class="panel" role="group" aria-label="Illustrative mockup of cleanup candidates">
+      <div class="panel-h"><span>Cleanup candidates</span><span>dry run</span></div>
+      <div class="row"><span class="ck on"></span><div class="nm">C:\code\web\node_modules<small>Node.js &middot; 412,880 files</small></div><div class="sz">14.9 GB<small>dormant 97d</small></div></div>
+      <div class="row"><span class="ck on"></span><div class="nm">C:\code\engine\target<small>Rust &middot; 184,302 files</small></div><div class="sz">21.6 GB<small>dormant 63d</small></div></div>
+      <div class="row"><span class="ck on"></span><div class="nm">C:\code\ml\.venv<small>Python &middot; 38,771 files</small></div><div class="sz">5.1 GB<small>dormant 52d</small></div></div>
+      <div class="row"><span class="ck"></span><div class="nm">C:\code\app\bin<small>.NET &middot; active project</small></div><div class="sz">1.2 GB</div></div>
+      <div class="panel-f"><span>Reclaimable: <strong>41.6 GB</strong></span><span class="btn btn-primary btn-sm" aria-hidden="true">Move to Recycle Bin</span></div>
+    </div>
+  </div>
+</section>
+
+<section id="safety">
+  <div class="wrap">
+    <div class="sec-head">
+      <div class="eyebrow">Safety model</div>
+      <h2>Four layers between a click and your filesystem</h2>
+      <p class="sec-sub">Details in the <a href="https://github.com/ChadaSaiteja/SpaceOps/blob/main/docs/safety-model.md">safety model</a>.</p>
+    </div>
+    <div class="steps">
+      <div class="step block"><h3>Hard blacklist</h3><p><code>C:\Windows</code>, <code>C:\Program Files</code>, boot paths and system profiles can never be selected.</p></div>
+      <div class="step"><h3>Dry run first</h3><p>Preview exactly what would be reclaimed before anything is touched.</p></div>
+      <div class="step"><h3>Recycle Bin only</h3><p>Deletion goes through the Windows Shell COM API, so every file can be restored.</p></div>
+      <div class="step"><h3>Junction-safe</h3><p>Symlinks, junctions and mount points are leaves, never followed or double-counted.</p></div>
     </div>
   </div>
 </section>
@@ -281,15 +384,16 @@
   <div class="wrap">
     <div class="sec-head">
       <div class="eyebrow">Measured, not guessed</div>
-      <h2>1,000,000-node benchmark results</h2>
-      <p class="sec-sub">Reproducible via <code>cargo run --release -p storage-tree --example tree_benchmark</code></p>
+      <h2>1,000,000-node benchmark</h2>
+      <p class="sec-sub">Reproduce with <code>cargo run --release -p storage-tree --example tree_benchmark</code></p>
     </div>
     <div class="stats">
-      <div class="stat"><div class="num">218 ms</div><div class="lbl">Tree build (target &le; 2.0 s)</div></div>
-      <div class="stat"><div class="num">26.1 ns</div><div class="lbl">Lookup (target &lt; 1,000 ns)</div></div>
-      <div class="stat"><div class="num">45.7 ms</div><div class="lbl">Top-100 files (target &lt; 50 ms)</div></div>
-      <div class="stat"><div class="num">55 MB</div><div class="lbl">1M-node RSS (target &lt; 300 MB)</div></div>
+      <div class="stat"><div class="num">218 ms</div><div class="lbl">Tree build</div><div class="tgt">target &le; 2.0 s</div></div>
+      <div class="stat"><div class="num">26.1 ns</div><div class="lbl">Node lookup</div><div class="tgt">target &lt; 1,000 ns</div></div>
+      <div class="stat"><div class="num">45.7 ms</div><div class="lbl">Top-100 files</div><div class="tgt">target &lt; 50 ms</div></div>
+      <div class="stat"><div class="num">55 MB</div><div class="lbl">Memory (RSS)</div><div class="tgt">target &lt; 300 MB</div></div>
     </div>
+    <p class="note">Core-engine figures from the project&rsquo;s own benchmark; your results will vary.</p>
   </div>
 </section>
 
@@ -301,27 +405,26 @@
     </div>
     <div class="tbl-wrap">
       <table>
-        <thead><tr><th>Feature</th><th>SpaceOps</th><th>WinDirStat</th><th>TreeSize Free</th><th>WizTree</th></tr></thead>
+        <thead><tr><th>Feature</th><th class="us">SpaceOps</th><th>WinDirStat</th><th>TreeSize Free</th><th>WizTree</th></tr></thead>
         <tbody>
-          <tr><td>License</td><td class="yes">MIT Open Source</td><td class="no">GPL-2.0 (legacy)</td><td class="no">Proprietary</td><td class="no">Proprietary</td></tr>
-          <tr><td>UI Framework</td><td class="yes">WinUI 3 + Mica</td><td class="no">Win32 MFC</td><td class="no">Win32 MFC</td><td class="no">Win32 MFC</td></tr>
-          <tr><td>Rendering</td><td class="yes">Direct2D 120 FPS</td><td class="no">GDI</td><td class="no">GDI+</td><td class="no">Direct2D</td></tr>
-          <tr><td>1M-node memory</td><td class="yes">~55 MB RSS</td><td class="no">~350 MB</td><td class="no">~200 MB</td><td class="no">~150 MB</td></tr>
+          <tr><td>License</td><td class="yes">MIT open source</td><td class="no">GPL-2.0 (legacy)</td><td class="no">Proprietary</td><td class="no">Proprietary</td></tr>
+          <tr><td>UI framework</td><td class="yes">WinUI 3 + Mica</td><td class="no">Win32 MFC</td><td class="no">Win32 MFC</td><td class="no">Win32 MFC</td></tr>
+          <tr><td>Rendering</td><td class="yes">Direct2D, 120 FPS</td><td class="no">GDI</td><td class="no">GDI+</td><td class="no">Direct2D</td></tr>
+          <tr><td>1M-node memory</td><td class="yes">~55 MB</td><td class="no">~350 MB</td><td class="no">~200 MB</td><td class="no">~150 MB</td></tr>
           <tr><td>Developer clutter</td><td class="yes">8 ecosystems</td><td class="no">None</td><td class="no">None</td><td class="no">None</td></tr>
           <tr><td>Incremental sync</td><td class="yes">USN Journal &lt; 50 ms</td><td class="no">Full rescan</td><td class="no">Full rescan</td><td class="no">USN Journal</td></tr>
           <tr><td>Safety model</td><td class="yes">Blacklist + Recycle Bin</td><td class="no">Direct delete</td><td class="no">Direct delete</td><td class="no">Direct delete</td></tr>
-          <tr><td>Privacy</td><td class="yes">100% local, zero telemetry</td><td class="no">Local</td><td class="no">Ads + tracking</td><td class="no">Closed source</td></tr>
+          <tr><td>Privacy</td><td class="yes">Local, zero telemetry</td><td class="no">Local</td><td class="no">Ads + tracking</td><td class="no">Closed source</td></tr>
         </tbody>
       </table>
     </div>
+    <p class="note">Competitor figures are approximate; verify against current versions.</p>
   </div>
 </section>
 
 <section id="faq">
   <div class="wrap">
-    <div class="sec-head">
-      <h2>Frequently asked questions</h2>
-    </div>
+    <div class="sec-head"><h2>Frequently asked questions</h2></div>
     <div class="faq">
       <details open><summary>Is SpaceOps free?</summary><p>Yes. SpaceOps is MIT-licensed open-source software. There is no paid tier, no telemetry, and no network access &mdash; it runs entirely offline on your machine.</p></details>
       <details><summary>Will SpaceOps delete my files permanently?</summary><p>No. Every deletion routes through the Windows Shell COM API to the Recycle Bin, so you can restore anything. <code>C:\Windows</code>, <code>C:\Program Files</code>, boot manager paths, and user system profiles are hard-blocked and can never be removed, even in execution mode. A dry-run mode reports reclaimable space without touching the filesystem.</p></details>
@@ -333,23 +436,24 @@
   </div>
 </section>
 
-<section id="docs">
+<section id="build">
   <div class="wrap">
-    <div class="sec-head">
-      <h2>Build from source</h2>
-    </div>
-    <pre><span class="c"># 1. Clone the repository</span>
+    <div class="sec-head"><div class="eyebrow">Get started</div><h2>Build from source</h2></div>
+    <div class="term">
+      <div class="term-h"><span>PowerShell</span><button class="copy" id="copy" type="button">Copy</button></div>
+<pre id="cmds"><span class="c"># 1. Clone the repository</span>
 git clone https://github.com/ChadaSaiteja/SpaceOps.git
-<span class="c">cd SpaceOps</span>
+cd SpaceOps
 
 <span class="c"># 2. Build the Rust core and WinUI 3 app</span>
 ./storage-intelligence/scripts/build.ps1 -Configuration Release
 
 <span class="c"># 3. Launch</span>
 <span class="p">&amp;</span> ".\storage-intelligence\app\StorageIntelligence\bin\Release\net9.0-windows10.0.19041.0\win-x64\StorageIntelligence.exe"</pre>
-    <div class="grid g2" style="margin-top:26px">
-      <div class="card"><h3>Documentation</h3><p><a href="https://github.com/ChadaSaiteja/SpaceOps/blob/main/docs/architecture.md">Architecture spec</a> &middot; <a href="https://github.com/ChadaSaiteja/SpaceOps/blob/main/docs/development.md">Developer guide</a> &middot; <a href="https://github.com/ChadaSaiteja/SpaceOps/blob/main/docs/safety-model.md">Safety model</a> &middot; <a href="https://github.com/ChadaSaiteja/SpaceOps/blob/main/docs/troubleshooting.md">Troubleshooting</a></p></div>
-      <div class="card"><h3>Contributing</h3><p>Issues and PRs welcome. See the <a href="https://github.com/ChadaSaiteja/SpaceOps/blob/main/CONTRIBUTING.md">contributing guide</a> and <a href="https://github.com/ChadaSaiteja/SpaceOps/blob/main/CODE_OF_CONDUCT.md">code of conduct</a>. Built by Saiteja Chada and contributors.</p></div>
+    </div>
+    <div class="grid g2 docs">
+      <div class="card"><h3>Documentation</h3><p><a href="https://github.com/ChadaSaiteja/SpaceOps/blob/main/docs/architecture.md">Architecture</a> &middot; <a href="https://github.com/ChadaSaiteja/SpaceOps/blob/main/docs/development.md">Developer guide</a> &middot; <a href="https://github.com/ChadaSaiteja/SpaceOps/blob/main/docs/safety-model.md">Safety model</a> &middot; <a href="https://github.com/ChadaSaiteja/SpaceOps/blob/main/docs/troubleshooting.md">Troubleshooting</a></p></div>
+      <div class="card"><h3>Contributing</h3><p>Issues and PRs welcome. See the <a href="https://github.com/ChadaSaiteja/SpaceOps/blob/main/CONTRIBUTING.md">contributing guide</a> and <a href="https://github.com/ChadaSaiteja/SpaceOps/blob/main/CODE_OF_CONDUCT.md">code of conduct</a>.</p></div>
     </div>
   </div>
 </section>
@@ -358,7 +462,7 @@ git clone https://github.com/ChadaSaiteja/SpaceOps.git
   <div class="wrap">
     <div class="cta-box">
       <h2>Reclaim your disk today</h2>
-      <p>See what is really using your storage, and delete only what you mean to. Free, open-source, and nothing leaves your machine.</p>
+      <p>See what is really using your storage, and delete only what you mean to. Free, open source, and nothing leaves your machine.</p>
       <div class="cta">
         <a class="btn btn-primary" href="https://github.com/ChadaSaiteja/SpaceOps/releases">Download SpaceOps</a>
         <a class="btn btn-ghost" href="https://github.com/ChadaSaiteja/SpaceOps">Star on GitHub</a>
@@ -377,9 +481,32 @@ git clone https://github.com/ChadaSaiteja/SpaceOps.git
       <a href="https://github.com/ChadaSaiteja/SpaceOps/blob/main/CHANGELOG.md">Changelog</a>
       <a href="https://github.com/ChadaSaiteja/SpaceOps/blob/main/CITATION.cff">Cite</a>
     </div>
-    <p>SpaceOps &mdash; open-source storage intelligence for Windows. Copyright &copy; 2026 Saiteja Chada and SpaceOps Contributors.</p>
+    <p>SpaceOps &mdash; open-source storage intelligence for Windows. &copy; 2026 Saiteja Chada and SpaceOps Contributors.</p>
   </div>
 </footer>
 
+<script>
+(function(){
+  var tiles=document.querySelectorAll('#tm .tile');
+  function pick(t){
+    tiles.forEach(function(x){x.classList.remove('sel')});t.classList.add('sel');
+    var d=t.dataset;
+    document.getElementById('sPath').textContent=d.p;
+    document.getElementById('sSize').textContent=d.s;
+    document.getElementById('sFiles').textContent=d.f;
+    document.getElementById('sShare').textContent=d.w+'%';
+    document.getElementById('sTag').textContent=d.d;
+    document.getElementById('sBar').style.width=d.w+'%';
+  }
+  tiles.forEach(function(t){
+    t.addEventListener('mouseenter',function(){pick(t)});
+    t.addEventListener('click',function(){pick(t)});
+  });
+  var b=document.getElementById('copy');
+  if(b&&navigator.clipboard){b.addEventListener('click',function(){
+    navigator.clipboard.writeText(document.getElementById('cmds').innerText).then(function(){b.textContent='Copied';setTimeout(function(){b.textContent='Copy'},1500)});
+  })}
+})();
+</script>
 </body>
 </html>

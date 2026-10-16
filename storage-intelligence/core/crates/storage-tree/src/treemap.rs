@@ -506,7 +506,7 @@ mod tests {
             let len = 1 + (next() as usize % 40);
             let mut areas: Vec<f32> = (0..len)
                 .map(|_| {
-                    if next() as u32 % 7 == 0 {
+                    if (next() as u32 % 7) < 1 {
                         0.00005
                     } else {
                         next()

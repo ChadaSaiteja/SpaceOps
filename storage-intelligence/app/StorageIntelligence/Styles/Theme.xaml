@@ -81,6 +81,21 @@
     <SolidColorBrush x:Key="ProgressBarForeground" Color="{StaticResource SpaceAccentColor}" />
     <SolidColorBrush x:Key="ProgressBarBackground" Color="{StaticResource SpaceBorderColor}" />
 
+    <!-- Sidebar (NavigationView) -->
+    <SolidColorBrush x:Key="NavigationViewDefaultPaneBackground" Color="{StaticResource SpaceSurfaceColor}" />
+    <SolidColorBrush x:Key="NavigationViewExpandedPaneBackground" Color="{StaticResource SpaceSurfaceColor}" />
+    <SolidColorBrush x:Key="NavigationViewContentBackground" Color="Transparent" />
+    <SolidColorBrush x:Key="NavigationViewContentGridBorderBrush" Color="Transparent" />
+    <SolidColorBrush x:Key="NavigationViewSelectionIndicatorForeground" Color="{StaticResource SpaceAccentColor}" />
+    <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="{StaticResource SpaceNavOnColor}" />
+    <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPointerOver" Color="{StaticResource SpaceNavOnColor}" />
+    <SolidColorBrush x:Key="NavigationViewItemBackgroundPointerOver" Color="{StaticResource SpaceNavHoverColor}" />
+    <SolidColorBrush x:Key="NavigationViewItemForeground" Color="{StaticResource SpaceSubColor}" />
+    <SolidColorBrush x:Key="NavigationViewItemForegroundSelected" Color="{StaticResource SpaceTextColor}" />
+    <SolidColorBrush x:Key="NavigationViewItemForegroundPointerOver" Color="{StaticResource SpaceTextColor}" />
+    <Thickness x:Key="NavigationViewContentGridBorderThickness">0</Thickness>
+    <Thickness x:Key="NavigationViewContentMargin">0</Thickness>
+
     <!-- Reusable styles -->
     <Style x:Key="SpaceCardStyle" TargetType="Border">
         <Setter Property="Background" Value="{StaticResource SpaceCardBrush}" />

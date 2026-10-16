@@ -73,7 +73,6 @@ pub fn round_up_to_cluster(logical_size: u64, cluster_size: u64) -> u64 {
 #[derive(Debug, Clone)]
 pub struct FastDirEntry {
     pub name: std::ffi::OsString,
-    pub path: std::path::PathBuf,
     pub attributes: u32,
     pub logical_size: u64,
     pub created: Option<std::time::SystemTime>,
@@ -189,11 +188,9 @@ pub fn read_directory_fast(dir: &Path) -> io::Result<Vec<FastDirEntry>> {
                 find_data.ftLastWriteTime.dwHighDateTime,
                 find_data.ftLastWriteTime.dwLowDateTime,
             );
-            let entry_path = dir.join(&name);
 
             entries.push(FastDirEntry {
                 name,
-                path: entry_path,
                 attributes: attrs,
                 logical_size,
                 created,

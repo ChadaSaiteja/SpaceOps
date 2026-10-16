@@ -169,13 +169,15 @@ SpaceOps adheres to the safety rule:
 | Feature | SpaceOps | WinDirStat | TreeSize Free | WizTree |
 | :--- | :--- | :--- | :--- | :--- |
 | **License** | **Open Source (MIT)** | GPL-2.0 (Legacy) | Proprietary / Free | Proprietary / Closed |
-| **UI Framework** | **Modern WinUI 3 (Mica)** | Win32 MFC (1990s) | Win32 MFC | Win32 MFC |
-| **Rendering Engine** | **Direct2D / Win2D (120 FPS)**| GDI (Slow on 1M+ files) | GDI+ | Direct2D |
+| **UI Framework** | **Modern WinUI 3 (Mica)** | Win32 MFC | Win32 MFC | Win32 MFC |
+| **Rendering Engine** | **Direct2D / Win2D (120 FPS)**| GDI | GDI+ | Direct2D |
 | **1M Nodes Memory** | **~55 MB RSS** | ~350 MB | ~200 MB | ~150 MB |
 | **Developer Clutter**| **8 Ecosystems (Node, Rust, WSL)**| None | None | None |
 | **Incremental Sync** | **USN Journal + Fallback (<50ms)** | Full rescan only | Full rescan only | USN Journal |
 | **Safety Protocol** | **Blacklist + Recycle Bin COM** | Direct delete | Direct delete | Direct delete |
 | **Network & Privacy**| **100% Local, Zero Telemetry** | Local | Tracking / Ads | Closed source |
+
+> SpaceOps figures come from this repo's own benchmark (`tree_benchmark`). Competitor values are approximate, based on public descriptions, and may be outdated; please check each tool's current version.
 
 ---
 

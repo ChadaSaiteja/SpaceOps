@@ -50,10 +50,30 @@ fn run_scan(root: &Path) -> Duration {
 }
 
 fn main() {
-    let file_count: u64 = std::env::args()
-        .nth(1)
-        .and_then(|s| s.parse().ok())
-        .unwrap_or(200_000);
+    let arg = std::env::args().nth(1);
+
+    // Real-folder mode: `benchmark <existing directory>` runs a read-only parallel scan.
+    if let Some(dir) = arg.as_deref().map(Path::new).filter(|p| p.is_dir()) {
+        // Optional 2nd arg: number of in-process repetitions (default 1). Reports
+        // min/median so OS cache and background-load noise can be filtered out.
+        let runs: usize = std::env::args()
+            .nth(2)
+            .and_then(|s| s.parse().ok())
+            .unwrap_or(1)
+            .max(1);
+        println!("Read-only scan of {} ({runs} runs)", dir.display());
+        let mut times: Vec<Duration> = (0..runs).map(|_| run_scan(dir)).collect();
+        times.sort();
+        println!(
+            "SUMMARY min={:?} median={:?} max={:?}",
+            times[0],
+            times[times.len() / 2],
+            times[times.len() - 1]
+        );
+        return;
+    }
+
+    let file_count: u64 = arg.and_then(|s| s.parse().ok()).unwrap_or(200_000);
 
     println!("Building synthetic tree with {file_count} files...");
     let build_start = Instant::now();

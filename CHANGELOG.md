@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
+## [Unreleased]
+
+### Added
+- Fluent Sidebar UI: left navigation with Overview, Treemap, Cleanup, Developer and Applications pages; shared theme and palette; unified cleanup list with one reclaimable total.
+- Self-contained x64 and ARM64 release packaging with SHA-256 checksums (`docs/releasing.md`).
+- Landing-page guides, sitemap, robots, social image, `llms-full.txt`, `codemeta.json`.
+
+### Changed
+- Faster tree build, search, treemap layout and scanner allocations (see `docs/performance-review.md`).
+- `crates/ffi` split into one module per feature; exported symbols and generated bindings unchanged.
+- C# integration tests run in CI again.
+
+### Fixed
+- Startup crash caused by filter handlers running before the Applications and Developer pages were ready.
+
+---
+
 ## [0.1.0] - 2026-10-07
 
 ### Added

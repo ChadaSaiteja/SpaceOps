@@ -1,18 +1,23 @@
 cff-version: 1.2.0
 message: "If you use SpaceOps in your research or project, please cite it as below."
+type: software
 title: "SpaceOps: Open-Source Storage Intelligence for Windows"
-abstract: "An open-source storage intelligence application for Windows that combines a high-speed Rust filesystem scanning engine with a hardware-accelerated Direct2D squarified treemap, developer clutter detection across 8 toolchain ecosystems, and a zero-accident cleanup model that routes deletions through the Windows Recycle Bin."
+abstract: "An open-source storage intelligence application for Windows that combines a high-speed Rust filesystem scanning engine with a hardware-accelerated Direct2D squarified treemap, developer clutter detection across 8 toolchain ecosystems, and a cleanup model that routes deletions through the Windows Recycle Bin."
 authors:
   - family-names: "Chada"
     given-names: "Saiteja"
+    alias: "ChadaSaiteja"
+    website: "https://github.com/ChadaSaiteja"
 version: 0.1.0
 date-released: 2026-10-07
 license: MIT
 repository-code: "https://github.com/ChadaSaiteja/SpaceOps"
-url: "https://github.com/ChadaSaiteja/SpaceOps"
+repository: "https://github.com/ChadaSaiteja/SpaceOps"
+url: "https://chadasaiteja.github.io/SpaceOps/"
 keywords:
   - "storage-analyzer"
   - "disk-analyzer"
+  - "disk-space"
   - "disk-cleaner"
   - "windows"
   - "windows-11"

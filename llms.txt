@@ -1,67 +1,62 @@
 # SpaceOps
 
-> Open-source storage intelligence for Windows: a Rust-powered disk analyzer with a Direct2D squarified treemap, developer clutter detection across 8 ecosystems, and Recycle Bin-routed cleanup.
+> SpaceOps is a free, open-source (MIT) disk analyzer and storage cleaner for Windows 10 and 11. It scans drives with a parallel Rust engine, shows disk usage as an interactive Direct2D treemap, detects developer clutter across 8 ecosystems, and routes every cleanup through the Recycle Bin. It runs 100% offline with no telemetry.
 
-## Overview
+Quick facts: price free (MIT license); platforms Windows 10 (1809+) and Windows 11, x64 and ARM64; Windows only; version 0.x; release builds are unsigned until a code-signing certificate is obtained (Windows SmartScreen may warn). Verify downloads with SHA256SUMS.txt.
 
-SpaceOps answers three questions about Windows storage that conventional disk tools leave unanswered: **what is using my disk space, why is it using so much, and what can I safely do about it.** It scans drives with a parallel Rust engine, renders results as an interactive hardware-accelerated treemap, and never deletes permanently.
-
-- Primary Keyword: disk analyzer for windows
+- Website: https://chadasaiteja.github.io/SpaceOps/
 - Repository: https://github.com/ChadaSaiteja/SpaceOps
-- Creator: Saiteja Chada
-- License: MIT
+- Latest release: https://github.com/ChadaSaiteja/SpaceOps/releases/latest
+- Author: Saiteja Chada (https://github.com/ChadaSaiteja)
+- Full facts for LLMs: https://chadasaiteja.github.io/SpaceOps/llms-full.txt
+
+## Download
+
+- x64: https://github.com/ChadaSaiteja/SpaceOps/releases/latest/download/SpaceOps-win-x64.zip
+- ARM64: https://github.com/ChadaSaiteja/SpaceOps/releases/latest/download/SpaceOps-win-arm64.zip
+- Checksums: https://github.com/ChadaSaiteja/SpaceOps/releases/latest/download/SHA256SUMS.txt
+- Portable zip: unzip anywhere to run; delete the folder to uninstall. If no release is published yet, build from source (see README).
+
+## Guides
+
+- [Free Windows disk space analyzer](https://chadasaiteja.github.io/SpaceOps/docs-site/free-windows-disk-space-analyzer/): what SpaceOps is, price, how to find what uses your disk.
+- [WinDirStat alternative](https://chadasaiteja.github.io/SpaceOps/docs-site/windirstat-alternative/): when SpaceOps may or may not suit you better.
+- [Clean node_modules on Windows](https://chadasaiteja.github.io/SpaceOps/docs-site/clean-node-modules-windows/)
+- [Docker and WSL2 VHDX cleanup](https://chadasaiteja.github.io/SpaceOps/docs-site/docker-wsl2-vhdx-cleanup-windows/)
+- [Rust target folder cleanup](https://chadasaiteja.github.io/SpaceOps/docs-site/cargo-target-cleanup-windows/)
+- [How SpaceOps cleans safely](https://chadasaiteja.github.io/SpaceOps/docs-site/how-spaceops-cleans-safely/)
 
 ## Core Documentation
 
-- [README.md](README.md): Project overview, features, comparison against WinDirStat/TreeSize/WizTree, build instructions, benchmarks, and FAQ.
-- [docs/architecture.md](docs/architecture.md): Layered architecture, data flows, and in-memory memory layout.
-- [docs/development.md](docs/development.md): Developer setup, build scripts, and debugging instructions.
-- [docs/safety-model.md](docs/safety-model.md): Deletion guardrails, immutable system blacklist, and Recycle Bin routing.
-- [docs/developer-storage.md](docs/developer-storage.md): Complete catalogue of detected build artifacts across 8 ecosystems.
-- [docs/troubleshooting.md](docs/troubleshooting.md): Common build and runtime failure fixes.
-- [CONTRIBUTING.md](CONTRIBUTING.md): Contribution workflow and review process.
-- [CHANGELOG.md](CHANGELOG.md): Version history.
-- [SECURITY.md](SECURITY.md): Security reporting policy.
-
-## Architecture
-
-SpaceOps separates performance-sensitive filesystem code from the user interface layer:
-
-1. **Desktop App (WinUI 3 / C#)**: Win2D CanvasControl rendering, managed services (`ScanService`, `IndexService`, `DevStorageService`).
-2. **P/Invoke Bridge (csbindgen C-ABI SafeHandle)**: The typed boundary between managed and native code.
-3. **Native Core (Rust workspace)**:
-   - `crates/ffi` — panic guards and C-ABI export boundary
-   - `crates/storage-tree` — in-memory arena, squarified treemap layout, SQLite WAL persistence, USN journal sync
-   - `crates/scanner` — Rayon parallel directory walk, Win32/NTFS APIs, cluster allocation arithmetic
-   - `crates/common` — shared domain models (`ScanEvent`, `NodeId`)
+- [README.md](https://github.com/ChadaSaiteja/SpaceOps/blob/main/README.md): Overview, download, features, comparison, build instructions, benchmarks, FAQ.
+- [docs/architecture.md](https://github.com/ChadaSaiteja/SpaceOps/blob/main/docs/architecture.md): Layered architecture, data flows, in-memory layout.
+- [docs/development.md](https://github.com/ChadaSaiteja/SpaceOps/blob/main/docs/development.md): Developer setup, build scripts, debugging.
+- [docs/safety-model.md](https://github.com/ChadaSaiteja/SpaceOps/blob/main/docs/safety-model.md): Deletion guardrails, system blacklist, Recycle Bin routing.
+- [docs/developer-storage.md](https://github.com/ChadaSaiteja/SpaceOps/blob/main/docs/developer-storage.md): Catalogue of detected build artifacts across 8 ecosystems.
+- [docs/troubleshooting.md](https://github.com/ChadaSaiteja/SpaceOps/blob/main/docs/troubleshooting.md): Common build and runtime fixes.
+- [CONTRIBUTING.md](https://github.com/ChadaSaiteja/SpaceOps/blob/main/CONTRIBUTING.md), [CHANGELOG.md](https://github.com/ChadaSaiteja/SpaceOps/blob/main/CHANGELOG.md), [SECURITY.md](https://github.com/ChadaSaiteja/SpaceOps/blob/main/SECURITY.md)
 
 ## Core Capabilities
 
-- **Parallel filesystem scanning**: Rayon-backed traversal using Win32 `FindFirstFileExW`, measuring true cluster-allocated size rather than logical bytes.
-- **Interactive treemap**: Squarified layout via the Bruls-Huizing-van Wijk algorithm, rendered with Direct2D/Win2D at 60–120 FPS.
-- **Developer clutter detection**: 8 ecosystems (Node.js, Rust, .NET, Python, Java/JVM, Docker/WSL, Git, IDEs) plus dormancy analysis for projects untouched 30+ days.
-- **Zero-accident cleanup**: Immutable system path blacklist, COM `IFileOperation` Recycle Bin routing, and a dry-run mode.
-- **Tokenized search**: Sub-5ms in-memory search with `ext:`, `size:`, and `type:` filters.
-- **Incremental persistence**: SQLite in WAL mode with NTFS USN Journal (`FSCTL_READ_USN_JOURNAL`) resync and timestamp-differential fallback.
+- Parallel filesystem scanning: Rayon traversal using Win32 FindFirstFileExW, measuring cluster-allocated size rather than logical bytes.
+- Interactive treemap: squarified layout (Bruls-Huizing-van Wijk) rendered with Direct2D/Win2D.
+- Developer clutter detection: Node.js, Rust, .NET, Python, Java/JVM, Docker/WSL, Git, IDE caches, with dormancy analysis for projects untouched 30+ days.
+- Safe cleanup: immutable system path blacklist, COM IFileOperation Recycle Bin routing, dry-run mode, explicit user confirmation.
+- Tokenized search with ext:, size:, type: filters.
+- SQLite WAL persistence with NTFS USN Journal incremental sync and timestamp-differential fallback.
 
-## Performance
+## Architecture
 
-1,000,000-node synthetic benchmark (`cargo run --release -p storage-tree --example tree_benchmark`):
+Desktop app (WinUI 3 / C#) with Win2D rendering and managed services, a csbindgen P/Invoke bridge, and a native Rust workspace: crates/ffi, crates/storage-tree, crates/scanner, crates/common.
 
-- Build time: 218 ms (target under 2.0 s)
-- Lookup latency: 26.1 ns (target under 1,000 ns)
-- Subtree top-100 files: 45.7 ms (target under 50 ms)
-- Memory footprint: 55.0 MB RSS (target under 300 MB)
+## Performance (1,000,000-node synthetic benchmark)
+
+Build time 218 ms; lookup latency 26.1 ns; subtree top-100 files 45.7 ms; memory 55.0 MB RSS. Reproduce with `cargo run --release -p storage-tree --example tree_benchmark`.
 
 ## Testing
 
-- Rust workspace: 91 tests via `cargo test --workspace` in `storage-intelligence/core`
-- .NET integration: 30 tests via `dotnet test storage-intelligence/tests/integration/StorageIntelligence.IntegrationTests.csproj`
+Rust workspace: 91 tests (`cargo test --workspace` in storage-intelligence/core). .NET integration: 30 tests.
 
-## Build and Configuration
+## Limitations
 
-- [.github/workflows/ci.yml](.github/workflows/ci.yml): Windows CI running fmt, clippy, tests, and WinUI 3 build.
-- [.github/workflows/release.yml](.github/workflows/release.yml): Tag-triggered release packaging.
-- [global.json](global.json): Pinned .NET SDK version.
-- [storage-intelligence/scripts/build.ps1](storage-intelligence/scripts/build.ps1): Release build script.
-
+Windows only; v0.x; unsigned release builds until a certificate is obtained; download links work only once a tagged release is published (check the releases page).

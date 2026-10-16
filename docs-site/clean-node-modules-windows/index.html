@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How to Clean node_modules on Windows Safely | SpaceOps</title>
+<meta name="description" content="Reclaim gigabytes from old node_modules folders on Windows. Find them, check which projects are dormant, and clean them via the Recycle Bin with SpaceOps.">
+<meta name="author" content="Saiteja Chada">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+<meta name="theme-color" content="#06090e">
+<link rel="canonical" href="https://chadasaiteja.github.io/SpaceOps/docs-site/clean-node-modules-windows/">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="SpaceOps">
+<meta property="og:title" content="How to Clean node_modules on Windows Safely | SpaceOps">
+<meta property="og:description" content="Reclaim gigabytes from old node_modules folders on Windows. Find them, check which projects are dormant, and clean them via the Recycle Bin with SpaceOps.">
+<meta property="og:url" content="https://chadasaiteja.github.io/SpaceOps/docs-site/clean-node-modules-windows/">
+<meta property="og:image" content="https://chadasaiteja.github.io/SpaceOps/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="SpaceOps logo, a four-tile treemap, with the text: Open-source disk analyzer for Windows">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="How to Clean node_modules on Windows Safely | SpaceOps">
+<meta name="twitter:description" content="Reclaim gigabytes from old node_modules folders on Windows. Find them, check which projects are dormant, and clean them via the Recycle Bin with SpaceOps.">
+<meta name="twitter:image" content="https://chadasaiteja.github.io/SpaceOps/og-image.png">
+<link rel="icon" href="../../favicon.ico" sizes="any">
+<link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "headline": "How to clean node_modules folders on Windows",
+      "description": "Reclaim gigabytes from old node_modules folders on Windows. Find them, check which projects are dormant, and clean them via the Recycle Bin with SpaceOps.",
+      "abstract": "A node_modules folder is safe to delete when its project still has package.json (and ideally a lockfile), because npm, pnpm or yarn can recreate it with an install. SpaceOps finds every node_modules folder on a drive, shows its size, flags projects untouched for 30 days or more, and sends your selection to the Recycle Bin.",
+      "url": "https://chadasaiteja.github.io/SpaceOps/docs-site/clean-node-modules-windows/",
+      "mainEntityOfPage": "https://chadasaiteja.github.io/SpaceOps/docs-site/clean-node-modules-windows/",
+      "inLanguage": "en",
+      "datePublished": "2026-10-16",
+      "dateModified": "2026-10-16",
+      "image": "https://chadasaiteja.github.io/SpaceOps/og-image.png",
+      "author": {
+        "@type": "Person",
+        "name": "Saiteja Chada",
+        "url": "https://github.com/ChadaSaiteja"
+      },
+      "publisher": {
+        "@type": "Person",
+        "name": "Saiteja Chada",
+        "url": "https://github.com/ChadaSaiteja"
+      },
+      "about": {
+        "@type": "SoftwareApplication",
+        "name": "SpaceOps",
+        "url": "https://chadasaiteja.github.io/SpaceOps/",
+        "applicationCategory": "SystemApplication",
+        "operatingSystem": "Windows 10, Windows 11"
+      }
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Is it safe to delete node_modules?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Generally yes when the project has a package.json, because an install recreates the folder. Your source code and git history are not inside node_modules."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Will I lose uncommitted work?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "SpaceOps only targets artifact folders such as node_modules, never working source files. Still, review the dry-run list before confirming."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Why are active projects unchecked by default?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Projects modified in the last 30 days are likely in use, so SpaceOps highlights them but leaves cleanup unchecked."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does SpaceOps delete node_modules permanently?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. Items go to the Recycle Bin through the Windows Shell, so you can restore them."
+          }
+        }
+      ]
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "SpaceOps",
+          "item": "https://chadasaiteja.github.io/SpaceOps/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "Clean node_modules on Windows",
+          "item": "https://chadasaiteja.github.io/SpaceOps/docs-site/clean-node-modules-windows/"
+        }
+      ]
+    }
+  ]
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header>
+  <div class="wrap nav">
+    <a class="logo" href="../../" aria-label="SpaceOps home"><svg viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="20" fill="#06090e"/><rect x="18" y="18" width="38" height="38" rx="5" fill="#00f5d4"/><rect x="62" y="18" width="20" height="20" rx="4" fill="#9d4edd"/><rect x="62" y="44" width="20" height="38" rx="4" fill="#3a86ff"/><rect x="18" y="62" width="38" height="20" rx="5" fill="#f72585"/></svg>SpaceOps</a>
+    <nav aria-label="Primary"><ul>
+      <li><a href="../../#download">Download</a></li>
+      <li><a href="../../#features">Features</a></li>
+      <li><a href="../../#guides">Guides</a></li>
+      <li><a href="../../#faq">FAQ</a></li>
+    </ul></nav>
+    <a class="btn btn-primary btn-sm" href="https://github.com/ChadaSaiteja/SpaceOps" rel="noopener">GitHub &#8599;</a>
+  </div>
+</header>
+
+<main id="main">
+<div class="narrow">
+<article>
+<p class="crumbs"><a href="../../">SpaceOps</a> &rsaquo; Guides &rsaquo; Clean node_modules on Windows</p>
+<h1>How to clean node_modules folders on Windows</h1>
+<p class="answer">A node_modules folder is safe to delete when its project still has package.json (and ideally a lockfile), because npm, pnpm or yarn can recreate it with an install. SpaceOps finds every node_modules folder on a drive, shows its size, flags projects untouched for 30 days or more, and sends your selection to the Recycle Bin.</p>
+<p class="updated">Updated 2026-10-16 &middot; SpaceOps v0.x &middot; Windows only</p>
+
+<h2>Why does node_modules take so much space?</h2>
+<p>Each JavaScript or TypeScript project installs its own dependency tree, and abandoned projects keep that tree forever. Across many old projects it can add up to many gigabytes; SpaceOps' developer-storage reference lists Node.js targets as a high-impact category (<code>node_modules</code>, npm cache, pnpm store, yarn cache).</p>
+
+<h2>How do I clean node_modules with SpaceOps?</h2>
+<ol class="howto">
+<li><b>Scan</b> the drive that holds your projects.</li>
+<li><b>Search</b> for <code>node_modules size:&gt;500MB</code> to list the largest ones first.</li>
+<li><b>Check dormancy</b>: projects untouched for 30+ days are flagged; active projects default to unchecked.</li>
+<li><b>Dry run</b> to preview the files and bytes that would be reclaimed without touching anything.</li>
+<li><b>Confirm</b> the selection. Folders move to the Recycle Bin, and source code and git history are not touched.</li>
+<li><b>Restore later</b> if needed: run <code>npm install</code> (or your package manager's install) in a project to rebuild its dependencies.</li>
+</ol>
+
+<h2>How do I list node_modules manually in PowerShell?</h2>
+<p>This lists paths only; it does not measure sizes. Replace the folder with your projects directory.</p>
+<pre>Get-ChildItem -Path C:\code -Directory -Filter node_modules -Recurse -Force -ErrorAction SilentlyContinue |
+  Select-Object -ExpandProperty FullName</pre>
+
+<div class="note-box"><p><b>Before you delete:</b> make sure the project has a <code>package.json</code>. A folder named <code>node_modules</code> without one may be something else. Windows can also refuse or permanently delete items too large for the Recycle Bin, so check its size limit before a very large cleanup.</p></div>
+
+<h2>What about the package manager caches?</h2>
+<p>The global npm cache, pnpm store and yarn cache are re-downloaded on demand, so they are also reclaimable. Clean them with the package manager's own cache commands, or let SpaceOps show how large they are first.</p>
+
+<h2>Frequently asked questions</h2>
+<div class="faq">
+<details open><summary>Is it safe to delete node_modules?</summary><p>Generally yes when the project has a package.json, because an install recreates the folder. Your source code and git history are not inside node_modules.</p></details>
+<details><summary>Will I lose uncommitted work?</summary><p>SpaceOps only targets artifact folders such as node_modules, never working source files. Still, review the dry-run list before confirming.</p></details>
+<details><summary>Why are active projects unchecked by default?</summary><p>Projects modified in the last 30 days are likely in use, so SpaceOps highlights them but leaves cleanup unchecked.</p></details>
+<details><summary>Does SpaceOps delete node_modules permanently?</summary><p>No. Items go to the Recycle Bin through the Windows Shell, so you can restore them.</p></details>
+</div>
+
+<div class="cta-box">
+<h2>Try SpaceOps</h2>
+<p>Free, open source (MIT), 100% offline. Windows 10/11, x64 and ARM64. Builds are unsigned for now, so verify the checksum.</p>
+<div class="cta">
+<a class="btn btn-primary" href="../../#download">Download latest release</a>
+<a class="btn btn-ghost" href="https://github.com/ChadaSaiteja/SpaceOps" rel="noopener">View on GitHub</a>
+</div>
+</div>
+
+<h2>More guides</h2>
+<div class="related">
+<a href="../free-windows-disk-space-analyzer/">Free Windows disk space analyzer</a>
+<a href="../windirstat-alternative/">WinDirStat alternative</a>
+<a href="../docker-wsl2-vhdx-cleanup-windows/">Docker and WSL2 VHDX cleanup</a>
+<a href="../cargo-target-cleanup-windows/">Rust target folder cleanup</a>
+<a href="../how-spaceops-cleans-safely/">How SpaceOps cleans safely</a>
+</div>
+</article>
+</div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="f-links">
+      <a href="../../">Home</a>
+      <a href="https://github.com/ChadaSaiteja/SpaceOps">GitHub</a>
+      <a href="https://github.com/ChadaSaiteja/SpaceOps/blob/main/LICENSE">MIT License</a>
+      <a href="https://github.com/ChadaSaiteja/SpaceOps/blob/main/docs/safety-model.md">Safety model</a>
+      <a href="../../llms.txt">llms.txt</a>
+      <a href="../../sitemap.xml">Sitemap</a>
+    </div>
+    <p>SpaceOps &mdash; open-source storage intelligence for Windows. &copy; 2026 Saiteja Chada and SpaceOps Contributors.</p>
+  </div>
+</footer>
+</body>
+</html>

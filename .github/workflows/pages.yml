@@ -5,6 +5,17 @@ on:
     branches: [ main ]
     paths:
       - 'index.html'
+      - 'sitemap.xml'
+      - 'robots.txt'
+      - 'llms.txt'
+      - 'llms-full.txt'
+      - 'codemeta.json'
+      - 'site.webmanifest'
+      - 'og-image.png'
+      - 'favicon.*'
+      - 'apple-touch-icon.png'
+      - 'icon-*.png'
+      - 'docs-site/**'
       - '.github/workflows/pages.yml'
   workflow_dispatch:
 
@@ -34,7 +45,11 @@ jobs:
       - name: Stage site output
         run: |
           mkdir -p _site
-          cp index.html _site/index.html
+          cp index.html sitemap.xml robots.txt llms.txt llms-full.txt codemeta.json site.webmanifest _site/
+          cp og-image.png apple-touch-icon.png icon-192.png icon-512.png _site/
+          cp favicon.ico favicon.svg favicon-16.png favicon-32.png _site/
+          cp -r docs-site _site/docs-site
+          touch _site/.nojekyll
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

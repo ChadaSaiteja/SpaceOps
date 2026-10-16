@@ -1,0 +1,26 @@
+# DRAFT - fill after first release. Not submitted.
+PackageIdentifier: SaitejaChada.SpaceOps
+PackageVersion: FILL-AFTER-FIRST-RELEASE   # e.g. 0.2.0
+PackageLocale: en-US
+Publisher: Saiteja Chada
+PublisherUrl: https://github.com/ChadaSaiteja
+PublisherSupportUrl: https://github.com/ChadaSaiteja/SpaceOps/issues
+Author: Saiteja Chada
+PackageName: SpaceOps
+PackageUrl: https://chadasaiteja.github.io/SpaceOps/
+License: MIT
+LicenseUrl: https://github.com/ChadaSaiteja/SpaceOps/blob/main/LICENSE
+Copyright: Copyright (c) 2026 Saiteja Chada and SpaceOps Contributors
+ShortDescription: Free, open-source disk analyzer and storage cleaner for Windows with a treemap and Recycle Bin-safe cleanup.
+Description: SpaceOps scans drives with a parallel Rust engine, shows disk usage as an interactive Direct2D treemap, detects developer clutter (node_modules, Rust target, .NET bin/obj, Python venvs, WSL and Docker virtual disks) and routes every cleanup through the Windows Recycle Bin. Runs fully offline.
+Moniker: spaceops
+Tags:
+  - disk-analyzer
+  - disk-space
+  - storage
+  - treemap
+  - developer-tools
+  - cleanup
+ReleaseNotesUrl: https://github.com/ChadaSaiteja/SpaceOps/releases/tag/vFILL-AFTER-FIRST-RELEASE
+ManifestType: defaultLocale
+ManifestVersion: 1.6.0

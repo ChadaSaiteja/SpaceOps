@@ -41,8 +41,22 @@ impl FileCategory {
 pub fn classify_extension(ext: Option<&str>) -> FileCategory {
     match ext {
         Some(e) => {
-            let lower = e.to_ascii_lowercase();
-            match lower.as_str() {
+            // Lowercase into a small stack buffer: this runs once per node for search and
+            // layout, so a heap allocation here dominated both. No recognised extension
+            // is longer than 7 bytes, so anything longer is `Other`.
+            let bytes = e.as_bytes();
+            let mut buf = [0u8; 8];
+            if bytes.len() > buf.len() {
+                return FileCategory::Other;
+            }
+            for (dst, src) in buf.iter_mut().zip(bytes) {
+                *dst = src.to_ascii_lowercase();
+            }
+            let lower = match std::str::from_utf8(&buf[..bytes.len()]) {
+                Ok(s) => s,
+                Err(_) => return FileCategory::Other,
+            };
+            match lower {
                 // Video
                 "mp4" | "mkv" | "avi" | "mov" | "wmv" | "flv" | "webm" | "m4v" | "mpg" | "mpeg"
                 | "3gp" | "m2ts" | "vob" => FileCategory::Video,
@@ -446,6 +460,19 @@ mod tests {
     use super::*;
     use common::{DirMetadata, FileAttributeFlags, FileMetadata, NodeId, ScanEvent};
     use std::ffi::OsString;
+
+    #[test]
+    fn classify_extension_is_case_insensitive_and_bounded() {
+        assert_eq!(classify_extension(Some("MP4")), FileCategory::Video);
+        assert_eq!(classify_extension(Some("TaRgEtS")), FileCategory::Code);
+        assert_eq!(classify_extension(Some("")), FileCategory::Other);
+        assert_eq!(
+            classify_extension(Some("averyverylongext")),
+            FileCategory::Other
+        );
+        assert_eq!(classify_extension(Some("m\u{4f60}p")), FileCategory::Other);
+        assert_eq!(classify_extension(None), FileCategory::Other);
+    }
 
     fn build_test_tree() -> StorageTree {
         let root_id = NodeId(0);

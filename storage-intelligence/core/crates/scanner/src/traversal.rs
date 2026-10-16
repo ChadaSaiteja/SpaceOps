@@ -75,7 +75,7 @@ struct ScanContext<'a> {
 }
 
 impl ScanContext<'_> {
-    fn maybe_emit_progress(&self, current_path: &Path) {
+    fn maybe_emit_progress(&self, dir: &Path, name: &std::ffi::OsStr) {
         let mut last = self.last_progress_at.lock().unwrap();
         if last.elapsed() < self.progress_interval {
             return;
@@ -86,7 +86,7 @@ impl ScanContext<'_> {
         (self.on_progress)(ScanProgress {
             files_scanned: self.files_scanned.load(Ordering::Relaxed),
             bytes_scanned: self.bytes_scanned.load(Ordering::Relaxed),
-            current_path: current_path.to_path_buf(),
+            current_path: dir.join(name),
         });
     }
 }
@@ -193,7 +193,7 @@ fn walk_dir(
 
     entries
         .into_par_iter()
-        .map(|entry| process_fast_entry(&entry, dir_id, current_depth, ctx))
+        .map(|entry| process_fast_entry(entry, dir, dir_id, current_depth, ctx))
         .reduce(
             || (0u64, 0u64, 0u64),
             |a, b| (a.0 + b.0, a.1 + b.1, a.2 + b.2),
@@ -201,7 +201,8 @@ fn walk_dir(
 }
 
 fn process_fast_entry(
-    entry: &crate::winfs::FastDirEntry,
+    entry: crate::winfs::FastDirEntry,
+    dir: &Path,
     dir_id: NodeId,
     current_depth: usize,
     ctx: &ScanContext,
@@ -228,6 +229,7 @@ fn process_fast_entry(
     }
 
     if entry.is_directory {
+        let child_path = dir.join(&entry.name);
         let child_id = ctx.ids.next();
         ctx.events.push(ScanEvent::EnteredDirectory {
             parent_id: Some(dir_id),
@@ -250,7 +252,7 @@ fn process_fast_entry(
         }
 
         let (child_size, child_files, child_dirs) =
-            walk_dir(&entry.path, child_id, current_depth + 1, ctx);
+            walk_dir(&child_path, child_id, current_depth + 1, ctx);
         ctx.events.push(ScanEvent::DirectoryComplete {
             id: child_id,
             total_size: child_size,
@@ -260,22 +262,25 @@ fn process_fast_entry(
 
         (child_size, child_files, child_dirs + 1)
     } else {
-        match metadata::file_metadata_from_fast_entry(entry, ctx.cluster_size) {
+        // Only compressed/sparse files can fail (GetCompressedFileSizeW), so only they
+        // need their full path kept around for the error event.
+        let err_path = (entry.attributes & 0xA00 != 0).then(|| dir.join(&entry.name));
+        match metadata::file_metadata_from_fast_entry(entry, dir, ctx.cluster_size) {
             Ok(file_meta) => {
                 let size = file_meta.size;
+                ctx.files_scanned.fetch_add(1, Ordering::Relaxed);
+                ctx.bytes_scanned.fetch_add(size, Ordering::Relaxed);
+                ctx.maybe_emit_progress(dir, &file_meta.name);
                 ctx.events.push(ScanEvent::FileFound {
                     parent_id: dir_id,
                     meta: file_meta,
                 });
-                ctx.files_scanned.fetch_add(1, Ordering::Relaxed);
-                ctx.bytes_scanned.fetch_add(size, Ordering::Relaxed);
-                ctx.maybe_emit_progress(&entry.path);
                 (size, 1, 0)
             }
             Err(err) => {
                 ctx.events.push(ScanEvent::Inaccessible {
                     parent_id: dir_id,
-                    path: entry.path.clone(),
+                    path: err_path.unwrap_or_else(|| dir.to_path_buf()),
                     reason: classify_io_error(&err),
                 });
                 ctx.inaccessible_count.fetch_add(1, Ordering::Relaxed);

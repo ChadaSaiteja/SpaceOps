@@ -67,36 +67,41 @@ pub fn dir_metadata(path: &Path, is_reparse_point: bool) -> DirMetadata {
     }
 }
 
-/// Metadata extracted directly from a `FastDirEntry` without any redundant syscalls.
+/// Metadata extracted directly from a `FastDirEntry` (consumed, so the name buffer is
+/// moved rather than cloned) without any redundant syscalls. `dir` is the containing
+/// directory; the full path is only materialized for compressed/sparse files, which need
+/// `GetCompressedFileSizeW`.
 pub fn file_metadata_from_fast_entry(
-    entry: &winfs::FastDirEntry,
+    entry: winfs::FastDirEntry,
+    dir: &Path,
     cluster_size: u64,
 ) -> std::io::Result<FileMetadata> {
     let attributes = flags_from_raw(entry.attributes);
 
     let size = if attributes.compressed || attributes.sparse {
-        winfs::compressed_file_size(&entry.path)?
+        winfs::compressed_file_size(&dir.join(&entry.name))?
     } else {
         winfs::round_up_to_cluster(entry.logical_size, cluster_size)
     };
 
+    let extension = Path::new(&entry.name)
+        .extension()
+        .map(|ext| ext.to_string_lossy().into_owned());
+
     Ok(FileMetadata {
-        name: entry.name.clone(),
+        name: entry.name,
         size,
-        extension: entry
-            .path
-            .extension()
-            .map(|ext| ext.to_string_lossy().into_owned()),
+        extension,
         modified: entry.modified,
         created: entry.created,
         attributes,
     })
 }
 
-/// Directory metadata directly from a `FastDirEntry`.
-pub fn dir_metadata_from_fast_entry(entry: &winfs::FastDirEntry) -> DirMetadata {
+/// Directory metadata directly from a `FastDirEntry` (name moved, not cloned).
+pub fn dir_metadata_from_fast_entry(entry: winfs::FastDirEntry) -> DirMetadata {
     DirMetadata {
-        name: entry.name.clone(),
+        name: entry.name,
         is_reparse_point: entry.is_reparse_point,
     }
 }

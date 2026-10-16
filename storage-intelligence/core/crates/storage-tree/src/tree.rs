@@ -100,6 +100,13 @@ impl TreeNode {
 // StorageTree
 // ---------------------------------------------------------------------------
 
+/// Converts an owned `OsString` to `String`, reusing the allocation when it is valid
+/// Unicode (the overwhelmingly common case) and falling back to lossy conversion.
+fn os_into_string(name: std::ffi::OsString) -> String {
+    name.into_string()
+        .unwrap_or_else(|os| os.to_string_lossy().into_owned())
+}
+
 /// The immutable, queryable tree built from a completed scan's events.
 ///
 /// Thread-safe for concurrent reads (`&StorageTree` is `Send + Sync` automatically
@@ -155,7 +162,9 @@ impl StorageTree {
             .unwrap_or(0);
         scanner_id_to_index.resize(max_scanner_id as usize + 1, usize::MAX);
 
-        for event in &events {
+        // Consume the events so names and extensions are moved into the arena instead
+        // of being cloned/re-encoded.
+        for event in events {
             match event {
                 ScanEvent::EnteredDirectory {
                     parent_id,
@@ -181,7 +190,7 @@ impl StorageTree {
                         id: node_id,
                         parent: parent_tree_id,
                         kind,
-                        name: meta.name.to_string_lossy().into_owned(),
+                        name: os_into_string(meta.name),
                         size: 0,
                         file_count: 0,
                         dir_count: 0,
@@ -217,11 +226,11 @@ impl StorageTree {
                         id: node_id,
                         parent: Some(parent_tree_id),
                         kind: NodeKind::File,
-                        name: meta.name.to_string_lossy().into_owned(),
+                        name: os_into_string(meta.name),
                         size: meta.size,
                         file_count: 0,
                         dir_count: 0,
-                        extension: meta.extension.clone(),
+                        extension: meta.extension,
                         modified: meta.modified,
                         created: meta.created,
                         attributes: meta.attributes,
@@ -277,9 +286,9 @@ impl StorageTree {
                     dir_count,
                 } => {
                     let idx = scanner_id_to_index[id.0 as usize];
-                    nodes[idx].size = *total_size;
-                    nodes[idx].file_count = *file_count;
-                    nodes[idx].dir_count = *dir_count;
+                    nodes[idx].size = total_size;
+                    nodes[idx].file_count = file_count;
+                    nodes[idx].dir_count = dir_count;
                 }
             }
         }

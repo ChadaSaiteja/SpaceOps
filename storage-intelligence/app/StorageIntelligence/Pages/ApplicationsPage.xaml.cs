@@ -19,11 +19,13 @@ public sealed partial class ApplicationsPage : Page
     private List<AppLeftoverViewModel> _allLeftovers = new();
     private bool _showingLeftovers;
     private bool _loaded;
+    private bool _ready;
 
     public ApplicationsPage()
     {
         InitializeComponent();
         NavigationCacheMode = NavigationCacheMode.Required;
+        _ready = true;
         _session.TreeChanged += () => _loaded = false;
     }
 
@@ -81,6 +83,7 @@ public sealed partial class ApplicationsPage : Page
 
     private void ApplyAppFilters()
     {
+        if (!_ready) return;
         if (_showingLeftovers) return;
 
         string filter = AppFilterTextBox?.Text?.Trim() ?? "";
@@ -222,6 +225,7 @@ public sealed partial class ApplicationsPage : Page
                         Microsoft.VisualBasic.FileIO.RecycleOption.SendToRecycleBin);
 
                     leftover.IsCleaned = true;
+                    _session.NotifyReclaimableChanged();
                     AppsSummaryText.Text = $"Moved {leftover.AppName} leftover to Recycle Bin ({leftover.FormattedSize} reclaimed).";
                 }
             }

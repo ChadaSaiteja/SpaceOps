@@ -16,11 +16,13 @@ public sealed partial class DeveloperPage : Page
     private readonly AppSession _session = AppSession.Current;
     private List<DevArtifactViewModel> _allDevArtifacts = new();
     private bool _loaded;
+    private bool _ready;
 
     public DeveloperPage()
     {
         InitializeComponent();
         NavigationCacheMode = NavigationCacheMode.Required;
+        _ready = true;
         _session.TreeChanged += () => _loaded = false;
     }
 
@@ -87,6 +89,7 @@ public sealed partial class DeveloperPage : Page
 
     private void ApplyDevFilters()
     {
+        if (!_ready) return;
         string filter = DevFilterTextBox?.Text?.Trim() ?? "";
         int ecoIndex = DevEcosystemFilterCombo?.SelectedIndex ?? 0;
         bool dormantOnly = DevDormantOnlyCheck?.IsChecked == true;
@@ -158,6 +161,7 @@ public sealed partial class DeveloperPage : Page
                 {
                     var report = await DevStorageService.CleanArtifactAsync(art.Path, dryRun: false, sendToRecycleBin: true);
                     DevStorageSummaryText.Text = $"Reclaimed {Fmt.Bytes(report.BytesReclaimed)} ({report.FilesReclaimed} files moved to Recycle Bin).";
+                    _session.NotifyReclaimableChanged();
                     await LoadDevArtifactsAsync();
                 }
                 catch (Exception ex)

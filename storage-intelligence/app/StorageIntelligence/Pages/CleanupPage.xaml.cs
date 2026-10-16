@@ -114,6 +114,7 @@ public sealed partial class CleanupPage : Page
 
             if (!dryRun)
             {
+                _session.NotifyReclaimableChanged();
                 AnalyzeCleanup();
             }
         }

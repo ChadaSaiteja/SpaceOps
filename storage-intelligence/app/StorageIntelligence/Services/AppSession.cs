@@ -30,6 +30,11 @@ public sealed class AppSession
     /// <summary>The current tree was mutated in place (incremental sync).</summary>
     public event Action? TreeUpdated;
 
+    /// <summary>Raised after a (non dry-run) clean so dependent pages such as Overview refresh reclaimable totals.</summary>
+    public event Action? ReclaimableInvalidated;
+
+    public void NotifyReclaimableChanged() => ReclaimableInvalidated?.Invoke();
+
     public event Action? ScanStateChanged;
     public event Action<string>? StatusChanged;
     public event Action<string>? MetricsChanged;

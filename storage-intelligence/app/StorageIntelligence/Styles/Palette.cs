@@ -122,4 +122,6 @@ public static class ThemeBrushes
     public static SolidColorBrush Orange => Get("SpaceOrangeBrush");
     public static SolidColorBrush Cyan => Get("SpaceCyanBrush");
     public static SolidColorBrush Neutral => Get("SpaceSubBrush");
+    public static SolidColorBrush Muted => Get("SpaceMutedBrush");
+    public static SolidColorBrush Border => Get("SpaceBorderBrush");
 }

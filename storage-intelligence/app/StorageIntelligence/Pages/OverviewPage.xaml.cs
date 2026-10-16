@@ -97,14 +97,17 @@ public sealed partial class OverviewPage : Page
 
         try
         {
-            var summary = await OverviewService.ComputeReclaimableAsync(tree);
+            // Same unified set the Cleanup page lists, so both always show the same total.
+            var set = await _session.GetReclaimableAsync();
             if (gen != _reclaimGeneration || !ReferenceEquals(tree, _session.Tree)) return;
 
-            ReclaimTotalText.Text = Fmt.Bytes(summary.TotalBytes);
-            ReclaimJunkLabel.Text = $"System junk ({summary.SystemJunkCategories} categories)";
-            ReclaimJunkValue.Text = Fmt.Bytes(summary.SystemJunkBytes);
-            ReclaimDevLabel.Text = $"Dormant developer artifacts ({summary.DevArtifacts})";
-            ReclaimDevValue.Text = Fmt.Bytes(summary.DevBytes);
+            ReclaimTotalText.Text = Fmt.Bytes(set.TotalBytes);
+            ReclaimJunkLabel.Text = $"System junk ({set.CountFor(CandidateSource.SystemJunk)})";
+            ReclaimJunkValue.Text = Fmt.Bytes(set.BytesFor(CandidateSource.SystemJunk));
+            ReclaimDevLabel.Text = $"Dormant developer artifacts ({set.CountFor(CandidateSource.DevArtifact)})";
+            ReclaimDevValue.Text = Fmt.Bytes(set.BytesFor(CandidateSource.DevArtifact));
+            ReclaimLeftoverLabel.Text = $"App leftovers ({set.CountFor(CandidateSource.AppLeftover)})";
+            ReclaimLeftoverValue.Text = Fmt.Bytes(set.BytesFor(CandidateSource.AppLeftover));
         }
         catch (Exception ex)
         {

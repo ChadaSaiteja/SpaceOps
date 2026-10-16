@@ -22,11 +22,6 @@ public sealed record OverviewSnapshot(
     ulong SlicedFileCount,
     IReadOnlyList<TopConsumer> TopConsumers);
 
-public sealed record ReclaimableSummary(ulong SystemJunkBytes, int SystemJunkCategories, ulong DevBytes, int DevArtifacts)
-{
-    public ulong TotalBytes => SystemJunkBytes + DevBytes;
-}
-
 /// <summary>
 /// Computes the Overview page numbers from the in-memory storage tree (no extra disk access).
 /// Category shares come from the largest files in the tree (exact sizes), with every remaining
@@ -97,32 +92,6 @@ public static class OverviewService
             slices,
             (ulong)topFileIds.Length,
             consumers);
-    }
-
-    /// <summary>Reclaimable-now: unprotected cleanup candidates plus dormant, directly cleanable developer artifacts.</summary>
-    public static async Task<ReclaimableSummary> ComputeReclaimableAsync(StorageTreeService tree)
-    {
-        var candidates = await tree.DetectCleanupCandidatesAsync();
-        ulong junk = 0;
-        int junkCategories = 0;
-        foreach (var c in candidates)
-        {
-            if (c.IsProtected || c.TotalBytes == 0) continue;
-            junk += c.TotalBytes;
-            junkCategories++;
-        }
-
-        var artifacts = await DevStorageService.DiscoverArtifactsAsync(tree);
-        ulong dev = 0;
-        int devCount = 0;
-        foreach (var a in artifacts)
-        {
-            if (!a.IsDormant || a.RiskLevel == RiskLevel.High) continue;
-            dev += a.SizeBytes;
-            devCount++;
-        }
-
-        return new ReclaimableSummary(junk, junkCategories, dev, devCount);
     }
 
     private static double Fraction(ulong part, ulong total) =>

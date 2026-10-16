@@ -33,7 +33,28 @@ public sealed class AppSession
     /// <summary>Raised after a (non dry-run) clean so dependent pages such as Overview refresh reclaimable totals.</summary>
     public event Action? ReclaimableInvalidated;
 
-    public void NotifyReclaimableChanged() => ReclaimableInvalidated?.Invoke();
+    private Task<ReclaimableSet>? _reclaimableTask;
+
+    public void NotifyReclaimableChanged()
+    {
+        _reclaimableTask = null;
+        ReclaimableInvalidated?.Invoke();
+    }
+
+    /// <summary>
+    /// The unified reclaimable set for the current tree (system junk + dormant dev artifacts + app leftovers),
+    /// computed once and shared by Cleanup and Overview until the tree changes or something is cleaned.
+    /// </summary>
+    public Task<ReclaimableSet> GetReclaimableAsync(bool force = false)
+    {
+        var tree = Tree;
+        if (tree == null) return Task.FromResult(ReclaimableSet.Empty);
+        if (force || _reclaimableTask == null)
+        {
+            _reclaimableTask = ReclaimableService.LoadAsync(tree);
+        }
+        return _reclaimableTask;
+    }
 
     public event Action? ScanStateChanged;
     public event Action<string>? StatusChanged;
@@ -60,6 +81,7 @@ public sealed class AppSession
     {
         var old = Tree;
         Tree = newTree;
+        _reclaimableTask = null;
         TreeChanged?.Invoke();
 
         if (old != null && !ReferenceEquals(old, newTree))
@@ -172,6 +194,7 @@ public sealed class AppSession
                 SetStatus($"Incrementally synchronizing {path} via USN / timestamp diff...");
                 var report = await IndexService.SyncTreeAsync(Tree, path);
 
+                _reclaimableTask = null;
                 TreeUpdated?.Invoke();
                 SetStatus($"Synced in {report.SyncDurationMs}ms • {report.NodesUpdated} updated, {report.NodesRemoved} removed ({report.FormattedBytesDelta})");
                 UpdateRootMetrics();

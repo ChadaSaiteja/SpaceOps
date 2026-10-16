@@ -145,7 +145,10 @@
                             <Grid.RowDefinitions>
                                 <RowDefinition Height="Auto" />
                                 <RowDefinition Height="Auto" />
+                                <RowDefinition Height="Auto" />
                             </Grid.RowDefinitions>
+                            <TextBlock x:Name="ReclaimLeftoverLabel" Grid.Row="2" Text="App leftovers" FontSize="12" Foreground="{StaticResource SpaceSubBrush}" />
+                            <TextBlock x:Name="ReclaimLeftoverValue" Grid.Row="2" Grid.Column="1" Text="—" FontSize="12" FontFamily="Cascadia Mono, Consolas" />
                             <TextBlock x:Name="ReclaimJunkLabel" Text="System junk" FontSize="12" Foreground="{StaticResource SpaceSubBrush}" />
                             <TextBlock x:Name="ReclaimJunkValue" Grid.Column="1" Text="—" FontSize="12" FontFamily="Cascadia Mono, Consolas" />
                             <TextBlock x:Name="ReclaimDevLabel" Grid.Row="1" Text="Dormant developer artifacts" FontSize="12" Foreground="{StaticResource SpaceSubBrush}" />

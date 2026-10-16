@@ -33,13 +33,32 @@
     <PackageReference Include="Microsoft.Windows.SDK.BuildTools" Version="10.0.26100.7705" />
   </ItemGroup>
 
-  <!-- Publish Properties -->
+  <!-- Publish Properties. Trimming is disabled: it breaks WinUI 3 / XAML reflection. ReadyToRun is kept for startup. -->
   <PropertyGroup>
+    <PublishTrimmed>False</PublishTrimmed>
     <PublishReadyToRun Condition="'$(Configuration)' == 'Debug'">False</PublishReadyToRun>
     <PublishReadyToRun Condition="'$(Configuration)' != 'Debug'">True</PublishReadyToRun>
-    <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
-    <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">True</PublishTrimmed>
   </PropertyGroup>
+
+  <!-- Release packaging only: pass -p:SpaceOpsRelease=true (see .github/workflows/release.yml, docs/releasing.md).
+       Bundles the .NET runtime and the Windows App SDK runtime so the zip runs on a clean machine.
+       Regular `dotnet build` / CI / integration tests are unaffected. -->
+  <PropertyGroup Condition="'$(SpaceOpsRelease)' == 'true'">
+    <SelfContained>true</SelfContained>
+    <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
+  </PropertyGroup>
+
+  <!-- Unpackaged `dotnet publish` omits the compiled XAML (*.xbf), the app's resource index (*.pri) and Assets\,
+       which makes the app crash in Microsoft.UI.Xaml.dll at startup. Copy them from the build output. -->
+  <Target Name="IncludeXamlOutputsInPublish" AfterTargets="Publish" Condition="'$(SpaceOpsRelease)' == 'true'">
+    <ItemGroup>
+      <_XamlOut Include="$(OutDir)**\*.xbf" />
+      <_XamlOut Include="$(OutDir)$(TargetName).pri" />
+      <_AssetsOut Include="$(OutDir)Assets\**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_XamlOut)" DestinationFiles="@(_XamlOut->'$(PublishDir)%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="@(_AssetsOut)" DestinationFiles="@(_AssetsOut->'$(PublishDir)Assets\%(RecursiveDir)%(Filename)%(Extension)')" SkipUnchangedFiles="true" />
+  </Target>
 
   <!-- Copies the Rust core's cdylib next to the app (ADR-001/002: unpackaged, in-process DLL). -->
   <Target Name="CopyNativeFfiDll" AfterTargets="Build">

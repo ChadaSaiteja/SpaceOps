@@ -12,6 +12,9 @@ namespace StorageIntelligence.IntegrationTests;
 /// </summary>
 public class AppManagerServiceTests
 {
+    // Reads this machine's installed apps / global caches, so results depend on the machine.
+    // CI skips it (--filter "Category!=Machine"); it still runs with a plain `dotnet test`.
+    [Trait("Category", "Machine")]
     [Fact]
     public void DiscoverApplications_FindsInstalledApps()
     {
@@ -63,6 +66,9 @@ public class AppManagerServiceTests
         }
     }
 
+    // Reads this machine's installed apps / global caches, so results depend on the machine.
+    // CI skips it (--filter "Category!=Machine"); it still runs with a plain `dotnet test`.
+    [Trait("Category", "Machine")]
     [Fact]
     public void DiscoverLeftovers_ReturnsValidEntries()
     {

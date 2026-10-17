@@ -79,6 +79,8 @@ jobs:
     needs: changes
     if: needs.changes.outputs.code == 'true'
     runs-on: windows-latest
+    # A normal run takes ~5-10 min; never let a stuck test hold a runner for hours.
+    timeout-minutes: 30
 
     steps:
       - name: Checkout repository
@@ -155,11 +157,38 @@ jobs:
           if ($alive) { Stop-Process -Id $p.Id -Force }
           if (-not $alive -or $crashed) { exit 1 }
 
-      # Runs every test in the project, including SmokeTests (end-to-end scan -> tree -> treemap ->
-      # search -> developer storage -> dry-run-only cleanup against a temp folder).
+      # Runs every test except those that read this machine's installed apps and global caches
+      # (Category=Machine: a CI runner's software says nothing about our code). Includes SmokeTests
+      # (end-to-end scan -> tree -> treemap -> search -> developer storage -> dry-run-only cleanup).
+      # --blame-hang kills any test stuck for 3 minutes and records which one it was.
       - name: Run C# integration tests (FFI boundary + end-to-end smoke)
+        timeout-minutes: 15
+        run: >
+          dotnet test storage-intelligence/tests/integration/StorageIntelligence.IntegrationTests.csproj
+          -c Release
+          --filter "Category!=Machine"
+          --logger "console;verbosity=normal"
+          --logger "trx;LogFileName=results.trx"
+          --results-directory TestResults
+          --blame-hang --blame-hang-timeout 3m
+
+      # Turns failed or hung tests into annotations on the run summary, readable without opening logs.
+      - name: Report failed or hung tests
+        if: failure()
+        shell: pwsh
         run: |
-          dotnet test storage-intelligence/tests/integration/StorageIntelligence.IntegrationTests.csproj -c Release --verbosity normal
+          $trx = Get-ChildItem TestResults -Recurse -Filter *.trx -ErrorAction SilentlyContinue | Select-Object -First 1
+          if ($trx) {
+            [xml]$x = Get-Content $trx.FullName
+            foreach ($r in $x.TestRun.Results.UnitTestResult) {
+              if ($r.outcome -ne 'Passed') { Write-Host "::error title=Test $($r.outcome)::$($r.testName)" }
+            }
+          }
+          foreach ($seq in Get-ChildItem TestResults -Recurse -Filter Sequence_*.xml -ErrorAction SilentlyContinue) {
+            [xml]$q = Get-Content $seq.FullName
+            $last = @($q.TestSequence.Test) | Select-Object -Last 1
+            if ($last) { Write-Host "::error title=Test running when the host hung or crashed::$($last.Name)" }
+          }
 
   ci-result:
     name: CI result

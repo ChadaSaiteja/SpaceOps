@@ -41,8 +41,22 @@ impl FileCategory {
 pub fn classify_extension(ext: Option<&str>) -> FileCategory {
     match ext {
         Some(e) => {
-            let lower = e.to_ascii_lowercase();
-            match lower.as_str() {
+            // Lowercase into a small stack buffer: this runs once per node for search and
+            // layout, so a heap allocation here dominated both. No recognised extension
+            // is longer than 7 bytes, so anything longer is `Other`.
+            let bytes = e.as_bytes();
+            let mut buf = [0u8; 8];
+            if bytes.len() > buf.len() {
+                return FileCategory::Other;
+            }
+            for (dst, src) in buf.iter_mut().zip(bytes) {
+                *dst = src.to_ascii_lowercase();
+            }
+            let lower = match std::str::from_utf8(&buf[..bytes.len()]) {
+                Ok(s) => s,
+                Err(_) => return FileCategory::Other,
+            };
+            match lower {
                 // Video
                 "mp4" | "mkv" | "avi" | "mov" | "wmv" | "flv" | "webm" | "m4v" | "mpg" | "mpeg"
                 | "3gp" | "m2ts" | "vob" => FileCategory::Video,
@@ -268,23 +282,29 @@ fn squarify(
             break;
         }
 
+        // Items are sorted by area descending, so the worst aspect ratio of a row is
+        // always attained at its largest (first) or smallest counted (last) item; track
+        // those two instead of rescanning the whole row for every candidate item.
         let mut row_len = 1;
         let mut row_sum = items[start_idx].normalized_area;
-        let mut current_worst =
-            worst_aspect_ratio(&items[start_idx..start_idx + 1], row_sum, shorter);
+        let max_area = items[start_idx].normalized_area;
+        let mut min_area = max_area;
+        let mut current_worst = worst_aspect_from_extremes(max_area, min_area, row_sum, shorter);
 
         while start_idx + row_len < items.len() {
             let next_item = &items[start_idx + row_len];
             let next_sum = row_sum + next_item.normalized_area;
-            let next_worst = worst_aspect_ratio(
-                &items[start_idx..start_idx + row_len + 1],
-                next_sum,
-                shorter,
-            );
+            let next_min = if next_item.normalized_area > MIN_COUNTED_AREA {
+                next_item.normalized_area
+            } else {
+                min_area
+            };
+            let next_worst = worst_aspect_from_extremes(max_area, next_min, next_sum, shorter);
 
             // If aspect ratio improves or stays the same, add to row
             if next_worst <= current_worst {
                 row_sum = next_sum;
+                min_area = next_min;
                 current_worst = next_worst;
                 row_len += 1;
             } else {
@@ -309,7 +329,39 @@ fn squarify(
     }
 }
 
-/// Computes the worst aspect ratio among items in a row along edge length `length`.
+/// Height reserved at the top of a directory tile for its label when it has children laid out.
+const HEADER_HEIGHT: f32 = 18.0;
+/// Minimum directory tile size that gets a label header; smaller tiles keep the 2px padding.
+const HEADER_MIN_WIDTH: f32 = 60.0;
+const HEADER_MIN_HEIGHT: f32 = 48.0;
+
+/// Items with an area at or below this are ignored by the aspect-ratio computation.
+const MIN_COUNTED_AREA: f32 = 0.0001;
+
+/// Worst aspect ratio of a row given only its largest area `max_area` and smallest
+/// counted area `min_area` (the row is sorted descending). The aspect of an item is
+/// `max(l^2 a / s^2, s^2 / (l^2 a))`; the first term is monotone increasing and the
+/// second monotone decreasing in `a`, so the row maximum is
+/// `max(first_term(max_area), second_term(min_area))` — bit-identical to scanning the row.
+fn worst_aspect_from_extremes(max_area: f32, min_area: f32, row_sum: f32, length: f32) -> f32 {
+    if row_sum <= 0.0 || length <= 0.0 || max_area <= MIN_COUNTED_AREA {
+        return f32::MAX;
+    }
+    let length_sq = length * length;
+    let sum_sq = row_sum * row_sum;
+    let r1 = (length_sq * max_area) / sum_sq;
+    let r2 = sum_sq / (length_sq * min_area);
+    let worst = r1.max(r2);
+    if worst == 0.0 {
+        f32::MAX
+    } else {
+        worst
+    }
+}
+
+/// Reference implementation scanning the whole row; kept to verify
+/// `worst_aspect_from_extremes` in tests.
+#[cfg(test)]
 fn worst_aspect_ratio(row: &[LayoutItem], row_sum: f32, length: f32) -> f32 {
     if row.is_empty() || row_sum <= 0.0 || length <= 0.0 {
         return f32::MAX;
@@ -408,13 +460,19 @@ fn layout_row(
         {
             if let Some(sub_children) = tree.children(item.node_id) {
                 if !sub_children.is_empty() {
-                    // Small padding inside directory tile
+                    // Small padding inside directory tile, plus a header strip on tiles big
+                    // enough to label so the folder name stays visible above its children
                     let pad = 2.0f32;
+                    let header = if rw >= HEADER_MIN_WIDTH && rh >= HEADER_MIN_HEIGHT {
+                        HEADER_HEIGHT
+                    } else {
+                        pad
+                    };
                     let inner_bounds = RectBounds {
                         x: rx + pad,
-                        y: ry + pad,
+                        y: ry + header,
                         w: (rw - pad * 2.0).max(0.0),
-                        h: (rh - pad * 2.0).max(0.0),
+                        h: (rh - header - pad).max(0.0),
                     };
 
                     layout_children(
@@ -446,6 +504,67 @@ mod tests {
     use super::*;
     use common::{DirMetadata, FileAttributeFlags, FileMetadata, NodeId, ScanEvent};
     use std::ffi::OsString;
+
+    #[test]
+    fn worst_aspect_from_extremes_matches_full_row_scan() {
+        let mut seed = 99u64;
+        let mut next = move || {
+            seed = seed
+                .wrapping_mul(6364136223846793005)
+                .wrapping_add(1442695040888963407);
+            (seed >> 40) as f32 / 1000.0
+        };
+        for _ in 0..200 {
+            let len = 1 + (next() as usize % 40);
+            let mut areas: Vec<f32> = (0..len)
+                .map(|_| {
+                    if (next() as u32 % 7) < 1 {
+                        0.00005
+                    } else {
+                        next()
+                    }
+                })
+                .collect();
+            areas.sort_by(|a, b| b.partial_cmp(a).unwrap());
+            let items: Vec<LayoutItem> = areas
+                .iter()
+                .map(|&a| LayoutItem {
+                    node_id: NodeId(0),
+                    kind: NodeKind::File,
+                    category: FileCategory::Other,
+                    size: 1,
+                    normalized_area: a,
+                })
+                .collect();
+            let length = 1.0 + next();
+            for end in 1..=items.len() {
+                let row = &items[..end];
+                let sum: f32 = row.iter().map(|i| i.normalized_area).sum();
+                let min_counted = row
+                    .iter()
+                    .map(|i| i.normalized_area)
+                    .rfind(|a| *a > MIN_COUNTED_AREA)
+                    .unwrap_or(row[0].normalized_area);
+                assert_eq!(
+                    worst_aspect_ratio(row, sum, length),
+                    worst_aspect_from_extremes(row[0].normalized_area, min_counted, sum, length)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn classify_extension_is_case_insensitive_and_bounded() {
+        assert_eq!(classify_extension(Some("MP4")), FileCategory::Video);
+        assert_eq!(classify_extension(Some("TaRgEtS")), FileCategory::Code);
+        assert_eq!(classify_extension(Some("")), FileCategory::Other);
+        assert_eq!(
+            classify_extension(Some("averyverylongext")),
+            FileCategory::Other
+        );
+        assert_eq!(classify_extension(Some("m\u{4f60}p")), FileCategory::Other);
+        assert_eq!(classify_extension(None), FileCategory::Other);
+    }
 
     fn build_test_tree() -> StorageTree {
         let root_id = NodeId(0);

@@ -233,6 +233,63 @@ fn run_benchmark(target_nodes: usize) -> BenchmarkResult {
         top_files.len()
     );
 
+    // Search + treemap layout timings (best of 5 to filter scheduler noise).
+    let best_ms = |f: &dyn Fn() -> usize| -> (f64, usize) {
+        let mut best = f64::MAX;
+        let mut out = 0;
+        for _ in 0..5 {
+            let t = Instant::now();
+            out = f();
+            best = best.min(t.elapsed().as_secs_f64() * 1000.0);
+        }
+        (best, out)
+    };
+    let q_text = storage_tree::SearchQuery::parse("file_7");
+    let q_ext = storage_tree::SearchQuery::parse("ext:txt size:>1KB");
+    let q_cat = storage_tree::SearchQuery::parse("type:code");
+    let (t_text, n1) = best_ms(&|| tree.search(&q_text, 50).len());
+    let (t_ext, n2) = best_ms(&|| tree.search(&q_ext, 50).len());
+    let (t_cat, n3) = best_ms(&|| tree.search(&q_cat, 50).len());
+    let (t_layout, n4) = best_ms(&|| {
+        tree.compute_layout(tree.root(), 1920.0, 1080.0, 4, 2.0)
+            .len()
+    });
+    println!(
+        "EXTRA search(text)={t_text:.2} ms ({n1} hits) search(ext+size)={t_ext:.2} ms ({n2}) \
+         search(type)={t_cat:.2} ms ({n3}) layout(1920x1080,d4)={t_layout:.2} ms ({n4} rects)"
+    );
+
+    if target_nodes <= 200_000 {
+        // SQLite persistence round trip (temp dir; read-only w.r.t. everything else) and
+        // incremental size updates in the 10K-child directory.
+        let dir = tempfile::tempdir().expect("temp dir");
+        let db = dir.path().join("bench.db");
+        let root_path = std::path::Path::new(r"C:\BenchmarkDrive");
+        let t = Instant::now();
+        storage_tree::save_tree_to_db(&db, &tree, root_path).expect("save");
+        let save_ms = t.elapsed().as_secs_f64() * 1000.0;
+        let t = Instant::now();
+        let loaded = storage_tree::load_tree_from_db(&db, root_path)
+            .expect("load")
+            .expect("present");
+        let load_ms = t.elapsed().as_secs_f64() * 1000.0;
+        assert_eq!(loaded.node_count(), tree.node_count());
+
+        let mut tree = tree;
+        let kids = tree.children(special_node_id).expect("special dir");
+        let leaf = kids[kids.len() / 2];
+        let info = tree.node(leaf).expect("leaf");
+        let (size, files) = (info.size, info.file_count);
+        let t = Instant::now();
+        for i in 0..200u64 {
+            tree.update_node_size(leaf, size + i + 1, files);
+        }
+        let update_us = t.elapsed().as_secs_f64() * 1e6 / 200.0;
+        println!(
+            "EXTRA2 db_save={save_ms:.1} ms db_load={load_ms:.1} ms update_node_size={update_us:.1} us/call"
+        );
+    }
+
     BenchmarkResult {
         node_count: actual_nodes,
         build_duration,

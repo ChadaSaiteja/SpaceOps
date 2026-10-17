@@ -1,57 +1,180 @@
 name: Release
 
+# Pushing a tag like v0.2.0 (or v0.2.0-rc1 for a pre-release) builds self-contained,
+# unpackaged win-x64 and win-arm64 zips and publishes a GitHub Release.
+# Manual runs (workflow_dispatch) default to a dry run: artifacts are built and
+# uploaded to the workflow run, and NO release is created.
 on:
   push:
     tags:
       - 'v*'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Dry run: build and upload workflow artifacts only, do not create a release'
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+env:
+  DOTNET_NOLOGO: 1
+  DOTNET_CLI_TELEMETRY_OPTOUT: 1
 
 jobs:
-  build-release:
-    name: Package Release Asset
+  build:
+    name: Build ${{ matrix.rid }}
     runs-on: windows-latest
+    # arm64 is cross-compiled on an x64 runner and cannot be smoke-tested there,
+    # so it is optional: a failure does not block the release (x64 is required).
+    continue-on-error: ${{ matrix.optional }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: win-x64
+            platform: x64
+            rust_target: x86_64-pc-windows-msvc
+            optional: false
+          - rid: win-arm64
+            platform: ARM64
+            rust_target: aarch64-pc-windows-msvc
+            optional: true
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v4
+        uses: actions/checkout@v4.2.2
 
       - name: Set up Rust toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: x86_64-pc-windows-msvc
+          targets: ${{ matrix.rust_target }}
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2.7.8
+        with:
+          workspaces: storage-intelligence/core
+          key: release-${{ matrix.rust_target }}
 
       - name: Set up .NET SDK
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v4.3.1
         with:
-          dotnet-version: '9.0.x'
+          global-json-file: global.json
 
-      - name: Build Rust FFI native release binary
-        run: |
-          cd storage-intelligence/core
-          cargo build --release -p ffi
+      - name: Build Rust FFI native library
+        working-directory: storage-intelligence/core
+        run: cargo build --release -p ffi --target ${{ matrix.rust_target }}
 
-      - name: Publish WinUI 3 Desktop Application
-        run: |
-          dotnet publish storage-intelligence/app/StorageIntelligence/StorageIntelligence.csproj -c Release -r win-x64 --self-contained false -o ./publish
+      - name: Publish self-contained unpackaged app
+        run: >
+          dotnet publish storage-intelligence/app/StorageIntelligence/StorageIntelligence.csproj
+          -c Release -r ${{ matrix.rid }} -p:Platform=${{ matrix.platform }}
+          -p:SpaceOpsRelease=true --self-contained true
+          -o ./publish
 
-      - name: Copy native DLL to publish directory
-        run: |
-          Copy-Item "storage-intelligence/core/target/release/ffi.dll" -Destination "./publish/ffi.dll" -Force
+      - name: Copy native DLL into publish directory
+        run: Copy-Item "storage-intelligence/core/target/${{ matrix.rust_target }}/release/ffi.dll" -Destination "./publish/ffi.dll" -Force
 
-      - name: Create Release Zip
-        run: |
-          Compress-Archive -Path ./publish/* -DestinationPath ./SpaceOps-win-x64.zip
+      - name: Create zip
+        run: Compress-Archive -Path ./publish/* -DestinationPath ./SpaceOps-${{ matrix.rid }}.zip
 
-      - name: Generate SHA-256 Checksum
+      - name: Verify zip contents
         run: |
-          $hash = (Get-FileHash ./SpaceOps-win-x64.zip -Algorithm SHA256).Hash
-          "$hash  SpaceOps-win-x64.zip" | Out-File -FilePath ./SpaceOps-win-x64.zip.sha256 -Encoding ascii
+          Expand-Archive -Path ./SpaceOps-${{ matrix.rid }}.zip -DestinationPath ./verify
+          foreach ($f in 'StorageIntelligence.exe', 'ffi.dll', 'StorageIntelligence.pri', 'App.xbf', 'MainWindow.xbf') {
+            if (-not (Test-Path "./verify/$f")) { throw "Missing $f in SpaceOps-${{ matrix.rid }}.zip" }
+          }
+          # Self-contained bundle must carry the .NET host runtime and the Windows App SDK runtime.
+          foreach ($f in 'coreclr.dll', 'hostfxr.dll', 'Microsoft.WindowsAppRuntime.dll') {
+            if (-not (Get-ChildItem ./verify -Recurse -Filter $f)) { throw "Self-contained runtime piece missing: $f" }
+          }
+          Get-ChildItem ./verify | Measure-Object | ForEach-Object { "Files at zip root: $($_.Count)" }
+
+      # The app has no --version/--selftest flag, so this only checks that the
+      # process starts and stays alive for a few seconds (needs a desktop session).
+      - name: Launch smoke test (x64 only, non-blocking)
+        if: matrix.rid == 'win-x64'
+        continue-on-error: true
+        run: |
+          $p = Start-Process -FilePath ./verify/StorageIntelligence.exe -PassThru
+          Start-Sleep -Seconds 8
+          if ($p.HasExited) { throw "App exited early with code $($p.ExitCode)" }
+          Stop-Process -Id $p.Id -Force
+          "App stayed alive for 8s"
+
+      - name: Upload zip artifact
+        uses: actions/upload-artifact@v4.6.2
+        with:
+          name: SpaceOps-${{ matrix.rid }}
+          path: SpaceOps-${{ matrix.rid }}.zip
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: Publish GitHub Release
+    needs: build
+    # Real tag push, or a manual run from a tag with dry_run unchecked.
+    if: >
+      github.ref_type == 'tag' && startsWith(github.ref_name, 'v') &&
+      (github.event_name == 'push' || inputs.dry_run == false)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4.2.2
+
+      - name: Download build artifacts
+        uses: actions/download-artifact@v4.3.0
+        with:
+          path: dist
+          pattern: SpaceOps-*
+          merge-multiple: true
+
+      - name: Require the win-x64 zip
+        run: test -f dist/SpaceOps-win-x64.zip
+
+      - name: Generate SHA256SUMS.txt
+        working-directory: dist
+        run: |
+          ls -l
+          sha256sum SpaceOps-win-*.zip > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+
+      - name: Extract release notes from CHANGELOG.md
+        env:
+          TAG: ${{ github.ref_name }}
+        run: |
+          ver="${TAG#v}"
+          base="${ver%%-*}"
+          : > notes.md
+          for v in "$ver" "$base"; do
+            awk -v v="$v" '
+              $0 ~ "^## \\[" v "\\]" { f=1; next }
+              f && /^## \[/ { exit }
+              f { print }
+            ' CHANGELOG.md > notes.md
+            if grep -q '[^[:space:]]' notes.md; then break; fi
+          done
+          if grep -q '[^[:space:]]' notes.md; then
+            echo "USE_NOTES_FILE=true" >> "$GITHUB_ENV"
+            echo "Using CHANGELOG section for $TAG"
+          else
+            echo "USE_NOTES_FILE=false" >> "$GITHUB_ENV"
+            echo "No CHANGELOG section for $TAG; falling back to generated notes"
+          fi
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v2
-        with:
-          files: |
-            ./SpaceOps-win-x64.zip
-            ./SpaceOps-win-x64.zip.sha256
-          draft: false
-          prerelease: false
-          generate_release_notes: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          args=(--title "SpaceOps $TAG" --verify-tag)
+          case "$TAG" in *-*) args+=(--prerelease) ;; esac
+          if [ "$USE_NOTES_FILE" = "true" ]; then
+            args+=(--notes-file notes.md)
+          else
+            args+=(--generate-notes)
+          fi
+          gh release create "$TAG" dist/SpaceOps-win-*.zip dist/SHA256SUMS.txt "${args[@]}"

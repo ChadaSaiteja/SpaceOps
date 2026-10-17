@@ -133,6 +133,35 @@ fn parse_category(s: &str) -> Option<FileCategory> {
     }
 }
 
+/// `name.to_ascii_lowercase() == needle`, without allocating.
+fn lower_eq(name: &[u8], needle: &[u8]) -> bool {
+    name.len() == needle.len() && lower_starts_with(name, needle)
+}
+
+/// `name.to_ascii_lowercase().starts_with(needle)`, without allocating.
+fn lower_starts_with(name: &[u8], needle: &[u8]) -> bool {
+    name.len() >= needle.len()
+        && name
+            .iter()
+            .zip(needle)
+            .all(|(a, b)| a.to_ascii_lowercase() == *b)
+}
+
+/// `name.to_ascii_lowercase().contains(needle)`, without allocating. Byte-wise matching
+/// is exact for UTF-8 (self-synchronising), so matches only occur on char boundaries.
+fn lower_contains(name: &[u8], needle: &[u8]) -> bool {
+    let Some((&first, rest)) = needle.split_first() else {
+        return true;
+    };
+    if name.len() < needle.len() {
+        return false;
+    }
+    name[..=name.len() - needle.len()]
+        .iter()
+        .enumerate()
+        .any(|(i, a)| a.to_ascii_lowercase() == first && lower_starts_with(&name[i + 1..], rest))
+}
+
 /// A ranked search hit.
 #[derive(Debug, Clone)]
 pub struct SearchResult {
@@ -191,23 +220,24 @@ impl StorageTree {
                 }
             }
 
-            // 4. Category filter
-            let category = classify_extension(node.extension.as_deref());
+            // 4. Category filter (only classified when actually filtering; the category
+            // of the final top-K hits is computed below)
             if let Some(cat_filter) = query.category {
-                if category != cat_filter {
+                if classify_extension(node.extension.as_deref()) != cat_filter {
                     continue;
                 }
             }
 
-            // 5. Text filter
+            // 5. Text filter (ASCII-case-insensitive compare against the already
+            // lowercased needle, without allocating a lowercase copy of every name)
             let mut match_score = 100u32;
             if let Some(ref needle) = query.text {
-                let lower_name = node.name.to_ascii_lowercase();
-                if lower_name == *needle {
+                let (name, needle) = (node.name.as_bytes(), needle.as_bytes());
+                if lower_eq(name, needle) {
                     match_score = 1000;
-                } else if lower_name.starts_with(needle) {
+                } else if lower_starts_with(name, needle) {
                     match_score = 500;
-                } else if lower_name.contains(needle) {
+                } else if lower_contains(name, needle) {
                     match_score = 100;
                 } else {
                     continue;
@@ -268,6 +298,49 @@ mod tests {
     use super::*;
     use crate::tree::StorageTree;
     use common::{FileAttributeFlags, NodeId, ScanEvent};
+
+    #[test]
+    fn allocation_free_matchers_agree_with_lowercase_string_semantics() {
+        let names = [
+            "",
+            "Docker",
+            "my-DOCKER-file.VHDX",
+            "caf\u{e9}\u{c9}",
+            "a",
+            "aaa",
+        ];
+        let needles = [
+            "",
+            "d",
+            "docker",
+            "ocker",
+            "x",
+            "vhdx",
+            "caf\u{e9}",
+            "aa",
+            "aaaa",
+        ];
+        for n in names {
+            for nd in needles {
+                let lower = n.to_ascii_lowercase();
+                assert_eq!(
+                    lower_eq(n.as_bytes(), nd.as_bytes()),
+                    lower == nd,
+                    "{n:?} {nd:?}"
+                );
+                assert_eq!(
+                    lower_starts_with(n.as_bytes(), nd.as_bytes()),
+                    lower.starts_with(nd),
+                    "{n:?} {nd:?}"
+                );
+                assert_eq!(
+                    lower_contains(n.as_bytes(), nd.as_bytes()),
+                    lower.contains(nd),
+                    "{n:?} {nd:?}"
+                );
+            }
+        }
+    }
 
     fn build_test_tree() -> StorageTree {
         let events = vec![

@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>How SpaceOps Cleans Safely: Blacklist, Dry Run, Recycle Bin</title>
+<meta name="description" content="SpaceOps analyzes first and deletes last: a hard system-path blacklist, dry-run preview, Recycle Bin routing and explicit confirmation protect your files.">
+<meta name="author" content="Saiteja Chada">
+<meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large">
+<meta name="theme-color" content="#06090e">
+<link rel="canonical" href="https://chadasaiteja.github.io/SpaceOps/docs-site/how-spaceops-cleans-safely/">
+<meta property="og:type" content="article">
+<meta property="og:site_name" content="SpaceOps">
+<meta property="og:title" content="How SpaceOps Cleans Safely: Blacklist, Dry Run, Recycle Bin">
+<meta property="og:description" content="SpaceOps analyzes first and deletes last: a hard system-path blacklist, dry-run preview, Recycle Bin routing and explicit confirmation protect your files.">
+<meta property="og:url" content="https://chadasaiteja.github.io/SpaceOps/docs-site/how-spaceops-cleans-safely/">
+<meta property="og:image" content="https://chadasaiteja.github.io/SpaceOps/og-image.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="SpaceOps logo, a four-tile treemap, with the text: Open-source disk analyzer for Windows">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="How SpaceOps Cleans Safely: Blacklist, Dry Run, Recycle Bin">
+<meta name="twitter:description" content="SpaceOps analyzes first and deletes last: a hard system-path blacklist, dry-run preview, Recycle Bin routing and explicit confirmation protect your files.">
+<meta name="twitter:image" content="https://chadasaiteja.github.io/SpaceOps/og-image.png">
+<link rel="icon" href="../../favicon.ico" sizes="any">
+<link rel="icon" type="image/svg+xml" href="../../favicon.svg">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.png">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "TechArticle",
+      "headline": "How SpaceOps cleans your disk safely",
+      "description": "SpaceOps analyzes first and deletes last: a hard system-path blacklist, dry-run preview, Recycle Bin routing and explicit confirmation protect your files.",
+      "abstract": "SpaceOps cleans safely by analyzing first and deleting last: protected system paths are hard-blocked, a dry run previews exactly what would be reclaimed, every deletion goes to the Windows Recycle Bin so it can be undone, and nothing runs without your explicit confirmation.",
+      "url": "https://chadasaiteja.github.io/SpaceOps/docs-site/how-spaceops-cleans-safely/",
+      "mainEntityOfPage": "https://chadasaiteja.github.io/SpaceOps/docs-site/how-spaceops-cleans-safely/",
+      "inLanguage": "en",
+      "datePublished": "2026-10-16",
+      "dateModified": "2026-10-16",
+      "image": "https://chadasaiteja.github.io/SpaceOps/og-image.png",
+      "author": {
+        "@type": "Person",
+        "name": "Saiteja Chada",
+        "url": "https://github.com/ChadaSaiteja"
+      },
+      "publisher": {
+        "@type": "Person",
+        "name": "Saiteja Chada",
+        "url": "https://github.com/ChadaSaiteja"
+      },
+      "about": {
+        "@type": "SoftwareApplication",
+        "name": "SpaceOps",
+        "url": "https://chadasaiteja.github.io/SpaceOps/",
+        "applicationCategory": "SystemApplication",
+        "operatingSystem": "Windows 10, Windows 11"
+      }
+    },
+    {
+      "@type": "FAQPage",
+      "mainEntity": [
+        {
+          "@type": "Question",
+          "name": "Can SpaceOps delete Windows system files?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. Protected locations such as C:\\Windows and C:\\Program Files are hard-blocked in the Rust core, even in execution mode."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Can I undo a cleanup?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "Yes. Deletions are routed to the Recycle Bin, so restore the items from there."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "What does dry run do?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "It computes the file count and size that would be reclaimed and validates permissions, without modifying anything."
+          }
+        },
+        {
+          "@type": "Question",
+          "name": "Does SpaceOps clean automatically?",
+          "acceptedAnswer": {
+            "@type": "Answer",
+            "text": "No. There are no automated background deletions; every action needs your confirmation."
+          }
+        }
+      ]
+    },
+    {
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        {
+          "@type": "ListItem",
+          "position": 1,
+          "name": "SpaceOps",
+          "item": "https://chadasaiteja.github.io/SpaceOps/"
+        },
+        {
+          "@type": "ListItem",
+          "position": 2,
+          "name": "How SpaceOps cleans safely",
+          "item": "https://chadasaiteja.github.io/SpaceOps/docs-site/how-spaceops-cleans-safely/"
+        }
+      ]
+    }
+  ]
+}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../site.css">
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+<header>
+  <div class="wrap nav">
+    <a class="logo" href="../../" aria-label="SpaceOps home"><svg viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="20" fill="#06090e"/><rect x="18" y="18" width="38" height="38" rx="5" fill="#00f5d4"/><rect x="62" y="18" width="20" height="20" rx="4" fill="#9d4edd"/><rect x="62" y="44" width="20" height="38" rx="4" fill="#3a86ff"/><rect x="18" y="62" width="38" height="20" rx="5" fill="#f72585"/></svg>SpaceOps</a>
+    <nav aria-label="Primary"><ul>
+      <li><a href="../../#download">Download</a></li>
+      <li><a href="../../#features">Features</a></li>
+      <li><a href="../../#guides">Guides</a></li>
+      <li><a href="../../#faq">FAQ</a></li>
+    </ul></nav>
+    <a class="btn btn-primary btn-sm" href="https://github.com/ChadaSaiteja/SpaceOps" rel="noopener">GitHub &#8599;</a>
+  </div>
+</header>
+
+<main id="main">
+<div class="narrow">
+<article>
+<p class="crumbs"><a href="../../">SpaceOps</a> &rsaquo; Guides &rsaquo; How SpaceOps cleans safely</p>
+<h1>How SpaceOps cleans your disk safely</h1>
+<p class="answer">SpaceOps cleans safely by analyzing first and deleting last: protected system paths are hard-blocked, a dry run previews exactly what would be reclaimed, every deletion goes to the Windows Recycle Bin so it can be undone, and nothing runs without your explicit confirmation.</p>
+<p class="updated">Updated 2026-10-16 &middot; SpaceOps v0.x &middot; Windows only</p>
+
+<h2>What are the safety layers?</h2>
+<ol class="howto">
+<li><b>Immutable system blacklist</b>: the Rust core refuses requests that target or resolve into <code>C:\Windows</code>, <code>C:\Program Files</code>, boot and recovery paths, <code>pagefile.sys</code>, <code>hiberfil.sys</code> and user profile roots.</li>
+<li><b>Recycle Bin routing</b>: user cleanups go through the Windows Shell (<code>IFileOperation</code> with undo), not permanent unlinking, so items can be restored.</li>
+<li><b>Dry-run mode</b>: simulates the cleanup, counting files and cluster-allocated bytes and checking permissions without touching the filesystem.</li>
+<li><b>Explicit confirmation</b>: there are no background deletion timers, hidden tasks or silent deletions; every action needs your review.</li>
+</ol>
+
+<h2>How are cleanup candidates classified?</h2>
+<div class="tbl-wrap"><table>
+<thead><tr><th>Risk</th><th>Meaning</th><th>Examples</th><th>Default</th></tr></thead>
+<tbody>
+<tr><td>Low</td><td>Ephemeral cache or crash artifact</td><td>Minidumps, stale logs, thumbnail cache</td><td>Selected</td></tr>
+<tr><td>Medium</td><td>Re-creatable build output or download cache</td><td>node_modules, Rust target, pip and NuGet caches</td><td>User-selected</td></tr>
+<tr><td>High</td><td>Configuration or application state</td><td>App leftovers, Docker volumes, WSL virtual disks</td><td>Unselected</td></tr>
+</tbody></table></div>
+
+<h2>What does SpaceOps tell me before deleting?</h2>
+<p>Each candidate shows <b>what it is</b>, <b>where it is</b> and <b>what happens if you remove it</b>, for example that the next build recompiles dependencies while source code and git history stay untouched.</p>
+
+<h2>What are the limits?</h2>
+<ul>
+<li>SpaceOps never removes source code files or git metadata; cleanup targets designated artifact folders only.</li>
+<li>Windows may refuse or permanently delete items too large for the Recycle Bin, so check its size limit for very large cleanups.</li>
+<li>SpaceOps is v0.x software. Read the full <a href="https://github.com/ChadaSaiteja/SpaceOps/blob/main/docs/safety-model.md">safety model</a>, and report vulnerabilities privately per the <a href="https://github.com/ChadaSaiteja/SpaceOps/blob/main/SECURITY.md">security policy</a>.</li>
+</ul>
+
+<h2>Frequently asked questions</h2>
+<div class="faq">
+<details open><summary>Can SpaceOps delete Windows system files?</summary><p>No. Protected locations such as C:\Windows and C:\Program Files are hard-blocked in the Rust core, even in execution mode.</p></details>
+<details><summary>Can I undo a cleanup?</summary><p>Yes. Deletions are routed to the Recycle Bin, so restore the items from there.</p></details>
+<details><summary>What does dry run do?</summary><p>It computes the file count and size that would be reclaimed and validates permissions, without modifying anything.</p></details>
+<details><summary>Does SpaceOps clean automatically?</summary><p>No. There are no automated background deletions; every action needs your confirmation.</p></details>
+</div>
+
+<div class="cta-box">
+<h2>Try SpaceOps</h2>
+<p>Free, open source (MIT), 100% offline. Windows 10/11, x64 and ARM64. Builds are unsigned for now, so verify the checksum.</p>
+<div class="cta">
+<a class="btn btn-primary" href="../../#download">Download latest release</a>
+<a class="btn btn-ghost" href="https://github.com/ChadaSaiteja/SpaceOps" rel="noopener">View on GitHub</a>
+</div>
+</div>
+
+<h2>More guides</h2>
+<div class="related">
+<a href="../free-windows-disk-space-analyzer/">Free Windows disk space analyzer</a>
+<a href="../windirstat-alternative/">WinDirStat alternative</a>
+<a href="../clean-node-modules-windows/">Clean node_modules on Windows</a>
+<a href="../docker-wsl2-vhdx-cleanup-windows/">Docker and WSL2 VHDX cleanup</a>
+<a href="../cargo-target-cleanup-windows/">Rust target folder cleanup</a>
+</div>
+</article>
+</div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="f-links">
+      <a href="../../">Home</a>
+      <a href="https://github.com/ChadaSaiteja/SpaceOps">GitHub</a>
+      <a href="https://github.com/ChadaSaiteja/SpaceOps/blob/main/LICENSE">MIT License</a>
+      <a href="https://github.com/ChadaSaiteja/SpaceOps/blob/main/docs/safety-model.md">Safety model</a>
+      <a href="../../llms.txt">llms.txt</a>
+      <a href="../../sitemap.xml">Sitemap</a>
+    </div>
+    <p>SpaceOps &mdash; open-source storage intelligence for Windows. &copy; 2026 Saiteja Chada and SpaceOps Contributors.</p>
+  </div>
+</footer>
+</body>
+</html>

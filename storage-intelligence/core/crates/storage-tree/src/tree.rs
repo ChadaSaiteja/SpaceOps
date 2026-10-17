@@ -100,6 +100,13 @@ impl TreeNode {
 // StorageTree
 // ---------------------------------------------------------------------------
 
+/// Converts an owned `OsString` to `String`, reusing the allocation when it is valid
+/// Unicode (the overwhelmingly common case) and falling back to lossy conversion.
+fn os_into_string(name: std::ffi::OsString) -> String {
+    name.into_string()
+        .unwrap_or_else(|os| os.to_string_lossy().into_owned())
+}
+
 /// The immutable, queryable tree built from a completed scan's events.
 ///
 /// Thread-safe for concurrent reads (`&StorageTree` is `Send + Sync` automatically
@@ -155,7 +162,9 @@ impl StorageTree {
             .unwrap_or(0);
         scanner_id_to_index.resize(max_scanner_id as usize + 1, usize::MAX);
 
-        for event in &events {
+        // Consume the events so names and extensions are moved into the arena instead
+        // of being cloned/re-encoded.
+        for event in events {
             match event {
                 ScanEvent::EnteredDirectory {
                     parent_id,
@@ -181,7 +190,7 @@ impl StorageTree {
                         id: node_id,
                         parent: parent_tree_id,
                         kind,
-                        name: meta.name.to_string_lossy().into_owned(),
+                        name: os_into_string(meta.name),
                         size: 0,
                         file_count: 0,
                         dir_count: 0,
@@ -217,11 +226,11 @@ impl StorageTree {
                         id: node_id,
                         parent: Some(parent_tree_id),
                         kind: NodeKind::File,
-                        name: meta.name.to_string_lossy().into_owned(),
+                        name: os_into_string(meta.name),
                         size: meta.size,
                         file_count: 0,
                         dir_count: 0,
-                        extension: meta.extension.clone(),
+                        extension: meta.extension,
                         modified: meta.modified,
                         created: meta.created,
                         attributes: meta.attributes,
@@ -277,9 +286,9 @@ impl StorageTree {
                     dir_count,
                 } => {
                     let idx = scanner_id_to_index[id.0 as usize];
-                    nodes[idx].size = *total_size;
-                    nodes[idx].file_count = *file_count;
-                    nodes[idx].dir_count = *dir_count;
+                    nodes[idx].size = total_size;
+                    nodes[idx].file_count = file_count;
+                    nodes[idx].dir_count = dir_count;
                 }
             }
         }
@@ -409,9 +418,12 @@ impl StorageTree {
         }
         Some(current)
     }
-
     /// Top N largest files anywhere under `root_id` (recursive).
-    /// Uses a min-heap of size `n` for efficient top-N selection. O(total_nodes_under_root).
+    /// Uses a min-heap of size `n` for top-N selection. Because a directory's size is the
+    /// sum of everything below it and children are kept sorted by size descending, whole
+    /// subtrees (and the remaining siblings) are skipped once the heap is full and their
+    /// size is below the current n-th largest file, so the walk typically touches only a
+    /// small fraction of the nodes. Ties are ordered by ascending NodeId.
     pub fn top_files_by_size(&self, root_id: NodeId, n: usize) -> Vec<NodeId> {
         if n == 0 {
             return Vec::new();
@@ -427,7 +439,7 @@ impl StorageTree {
         result.sort_unstable_by(|a, b| {
             let size_a = self.nodes[a.0 as usize].size;
             let size_b = self.nodes[b.0 as usize].size;
-            size_b.cmp(&size_a)
+            size_b.cmp(&size_a).then(a.cmp(b))
         });
         result
     }
@@ -455,6 +467,19 @@ impl StorageTree {
         // Recurse into children for directory/reparse-point nodes.
         if let Some(child_ids) = self.children.get(idx) {
             for &child_id in child_ids {
+                // Children are sorted by size descending: once one is strictly smaller
+                // than the current n-th largest file, it and all later siblings (and
+                // everything below them) cannot enter the top n. Strict `<` keeps tie
+                // semantics identical to the exhaustive walk.
+                if heap.len() >= n {
+                    if let (Some(&Reverse((min_size, _))), Some(child)) =
+                        (heap.peek(), self.nodes.get(child_id.0 as usize))
+                    {
+                        if child.size < min_size {
+                            break;
+                        }
+                    }
+                }
                 self.collect_top_files(child_id, n, heap);
             }
         }
@@ -518,6 +543,7 @@ impl StorageTree {
         }
 
         let mut curr_parent = self.nodes[idx].parent;
+        let mut changed = node_id;
         while let Some(pid) = curr_parent {
             let p_idx = pid.0 as usize;
             if p_idx >= self.nodes.len() {
@@ -540,15 +566,32 @@ impl StorageTree {
                     .saturating_sub((-delta_files) as u64);
             }
 
-            let children_vec = &mut self.children[p_idx];
-            children_vec.sort_unstable_by(|a, b| {
-                let size_a = self.nodes[a.0 as usize].size;
-                let size_b = self.nodes[b.0 as usize].size;
-                size_b.cmp(&size_a)
-            });
+            // Only `changed` moved relative to its siblings, so re-place just that
+            // entry instead of re-sorting the whole child list at every ancestor.
+            reposition_child(&mut self.children[p_idx], &self.nodes, changed);
+            changed = pid;
 
             curr_parent = self.nodes[p_idx].parent;
         }
+    }
+}
+
+/// Restores size-descending order of `list` after the size of `changed` (and only
+/// `changed`) was modified, by moving that one entry to its new position.
+fn reposition_child(list: &mut [NodeId], nodes: &[TreeNode], changed: NodeId) {
+    let size_of = |id: NodeId| nodes[id.0 as usize].size;
+    let Some(mut pos) = list.iter().position(|&c| c == changed) else {
+        list.sort_unstable_by_key(|&id| Reverse(size_of(id)));
+        return;
+    };
+    let size = size_of(changed);
+    while pos > 0 && size_of(list[pos - 1]) < size {
+        list.swap(pos - 1, pos);
+        pos -= 1;
+    }
+    while pos + 1 < list.len() && size_of(list[pos + 1]) > size {
+        list.swap(pos, pos + 1);
+        pos += 1;
     }
 }
 
@@ -887,6 +930,130 @@ mod tests {
         assert_eq!(top1.len(), 1);
         assert_eq!(tree.node(top1[0]).unwrap().name, "deep.txt");
         assert_eq!(tree.node(top1[0]).unwrap().size, 900);
+    }
+
+    #[test]
+    fn update_node_size_keeps_children_sorted_and_propagates() {
+        let mut events = vec![ScanEvent::EnteredDirectory {
+            parent_id: None,
+            id: NodeId(0),
+            meta: dir_meta("root", false),
+        }];
+        let mut total = 0u64;
+        for d in 1..=5u64 {
+            events.push(ScanEvent::EnteredDirectory {
+                parent_id: Some(NodeId(0)),
+                id: NodeId(d),
+                meta: dir_meta(&format!("d{d}"), false),
+            });
+            let mut dir_total = 0u64;
+            for f in 0..20u64 {
+                let size = (d * 31 + f * 17) % 97 * 10;
+                dir_total += size;
+                events.push(ScanEvent::FileFound {
+                    parent_id: NodeId(d),
+                    meta: file_meta(&format!("f{d}_{f}"), size, None),
+                });
+            }
+            total += dir_total;
+            events.push(ScanEvent::DirectoryComplete {
+                id: NodeId(d),
+                total_size: dir_total,
+                file_count: 20,
+                dir_count: 0,
+            });
+        }
+        events.push(ScanEvent::DirectoryComplete {
+            id: NodeId(0),
+            total_size: total,
+            file_count: 100,
+            dir_count: 5,
+        });
+        let mut tree = StorageTree::build(events).unwrap();
+        let root = tree.root();
+        let mut expected_total = tree.node(root).unwrap().size;
+
+        let mut seed = 7u64;
+        for _ in 0..200 {
+            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+            let leaves: Vec<NodeId> = (0..tree.node_count() as u64)
+                .map(NodeId)
+                .filter(|id| tree.node(*id).unwrap().kind == NodeKind::File)
+                .collect();
+            let leaf = leaves[(seed >> 33) as usize % leaves.len()];
+            let old = tree.node(leaf).unwrap().size;
+            let new = (seed >> 20) % 2000;
+            tree.update_node_size(leaf, new, 1);
+            expected_total = expected_total - old + new;
+
+            assert_eq!(tree.node(root).unwrap().size, expected_total);
+            for i in 0..tree.node_count() as u64 {
+                let kids = tree.children(NodeId(i)).unwrap();
+                let sizes: Vec<u64> = kids.iter().map(|k| tree.node(*k).unwrap().size).collect();
+                assert!(
+                    sizes.windows(2).all(|w| w[0] >= w[1]),
+                    "children of {i} unsorted"
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn top_files_pruned_walk_matches_exhaustive_scan() {
+        // Pseudo-random nested tree with many duplicate sizes (ties) and consistent
+        // directory totals; the pruned walk must pick exactly the same sizes as a
+        // brute-force sort of every file.
+        let mut events = vec![ScanEvent::EnteredDirectory {
+            parent_id: None,
+            id: NodeId(0),
+            meta: dir_meta("root", false),
+        }];
+        let mut seed = 12345u64;
+        let mut next = move || {
+            seed = seed.wrapping_mul(6364136223846793005).wrapping_add(1);
+            seed >> 33
+        };
+        let mut root_total = 0u64;
+        let mut all_sizes = Vec::new();
+        for d in 1..=30u64 {
+            events.push(ScanEvent::EnteredDirectory {
+                parent_id: Some(NodeId(0)),
+                id: NodeId(d),
+                meta: dir_meta(&format!("d{d}"), false),
+            });
+            let mut dir_total = 0u64;
+            for f in 0..40 {
+                let size = (next() % 50) * 100;
+                dir_total += size;
+                all_sizes.push(size);
+                events.push(ScanEvent::FileFound {
+                    parent_id: NodeId(d),
+                    meta: file_meta(&format!("f{d}_{f}"), size, None),
+                });
+            }
+            root_total += dir_total;
+            events.push(ScanEvent::DirectoryComplete {
+                id: NodeId(d),
+                total_size: dir_total,
+                file_count: 40,
+                dir_count: 0,
+            });
+        }
+        events.push(ScanEvent::DirectoryComplete {
+            id: NodeId(0),
+            total_size: root_total,
+            file_count: 1200,
+            dir_count: 30,
+        });
+        let tree = StorageTree::build(events).unwrap();
+
+        all_sizes.sort_unstable_by(|a, b| b.cmp(a));
+        for n in [1usize, 7, 100, 1200, 2000] {
+            let top = tree.top_files_by_size(tree.root(), n);
+            let got: Vec<u64> = top.iter().map(|id| tree.node(*id).unwrap().size).collect();
+            let want: Vec<u64> = all_sizes.iter().copied().take(n).collect();
+            assert_eq!(got, want, "n = {n}");
+        }
     }
 
     #[test]

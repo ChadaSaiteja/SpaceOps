@@ -9,7 +9,7 @@ use crate::metadata;
 use common::{CancellationToken, InaccessibleReason, NodeId, ScanError};
 use rayon::prelude::*;
 use std::io;
-use std::path::Path;
+use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
@@ -35,6 +35,13 @@ struct EventSink(Mutex<Vec<ScanEvent>>);
 impl EventSink {
     fn push(&self, event: ScanEvent) {
         self.0.lock().unwrap().push(event);
+    }
+
+    /// Appends a whole directory's worth of events under a single lock acquisition.
+    fn push_batch(&self, mut events: Vec<ScanEvent>) {
+        if !events.is_empty() {
+            self.0.lock().unwrap().append(&mut events);
+        }
     }
 
     fn into_inner(self) -> Vec<ScanEvent> {
@@ -75,7 +82,7 @@ struct ScanContext<'a> {
 }
 
 impl ScanContext<'_> {
-    fn maybe_emit_progress(&self, current_path: &Path) {
+    fn maybe_emit_progress(&self, dir: &Path, name: &std::ffi::OsStr) {
         let mut last = self.last_progress_at.lock().unwrap();
         if last.elapsed() < self.progress_interval {
             return;
@@ -86,7 +93,7 @@ impl ScanContext<'_> {
         (self.on_progress)(ScanProgress {
             files_scanned: self.files_scanned.load(Ordering::Relaxed),
             bytes_scanned: self.bytes_scanned.load(Ordering::Relaxed),
-            current_path: current_path.to_path_buf(),
+            current_path: dir.join(name),
         });
     }
 }
@@ -166,8 +173,12 @@ pub fn scan_with_options(
 }
 
 /// Enumerates one directory's entries in a single batch using `read_directory_fast`,
-/// extracting all metadata from `WIN32_FIND_DATAW` without redundant syscalls,
-/// then fans them out across rayon's work-stealing pool.
+/// extracting all metadata from `WIN32_FIND_DATAW` without redundant syscalls.
+///
+/// Files and reparse points of this directory are processed serially (they need no I/O
+/// beyond the already-fetched find data) and their events are appended to the shared sink
+/// in one locked batch; only subdirectories are fanned out across rayon's work-stealing
+/// pool. This avoids one rayon task and one mutex acquisition per file.
 fn walk_dir(
     dir: &Path,
     dir_id: NodeId,
@@ -191,98 +202,106 @@ fn walk_dir(
         }
     };
 
-    entries
-        .into_par_iter()
-        .map(|entry| process_fast_entry(&entry, dir_id, current_depth, ctx))
-        .reduce(
-            || (0u64, 0u64, 0u64),
-            |a, b| (a.0 + b.0, a.1 + b.1, a.2 + b.2),
-        )
-}
+    let mut batch: Vec<ScanEvent> = Vec::with_capacity(entries.len());
+    let mut subdirs: Vec<(PathBuf, NodeId)> = Vec::new();
+    let (mut size, mut files, mut dirs) = (0u64, 0u64, 0u64);
 
-fn process_fast_entry(
-    entry: &crate::winfs::FastDirEntry,
-    dir_id: NodeId,
-    current_depth: usize,
-    ctx: &ScanContext,
-) -> (u64, u64, u64) {
-    if ctx.cancel.is_cancelled() {
-        return (0, 0, 0);
-    }
+    for entry in entries {
+        if ctx.cancel.is_cancelled() {
+            break;
+        }
 
-    if entry.is_reparse_point {
-        // Junction/symlink/mount point: shown as a leaf, never followed (ADR-008 #1).
-        let child_id = ctx.ids.next();
-        ctx.events.push(ScanEvent::EnteredDirectory {
-            parent_id: Some(dir_id),
-            id: child_id,
-            meta: metadata::dir_metadata_from_fast_entry(entry),
-        });
-        ctx.events.push(ScanEvent::DirectoryComplete {
-            id: child_id,
-            total_size: 0,
-            file_count: 0,
-            dir_count: 0,
-        });
-        return (0, 0, 1);
-    }
-
-    if entry.is_directory {
-        let child_id = ctx.ids.next();
-        ctx.events.push(ScanEvent::EnteredDirectory {
-            parent_id: Some(dir_id),
-            id: child_id,
-            meta: metadata::dir_metadata_from_fast_entry(entry),
-        });
-
-        // Depth limiting check (for instant shallow scan)
-        if ctx
-            .max_depth
-            .is_some_and(|limit| current_depth + 1 >= limit)
-        {
-            ctx.events.push(ScanEvent::DirectoryComplete {
+        if entry.is_reparse_point {
+            // Junction/symlink/mount point: shown as a leaf, never followed (ADR-008 #1).
+            let child_id = ctx.ids.next();
+            batch.push(ScanEvent::EnteredDirectory {
+                parent_id: Some(dir_id),
+                id: child_id,
+                meta: metadata::dir_metadata_from_fast_entry(entry),
+            });
+            batch.push(ScanEvent::DirectoryComplete {
                 id: child_id,
                 total_size: 0,
                 file_count: 0,
                 dir_count: 0,
             });
-            return (0, 0, 1);
-        }
+            dirs += 1;
+        } else if entry.is_directory {
+            let child_path = dir.join(&entry.name);
+            let child_id = ctx.ids.next();
+            batch.push(ScanEvent::EnteredDirectory {
+                parent_id: Some(dir_id),
+                id: child_id,
+                meta: metadata::dir_metadata_from_fast_entry(entry),
+            });
+            dirs += 1;
 
-        let (child_size, child_files, child_dirs) =
-            walk_dir(&entry.path, child_id, current_depth + 1, ctx);
-        ctx.events.push(ScanEvent::DirectoryComplete {
-            id: child_id,
-            total_size: child_size,
-            file_count: child_files,
-            dir_count: child_dirs,
-        });
-
-        (child_size, child_files, child_dirs + 1)
-    } else {
-        match metadata::file_metadata_from_fast_entry(entry, ctx.cluster_size) {
-            Ok(file_meta) => {
-                let size = file_meta.size;
-                ctx.events.push(ScanEvent::FileFound {
-                    parent_id: dir_id,
-                    meta: file_meta,
+            // Depth limiting check (for instant shallow scan)
+            if ctx
+                .max_depth
+                .is_some_and(|limit| current_depth + 1 >= limit)
+            {
+                batch.push(ScanEvent::DirectoryComplete {
+                    id: child_id,
+                    total_size: 0,
+                    file_count: 0,
+                    dir_count: 0,
                 });
-                ctx.files_scanned.fetch_add(1, Ordering::Relaxed);
-                ctx.bytes_scanned.fetch_add(size, Ordering::Relaxed);
-                ctx.maybe_emit_progress(&entry.path);
-                (size, 1, 0)
+            } else {
+                subdirs.push((child_path, child_id));
             }
-            Err(err) => {
-                ctx.events.push(ScanEvent::Inaccessible {
-                    parent_id: dir_id,
-                    path: entry.path.clone(),
-                    reason: classify_io_error(&err),
-                });
-                ctx.inaccessible_count.fetch_add(1, Ordering::Relaxed);
-                (0, 0, 0)
+        } else {
+            // Only compressed/sparse files can fail (GetCompressedFileSizeW), so only they
+            // need their full path kept around for the error event.
+            let err_path = (entry.attributes & 0xA00 != 0).then(|| dir.join(&entry.name));
+            match metadata::file_metadata_from_fast_entry(entry, dir, ctx.cluster_size) {
+                Ok(file_meta) => {
+                    let fsize = file_meta.size;
+                    ctx.files_scanned.fetch_add(1, Ordering::Relaxed);
+                    ctx.bytes_scanned.fetch_add(fsize, Ordering::Relaxed);
+                    ctx.maybe_emit_progress(dir, &file_meta.name);
+                    batch.push(ScanEvent::FileFound {
+                        parent_id: dir_id,
+                        meta: file_meta,
+                    });
+                    size += fsize;
+                    files += 1;
+                }
+                Err(err) => {
+                    batch.push(ScanEvent::Inaccessible {
+                        parent_id: dir_id,
+                        path: err_path.unwrap_or_else(|| dir.to_path_buf()),
+                        reason: classify_io_error(&err),
+                    });
+                    ctx.inaccessible_count.fetch_add(1, Ordering::Relaxed);
+                }
             }
         }
     }
+
+    // Children's EnteredDirectory events must be visible before any of their contents,
+    // so the batch is flushed before recursing.
+    ctx.events.push_batch(batch);
+
+    let (sub_size, sub_files, sub_dirs) = subdirs
+        .into_par_iter()
+        .map(|(child_path, child_id)| {
+            let (child_size, child_files, child_dirs) =
+                walk_dir(&child_path, child_id, current_depth + 1, ctx);
+            ctx.events.push(ScanEvent::DirectoryComplete {
+                id: child_id,
+                total_size: child_size,
+                file_count: child_files,
+                dir_count: child_dirs,
+            });
+            (child_size, child_files, child_dirs)
+        })
+        .reduce(
+            || (0u64, 0u64, 0u64),
+            |a, b| (a.0 + b.0, a.1 + b.1, a.2 + b.2),
+        );
+
+    (size + sub_size, files + sub_files, dirs + sub_dirs)
 }
 
 #[cfg(test)]

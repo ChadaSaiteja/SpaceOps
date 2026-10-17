@@ -347,6 +347,50 @@ pub fn infer_directory_from_command(cmd: &str) -> Option<PathBuf> {
     }
 }
 
+/// Folder names (lowercased) that must never be flagged as leftovers: system vendors, package
+/// managers, and shared containers that hold many installed apps or caches.
+const NEVER_LEFTOVER: &[&str] = &[
+    "microsoft",
+    "windows",
+    "packages",
+    "temp",
+    "system",
+    "common files",
+    "nvidia",
+    "intel",
+    "amd",
+    "realtek",
+    "adobe",
+    "google",
+    "mozilla",
+    "microsoft corporation",
+    "windows defender",
+    "windows defender advanced threat protection",
+    "dotnet",
+    "git",
+    "powershell",
+    "nuget",
+    "pip",
+    "yarn",
+    "npm",
+    "cargo",
+    // Shared containers that hold many installed apps or tool caches, never one app's residue
+    "programs",
+    "package cache",
+    "packagemanagement",
+    "virtualstore",
+    "crashdumps",
+    "d3dscache",
+    "connecteddevicesplatform",
+    "comms",
+    "publishers",
+    "ssh",
+];
+
+fn is_never_leftover(folder_lower: &str) -> bool {
+    NEVER_LEFTOVER.contains(&folder_lower)
+}
+
 /// Detects orphaned leftover directories across AppData and ProgramData (ADR-014 §4).
 /// Cross-references existing directories with currently installed applications.
 pub fn find_app_leftovers(
@@ -354,37 +398,6 @@ pub fn find_app_leftovers(
     tree: Option<&StorageTree>,
 ) -> Vec<AppLeftover> {
     let mut leftovers = Vec::new();
-
-    // Standard system exclusions that must never be flagged as leftovers
-    let system_ignore: HashSet<&str> = [
-        "microsoft",
-        "windows",
-        "packages",
-        "temp",
-        "system",
-        "common files",
-        "nvidia",
-        "intel",
-        "amd",
-        "realtek",
-        "adobe",
-        "google",
-        "mozilla",
-        "microsoft corporation",
-        "windows defender",
-        "windows defender advanced threat protection",
-        "dotnet",
-        "git",
-        "powershell",
-        "nuget",
-        "pip",
-        "yarn",
-        "npm",
-        "cargo",
-    ]
-    .iter()
-    .cloned()
-    .collect();
 
     // Create a lookup of lowercased installed application and publisher tokens
     let mut app_tokens: HashSet<String> = HashSet::new();
@@ -448,7 +461,7 @@ pub fn find_app_leftovers(
             };
 
             let folder_lower = folder_name.to_ascii_lowercase();
-            if system_ignore.contains(folder_lower.as_str()) {
+            if is_never_leftover(&folder_lower) {
                 continue;
             }
 
@@ -481,7 +494,8 @@ pub fn find_app_leftovers(
                         size,
                         file_count,
                         location_type: loc_type,
-                        risk_level: RiskLevel::Low,
+                        // Detection is a name-match heuristic, so every hit needs a human review
+                        risk_level: RiskLevel::Medium,
                     });
                 }
             }
@@ -528,6 +542,16 @@ fn compute_quick_dir_size_bounded(dir: &Path, depth: usize, max_depth: usize) ->
 mod tests {
     use super::*;
     use common::{NodeId, ScanEvent};
+
+    #[test]
+    fn shared_containers_are_never_leftovers() {
+        // %LOCALAPPDATA%\Programs holds per-user installs (VS Code, Python, ...); flagging it
+        // would offer to recycle working applications.
+        for name in ["programs", "package cache", "microsoft", "temp", "nuget"] {
+            assert!(is_never_leftover(name), "{name} must be excluded");
+        }
+        assert!(!is_never_leftover("someremovedapp"));
+    }
 
     fn dir_meta(name: &str) -> common::DirMetadata {
         common::DirMetadata {

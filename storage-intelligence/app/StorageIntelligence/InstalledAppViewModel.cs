@@ -3,6 +3,7 @@ using System.ComponentModel;
 using System.Runtime.CompilerServices;
 using Microsoft.UI.Xaml.Media;
 using StorageIntelligence.Native;
+using StorageIntelligence.Styles;
 using Windows.UI;
 
 namespace StorageIntelligence;
@@ -25,7 +26,11 @@ public sealed class InstalledAppViewModel : INotifyPropertyChanged
     public bool IsSystemComponent => Info.IsSystemComponent;
 
     public string FormattedSize => Info.FormattedSize;
-    public string FileCountText => FileCount > 0 ? $"{FileCount:N0} files" : (Info.ActualSizeBytes > 0 ? "Scanned" : "Registry Est.");
+    // The Rust side copies the registry estimate into ActualSize when the install folder is not in the scanned tree,
+    // so a size equal to the estimate with no file count is still an estimate, not a measurement.
+    public string FileCountText => FileCount > 0
+        ? $"{FileCount:N0} files"
+        : (Info.ActualSizeBytes > 0 && Info.ActualSizeBytes != Info.EstimatedSizeBytes ? "Scanned" : "Registry est.");
     public string KindText => Info.KindText;
 
     public string IconGlyph => Kind == AppKind.Msix ? "\uE74C" : "\uE71D";
@@ -34,8 +39,8 @@ public sealed class InstalledAppViewModel : INotifyPropertyChanged
     public bool CanUninstall => !IsSystemComponent && (!string.IsNullOrWhiteSpace(Info.UninstallString) || Kind == AppKind.Msix);
 
     public SolidColorBrush KindBrush => Kind == AppKind.Msix
-        ? new SolidColorBrush(Color.FromArgb(255, 59, 130, 246))  // Blue for Store/MSIX
-        : new SolidColorBrush(Color.FromArgb(255, 139, 92, 246)); // Purple for Win32 Desktop
+        ? ThemeBrushes.Accent2  // Blue for Store/MSIX
+        : ThemeBrushes.Purple;  // Purple for Win32 Desktop
 
     public InstalledAppViewModel(InstalledAppInfo info)
     {

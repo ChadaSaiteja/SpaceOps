@@ -1,0 +1,33 @@
+{
+  "version": "FILL-AFTER-FIRST-RELEASE",
+  "description": "Free, open-source disk analyzer and storage cleaner for Windows (treemap, developer-cache detection, Recycle Bin-safe cleanup). DRAFT: fill after first release; not submitted.",
+  "homepage": "https://chadasaiteja.github.io/SpaceOps/",
+  "license": "MIT",
+  "architecture": {
+    "64bit": {
+      "url": "https://github.com/ChadaSaiteja/SpaceOps/releases/download/vFILL-AFTER-FIRST-RELEASE/SpaceOps-win-x64.zip",
+      "hash": "FILL-AFTER-FIRST-RELEASE"
+    },
+    "arm64": {
+      "url": "https://github.com/ChadaSaiteja/SpaceOps/releases/download/vFILL-AFTER-FIRST-RELEASE/SpaceOps-win-arm64.zip",
+      "hash": "FILL-AFTER-FIRST-RELEASE"
+    }
+  },
+  "bin": "FILL-AFTER-FIRST-RELEASE",
+  "shortcuts": [
+    ["FILL-AFTER-FIRST-RELEASE", "SpaceOps"]
+  ],
+  "checkver": {
+    "github": "https://github.com/ChadaSaiteja/SpaceOps"
+  },
+  "autoupdate": {
+    "architecture": {
+      "64bit": {
+        "url": "https://github.com/ChadaSaiteja/SpaceOps/releases/download/v$version/SpaceOps-win-x64.zip"
+      },
+      "arm64": {
+        "url": "https://github.com/ChadaSaiteja/SpaceOps/releases/download/v$version/SpaceOps-win-arm64.zip"
+      }
+    }
+  }
+}

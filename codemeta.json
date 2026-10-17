@@ -1,0 +1,41 @@
+{
+  "@context": "https://w3id.org/codemeta/3.0",
+  "@type": "SoftwareSourceCode",
+  "name": "SpaceOps",
+  "description": "Free, open-source disk analyzer and storage cleaner for Windows 10 and 11. A parallel Rust scanner feeds a Direct2D squarified treemap, developer clutter is detected across 8 ecosystems, and cleanups are routed through the Windows Recycle Bin. Runs fully offline.",
+  "identifier": "SpaceOps",
+  "codeRepository": "https://github.com/ChadaSaiteja/SpaceOps",
+  "url": "https://chadasaiteja.github.io/SpaceOps/",
+  "issueTracker": "https://github.com/ChadaSaiteja/SpaceOps/issues",
+  "downloadUrl": "https://github.com/ChadaSaiteja/SpaceOps/releases/latest",
+  "installUrl": "https://github.com/ChadaSaiteja/SpaceOps/releases/latest",
+  "license": "https://spdx.org/licenses/MIT",
+  "version": "0.1.0",
+  "dateCreated": "2026-10-07",
+  "datePublished": "2026-10-07",
+  "programmingLanguage": ["Rust", "C#"],
+  "runtimePlatform": ".NET 9",
+  "operatingSystem": ["Windows 10 (1809+)", "Windows 11"],
+  "applicationCategory": "SystemApplication",
+  "isAccessibleForFree": true,
+  "developmentStatus": "active",
+  "softwareRequirements": [
+    "Windows 10 version 1809 or later, or Windows 11 (x64 or ARM64)",
+    "Build from source only: .NET 9 SDK, Rust 1.75+, Visual Studio 2022 Build Tools (Desktop C++)"
+  ],
+  "keywords": [
+    "disk analyzer", "storage analyzer", "disk space", "disk cleaner", "treemap", "windows",
+    "windirstat alternative", "rust", "winui3", "dotnet", "developer tools", "ntfs", "usn journal"
+  ],
+  "readme": "https://github.com/ChadaSaiteja/SpaceOps/blob/main/README.md",
+  "author": [
+    {
+      "@type": "Person",
+      "givenName": "Saiteja",
+      "familyName": "Chada",
+      "url": "https://github.com/ChadaSaiteja"
+    }
+  ],
+  "copyrightHolder": "Saiteja Chada and SpaceOps Contributors",
+  "copyrightYear": 2026
+}

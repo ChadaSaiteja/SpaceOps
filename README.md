@@ -6,18 +6,21 @@
 
 *Understand your storage. Clean it safely.*
 
+[![Latest release](https://img.shields.io/github/v/release/ChadaSaiteja/SpaceOps?include_prereleases&label=release)](https://github.com/ChadaSaiteja/SpaceOps/releases/latest)
+[![Downloads](https://img.shields.io/github/downloads/ChadaSaiteja/SpaceOps/total?label=downloads)](https://github.com/ChadaSaiteja/SpaceOps/releases)
 [![CI](https://github.com/ChadaSaiteja/SpaceOps/actions/workflows/ci.yml/badge.svg)](https://github.com/ChadaSaiteja/SpaceOps/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011-0078D6?logo=windows)](https://microsoft.com/windows)
 [![Rust](https://img.shields.io/badge/Rust-1.75%2B-orange?logo=rust)](https://www.rust-lang.org/)
 [![.NET](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
-[![Tests](https://img.shields.io/badge/Tests-121%20Passed-brightgreen)](https://github.com/ChadaSaiteja/SpaceOps/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/Tests-131%20Passed-brightgreen)](https://github.com/ChadaSaiteja/SpaceOps/actions/workflows/ci.yml)
 
+[Download](#download) •
 [What is SpaceOps?](#what-is-spaceops) •
 [Features](#what-does-spaceops-detect) •
 [Why is my disk filling up?](#why-is-my-disk-filling-up-on-windows) •
 [Comparison](#how-does-spaceops-compare-to-windirstat-treesize-and-wiztree) •
-[Quick Start](#how-do-i-install-and-run-spaceops) •
+[Install](#how-do-i-install-and-run-spaceops) •
 [Architecture](#architecture) •
 [Roadmap](#whats-planned-next) •
 [FAQ](#frequently-asked-questions) •
@@ -41,6 +44,55 @@ SpaceOps is a free, open-source **disk analyzer and storage cleaner for Windows 
 Instead of acting as a blind "disk cleaner" that arbitrarily deletes temporary files, SpaceOps provides deep visibility into your storage. It combines a high-speed **Rust scanning engine** with a 120 FPS hardware-accelerated **Direct2D squarified treemap**, deep detection for **8 developer toolchains**, and a **zero-accident safety model** that routes cleanups to the Windows Recycle Bin.
 
 **Maintained by** [Saiteja Chada](https://github.com/ChadaSaiteja) · MIT licensed · Windows 10/11 x64 and ARM64
+
+---
+
+## Download
+
+**[Download the latest release](https://github.com/ChadaSaiteja/SpaceOps/releases/latest)** (free, portable zip, no installer).
+
+| Your PC | Direct download |
+| :--- | :--- |
+| Windows 10 / 11 **x64** (Intel, AMD) | [`SpaceOps-win-x64.zip`](https://github.com/ChadaSaiteja/SpaceOps/releases/latest/download/SpaceOps-win-x64.zip) |
+| Windows 11 **ARM64** (Snapdragon) | [`SpaceOps-win-arm64.zip`](https://github.com/ChadaSaiteja/SpaceOps/releases/latest/download/SpaceOps-win-arm64.zip) |
+| Checksums | [`SHA256SUMS.txt`](https://github.com/ChadaSaiteja/SpaceOps/releases/latest/download/SHA256SUMS.txt) |
+
+> **No tagged release is published yet.** If a link above shows "not found", the first release has not been published; use [Build from source](#option-2-build-from-source) until then.
+
+### Verify the download (SHA-256)
+
+Run this in PowerShell from the folder containing the zip:
+
+```powershell
+Invoke-WebRequest https://github.com/ChadaSaiteja/SpaceOps/releases/latest/download/SHA256SUMS.txt -OutFile SHA256SUMS.txt
+$expected = ((Select-String -Path .\SHA256SUMS.txt -Pattern 'SpaceOps-win-x64.zip').Line -split '\s+')[0]
+$actual   = (Get-FileHash .\SpaceOps-win-x64.zip -Algorithm SHA256).Hash
+if ($actual -ieq $expected) { 'OK: checksum matches' } else { 'MISMATCH: do not run this file' }
+```
+
+Use `SpaceOps-win-arm64.zip` in both places on ARM64 PCs.
+
+### Windows SmartScreen warning
+
+**Release builds are unsigned until a code-signing certificate is obtained**, so Windows SmartScreen may show "Windows protected your PC". To proceed safely:
+
+1. Download only from this repository's [Releases page](https://github.com/ChadaSaiteja/SpaceOps/releases/latest).
+2. Verify the SHA-256 checksum as shown above. Do not run the file if it does not match.
+3. If it matches, choose **More info**, then **Run anyway**. Alternatively, right-click the zip, open **Properties**, tick **Unblock**, and extract it.
+4. Prefer not to trust a binary? [Build from source](#option-2-build-from-source) and read the code; it is MIT licensed.
+
+### System requirements
+
+- Windows 10 version 1809 or later, or Windows 11
+- x64 or ARM64 processor
+- No internet connection needed; SpaceOps is 100% offline with no telemetry
+
+### Install and uninstall
+
+- **Install**: unzip anywhere (for example `C:\Tools\SpaceOps`) and run the executable inside. No installer, no admin rights to unzip.
+- **Uninstall**: delete the folder. Because the app is a portable zip, there is no uninstaller. If the app stored a saved scan index (SQLite) elsewhere on disk, you can delete that separately.
+
+Guides on the project site: [free disk space analyzer](https://chadasaiteja.github.io/SpaceOps/docs-site/free-windows-disk-space-analyzer/), [WinDirStat alternative](https://chadasaiteja.github.io/SpaceOps/docs-site/windirstat-alternative/), [clean node_modules](https://chadasaiteja.github.io/SpaceOps/docs-site/clean-node-modules-windows/), [Docker/WSL2 VHDX cleanup](https://chadasaiteja.github.io/SpaceOps/docs-site/docker-wsl2-vhdx-cleanup-windows/), [Cargo target cleanup](https://chadasaiteja.github.io/SpaceOps/docs-site/cargo-target-cleanup-windows/), [how SpaceOps cleans safely](https://chadasaiteja.github.io/SpaceOps/docs-site/how-spaceops-cleans-safely/).
 
 ---
 
@@ -117,13 +169,15 @@ SpaceOps adheres to the safety rule:
 | Feature | SpaceOps | WinDirStat | TreeSize Free | WizTree |
 | :--- | :--- | :--- | :--- | :--- |
 | **License** | **Open Source (MIT)** | GPL-2.0 (Legacy) | Proprietary / Free | Proprietary / Closed |
-| **UI Framework** | **Modern WinUI 3 (Mica)** | Win32 MFC (1990s) | Win32 MFC | Win32 MFC |
-| **Rendering Engine** | **Direct2D / Win2D (120 FPS)**| GDI (Slow on 1M+ files) | GDI+ | Direct2D |
+| **UI Framework** | **Modern WinUI 3 (Mica)** | Win32 MFC | Win32 MFC | Win32 MFC |
+| **Rendering Engine** | **Direct2D / Win2D (120 FPS)**| GDI | GDI+ | Direct2D |
 | **1M Nodes Memory** | **~55 MB RSS** | ~350 MB | ~200 MB | ~150 MB |
 | **Developer Clutter**| **8 Ecosystems (Node, Rust, WSL)**| None | None | None |
 | **Incremental Sync** | **USN Journal + Fallback (<50ms)** | Full rescan only | Full rescan only | USN Journal |
 | **Safety Protocol** | **Blacklist + Recycle Bin COM** | Direct delete | Direct delete | Direct delete |
 | **Network & Privacy**| **100% Local, Zero Telemetry** | Local | Tracking / Ads | Closed source |
+
+> SpaceOps figures come from this repo's own benchmark (`tree_benchmark`). Competitor values are approximate, based on public descriptions, and may be outdated; please check each tool's current version.
 
 ---
 
@@ -153,7 +207,7 @@ Read the full [Architecture Specification](docs/architecture.md) for data flows 
 ## How do I install and run SpaceOps?
 
 ### Option 1: Run the Pre-built Binary
-When a tagged release is published, the portable archive is attached to [GitHub Releases](https://github.com/ChadaSaiteja/SpaceOps/releases). Extract it and run `StorageIntelligence.exe`.
+Download `SpaceOps-win-x64.zip` or `SpaceOps-win-arm64.zip` from the [latest release](https://github.com/ChadaSaiteja/SpaceOps/releases/latest), [verify the checksum](#verify-the-download-sha-256), extract it, and run the executable (currently `StorageIntelligence.exe`). See [Download](#download) for the SmartScreen note.
 
 > **No tagged release is published yet.** Until then, use Option 2 below to build from source.
 
@@ -251,6 +305,9 @@ SpaceOps is free and open source, uses a hardware-accelerated Direct2D treemap i
 
 **Does it need internet access?**
 No. SpaceOps is 100% local with zero telemetry. Once built, it never makes a network request.
+
+**Why does Windows warn me when I run the download?**
+Release builds are unsigned until a code-signing certificate is obtained, so SmartScreen may show an unrecognized-app warning. Verify the SHA-256 checksum against `SHA256SUMS.txt`, then choose More info and Run anyway only if it matches. See [Download](#download).
 
 **What are the system requirements?**
 Windows 10 version 1809 or later, or Windows 11, on x64 or ARM64. To build from source you also need the .NET 9 SDK, Rust 1.75+, and Visual Studio 2022 Build Tools with the Desktop C++ workload.

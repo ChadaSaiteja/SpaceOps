@@ -1,0 +1,6 @@
+# DRAFT - fill after first release. Not submitted. Folder name must become the version (for example 0.2.0).
+PackageIdentifier: SaitejaChada.SpaceOps
+PackageVersion: FILL-AFTER-FIRST-RELEASE   # e.g. 0.2.0, no leading v
+DefaultLocale: en-US
+ManifestType: version
+ManifestVersion: 1.6.0

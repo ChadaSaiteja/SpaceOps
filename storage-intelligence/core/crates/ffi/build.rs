@@ -2,13 +2,24 @@
 // ever proves insufficient for a specific signature shape, fall back to hand-written
 // bindings for that case (ADR-001's documented fallback) rather than fighting the tool.
 fn main() {
-    println!("cargo:rerun-if-changed=src/lib.rs");
+    println!("cargo:rerun-if-changed=src");
 
     let out_dir = std::path::Path::new("../../../app/StorageIntelligence/Native");
     let _ = std::fs::create_dir_all(out_dir);
 
+    // Input order matters: csbindgen emits functions and structs in input order, so this
+    // list mirrors the original single-file layout to keep NativeMethods.g.cs byte-stable.
     let result = csbindgen::Builder::default()
-        .input_extern_file("src/lib.rs")
+        .input_extern_file("src/error.rs")
+        .input_extern_file("src/scan.rs")
+        .input_extern_file("src/handles.rs")
+        .input_extern_file("src/tree.rs")
+        .input_extern_file("src/treemap.rs")
+        .input_extern_file("src/search.rs")
+        .input_extern_file("src/cleanup.rs")
+        .input_extern_file("src/apps.rs")
+        .input_extern_file("src/developer.rs")
+        .input_extern_file("src/index.rs")
         .csharp_dll_name("ffi")
         .csharp_namespace("StorageIntelligence.Native")
         .csharp_class_name("NativeMethods")

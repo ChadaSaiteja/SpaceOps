@@ -11,7 +11,7 @@ Working order. Each task ends with a verification gate; do not start the next ta
 ## Task 0: Safety net (do first)
 - [x] .NET SDK 9.0.318 available locally; app builds and 30 integration tests pass.
 - [x] Re-enable C# integration tests in CI (or a separate non-blocking job) so FFI regressions are caught.
-- [ ] Add a `smoke` check: launch app, scan a temp folder, assert tree is non-empty.
+- [x] Add a `smoke` check: launch app, scan a temp folder, assert tree is non-empty. (`tests/integration/SmokeTests.cs` runs scan -> tree -> treemap -> search -> dev storage -> dry-run-only cleanup on a temp folder; CI adds a non-blocking 8 s launch check that reports liveness and `crash.log`.)
 - Gate: `cargo test --workspace` green AND `dotnet build -c Release` green AND integration tests green.
 
 ## Task 1: Theme foundation

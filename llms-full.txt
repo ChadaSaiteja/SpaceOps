@@ -47,10 +47,13 @@ If no release is published yet, build from source with `.\storage-intelligence\s
 ## Features
 
 - Parallel scanner: Rayon traversal over Win32 FindFirstFileExW; reports cluster-allocated (on-disk) size; junctions, symlinks and volume mounts are treated as leaves and never followed.
-- Treemap: squarified layout (Bruls-Huizing-van Wijk) computed in Rust, drawn with Direct2D/Win2D; double-click to drill down, breadcrumb navigation, details pane.
+- App layout: Windows 11 style left sidebar with five pages. Overview: usage by category, top 5 consumers, reclaimable-now total, quick actions. Treemap, Cleanup, Developer and Applications are full pages.
+- Treemap: squarified layout (Bruls-Huizing-van Wijk) computed in Rust, drawn with Direct2D/Win2D; folder name header strips, 1-3 level depth selector, double-click to drill down, breadcrumb navigation, details pane.
 - Developer storage detection across 8 ecosystems: Node.js (node_modules, npm/pnpm/yarn caches), Rust (target, cargo registry), .NET (bin, obj, NuGet cache), Python (venv, __pycache__, pip cache), Java/JVM (.gradle caches, .m2), Containers and WSL (Docker Desktop VHDX, WSL2 ext4.vhdx), Version control (.git pack), IDE caches (VS Code, Visual Studio .vs).
 - Dormancy analysis: projects untouched for 30 days or more are flagged as primary cleanup candidates; active projects default to unchecked.
-- Search: in-memory, under 5 ms, with ext:, size: and type: filters, for example `node_modules size:>500MB`.
+- Search: in-memory, about 50 ms across 1,000,000 nodes (ext:+size: filters about 20 ms), with ext:, size: and type: filters, for example `node_modules size:>500MB`.
+- Cleanup: one list across system junk, dormant developer artifacts and app leftovers, with one reclaimable total; only low-risk system junk is pre-selected.
+- Applications: installed apps ranked by disk usage; sizes are labelled "Registry est." when the install folder was not scanned. Leftover folders from uninstalled apps are detected by name match, marked Medium risk, never pre-selected; shared folders such as AppData\Local\Programs are never offered.
 - Persistence: SQLite (WAL) restores trees in under 100 ms; incremental sync via NTFS USN Journal (under 50 ms) with a timestamp-differential fallback.
 
 ## Safety model
@@ -65,7 +68,7 @@ Risk levels: Low (selected by default), Medium (user-selected), High (unselected
 
 ## Performance (project's own 1,000,000-node synthetic benchmark; results vary by machine)
 
-Tree build 218 ms; lookup 26.1 ns; subtree top-100 files 45.7 ms; memory 55.0 MB RSS.
+Medians from the v0.2 performance review (docs/performance-review.md), one developer machine, release build: tree build about 180 ms (was 584 ms); subtree top-100 files about 35 µs (was 108 ms); text search about 52 ms, ext:+size: about 20 ms; treemap layout 1920x1080 depth 4 about 92 ms; memory 55 MB RSS.
 
 ## Technology
 

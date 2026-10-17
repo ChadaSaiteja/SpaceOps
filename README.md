@@ -114,6 +114,18 @@ Traditional disk tools treat these as plain directories or risk corrupting activ
 
 ---
 
+## What does the app look like?
+
+SpaceOps uses a Windows 11 style left sidebar with five pages (try the [interactive preview](https://chadasaiteja.github.io/SpaceOps/) on the website):
+
+| Page | What it shows |
+| :--- | :--- |
+| **Overview** | Usage by category, your five biggest space consumers, the total you can reclaim right now, and quick actions. |
+| **Treemap** | The scanned folder as a squarified treemap with folder name headers, a 1-3 level depth selector, search, and a details panel. |
+| **Cleanup** | One list across system junk, dormant developer artifacts and app leftovers, with one reclaimable total, dry-run and Recycle Bin options. |
+| **Developer** | Build outputs, caches and virtual disks across 8 ecosystems, with dormancy badges. |
+| **Applications** | Installed apps ranked by disk usage, plus folders left behind by uninstalled apps. |
+
 ## What does SpaceOps detect?
 
 ### ⚡ 1. High-Performance Filesystem Scanner
@@ -123,7 +135,8 @@ Traditional disk tools treat these as plain directories or risk corrupting activ
 - **Real-Time Throttled Streaming**: Streams live file and byte counts to the UI at 60 Hz without dispatcher lag.
 
 ### 🗺️ 2. Hardware-Accelerated Interactive Treemap
-- **Direct2D / Win2D Rendering**: Smooth 60/120 FPS canvas with Mica window backdrops and dark/light mode integration.
+- **Direct2D / Win2D Rendering**: Smooth 60/120 FPS canvas in a dark Fluent theme with Mica window backdrop.
+- **Folder Headers & Depth Selector**: Every folder tile keeps a labelled header strip with its name and size; choose 1 to 3 levels of depth.
 - **Squarified Layout Algorithm**: Computes tile geometry via the Bruls-Huizing-van Wijk algorithm in Rust, maintaining balanced aspect ratios and preventing thin, illegible slivers.
 - **Interactive Drill-Down**: Double-click to zoom into any subdirectory; single-click to inspect properties in the metadata pane.
 - **Breadcrumb Navigation**: Instant ancestor jump bar for navigating back up deeply nested paths.
@@ -146,9 +159,11 @@ SpaceOps adheres to the safety rule:
 - **Immutable System Blacklist**: Strict kernel protections guarding `C:\Windows`, `C:\Program Files`, boot managers, and user system profiles.
 - **Recycle Bin Routing**: Deletions route through Windows Shell COM (`IFileOperation`), allowing instant undo.
 - **Dry-Run Mode**: Simulates byte reclamation and file counts without touching the filesystem.
+- **One Cleanup List**: System junk, dormant developer artifacts and app leftovers share one list and one reclaimable total; only low-risk system junk is pre-selected.
+- **Review-First Leftovers**: Folders that look left behind by uninstalled apps are a name-match guess, so they are marked Medium risk and never pre-selected; shared folders such as `AppData\Local\Programs` are never offered.
 
-### 🔍 5. Sub-5ms In-Memory Search
-- Searches indexed storage trees in under 5 milliseconds.
+### 🔍 5. Fast Structured In-Memory Search
+- Searches a scanned tree in about 50 ms at 1,000,000 nodes (text match; `ext:` + `size:` filters about 20 ms).
 - Supports structured syntax filters:
   - `ext:log` or `ext:iso`
   - `size:>1GB` or `size:<10MB`
@@ -260,10 +275,13 @@ dotnet test storage-intelligence/tests/integration/StorageIntelligence.Integrati
 ```powershell
 cargo run --release -p storage-tree --example tree_benchmark
 ```
-- **Build Time (1M nodes)**: `218 ms` (Target: $\le 2.0\text{ s}$) — **$\sim 9\times$ faster**
-- **Lookup Latency**: `26.1 ns` (Target: $< 1,000\text{ ns}$) — **$\sim 38\times$ faster**
-- **Subtree Top-100 Files**: `45.7 ms` (Target: $< 50\text{ ms}$) — **Met**
-- **Memory Footprint**: `55.0 MB RSS` (Target: $< 300\text{ MB}$) — **$5.4\times$ under budget**
+Medians from the v0.2 [performance review](docs/performance-review.md) on one developer machine (release build, 3 runs):
+
+- **Build Time (1M nodes)**: about `180 ms` (target $\le 2.0\text{ s}$; was 584 ms on the same machine before v0.2)
+- **Subtree Top-100 Files**: about `35 µs` (target $< 50\text{ ms}$; was 108 ms)
+- **Text Search**: about `52 ms`; `ext:` + `size:` about `20 ms` (were 481 ms and 179 ms)
+- **Treemap Layout (1920x1080, depth 4)**: about `92 ms` (was 261 ms)
+- **Memory Footprint**: `55 MB RSS` (target $< 300\text{ MB}$)
 
 ---
 
@@ -273,11 +291,18 @@ cargo run --release -p storage-tree --example tree_benchmark
 - [x] High-speed Win32 parallel filesystem scanner with cluster allocation sizing
 - [x] Compact in-memory arena storage tree ($O(1)$ lookups, top-N heap queries)
 - [x] Hardware-accelerated Win2D squarified treemap with interactive drill-down
-- [x] Sub-5ms tokenized search engine (`ext:`, `size:`, `type:`)
+- [x] Tokenized search engine (`ext:`, `size:`, `type:`)
 - [x] Zero-accident cleanup engine with COM Recycle Bin integration
 - [x] Application manager & true storage attribution
 - [x] Developer storage intelligence across 8 ecosystems with dormancy analysis
 - [x] Embedded SQLite persistence engine and NTFS USN Change Journal incremental sync
+
+### Completed (v0.2, not yet released)
+- [x] Fluent Sidebar UI: Overview, Treemap, Cleanup, Developer and Applications pages
+- [x] Unified cleanup list with one reclaimable total; review-first app leftovers
+- [x] Treemap folder headers and working depth selector
+- [x] Faster tree build, search, layout and scanner (see `docs/performance-review.md`)
+- [x] Self-contained x64 and ARM64 release packaging with SHA-256 checksums
 
 ### In Progress
 - [ ] **Phase 10: Duplicate File Finder & De-duplication**: Multi-tier pipeline (size grouping $\to$ partial head/tail hash $\to$ full cryptographic hashing) with hardlink and junction awareness.

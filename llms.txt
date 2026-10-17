@@ -39,10 +39,11 @@ Quick facts: price free (MIT license); platforms Windows 10 (1809+) and Windows 
 ## Core Capabilities
 
 - Parallel filesystem scanning: Rayon traversal using Win32 FindFirstFileExW, measuring cluster-allocated size rather than logical bytes.
-- Interactive treemap: squarified layout (Bruls-Huizing-van Wijk) rendered with Direct2D/Win2D.
+- App layout: Windows 11 style left sidebar with five pages: Overview (usage by category, top 5 consumers, reclaimable total), Treemap, Cleanup, Developer, Applications.
+- Interactive treemap: squarified layout (Bruls-Huizing-van Wijk) rendered with Direct2D/Win2D, folder name headers, 1-3 level depth selector.
 - Developer clutter detection: Node.js, Rust, .NET, Python, Java/JVM, Docker/WSL, Git, IDE caches, with dormancy analysis for projects untouched 30+ days.
-- Safe cleanup: immutable system path blacklist, COM IFileOperation Recycle Bin routing, dry-run mode, explicit user confirmation.
-- Tokenized search with ext:, size:, type: filters.
+- Safe cleanup: one list across system junk, developer artifacts and app leftovers; immutable system path blacklist, COM IFileOperation Recycle Bin routing, dry-run mode, explicit user confirmation. App leftovers are a name-match guess, marked Medium risk and never pre-selected.
+- Tokenized search with ext:, size:, type: filters (about 50 ms across 1,000,000 nodes).
 - SQLite WAL persistence with NTFS USN Journal incremental sync and timestamp-differential fallback.
 
 ## Architecture
@@ -51,7 +52,7 @@ Desktop app (WinUI 3 / C#) with Win2D rendering and managed services, a csbindge
 
 ## Performance (1,000,000-node synthetic benchmark)
 
-Build time 218 ms; lookup latency 26.1 ns; subtree top-100 files 45.7 ms; memory 55.0 MB RSS. Reproduce with `cargo run --release -p storage-tree --example tree_benchmark`.
+Medians from the v0.2 performance review (docs/performance-review.md), one developer machine, release build: tree build about 180 ms (was 584 ms); subtree top-100 files about 35 µs (was 108 ms); text search about 52 ms, ext:+size: about 20 ms; treemap layout 1920x1080 depth 4 about 92 ms; memory 55 MB RSS. Reproduce with `cargo run --release -p storage-tree --example tree_benchmark`.
 
 ## Testing
 

@@ -8,6 +8,7 @@ use crate::cleanup::RiskLevel;
 use crate::tree::StorageTree;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use std::time::{Duration, SystemTime};
 
 #[cfg(windows)]
 use windows::core::{PCWSTR, PWSTR};
@@ -398,6 +399,7 @@ pub fn find_app_leftovers(
     tree: Option<&StorageTree>,
 ) -> Vec<AppLeftover> {
     let mut leftovers = Vec::new();
+    let now = SystemTime::now();
 
     // Create a lookup of lowercased installed application and publisher tokens
     let mut app_tokens: HashSet<String> = HashSet::new();
@@ -469,7 +471,9 @@ pub fn find_app_leftovers(
             let has_matching_app = app_tokens.contains(&folder_lower)
                 || app_tokens.iter().any(|t| folder_lower.contains(t.as_str()));
 
-            if !has_matching_app {
+            // Recently written folders belong to apps that are still in use (per-user, MSIX
+            // or portable installs absent from the uninstall registry) or to the user.
+            if !has_matching_app && !is_folder_recently_active(&path, now) {
                 // Potential leftover directory!
                 let (size, file_count) = if let Some(t) = tree {
                     if let Some(node_id) = t.find_by_path(&path) {
@@ -504,6 +508,74 @@ pub fn find_app_leftovers(
 
     leftovers.sort_by_key(|a| std::cmp::Reverse(a.size));
     leftovers
+}
+
+/// A folder modified within this window is considered in use, never a leftover.
+const LEFTOVER_ACTIVITY_WINDOW: Duration = Duration::from_secs(30 * 24 * 60 * 60);
+/// Depth below the candidate folder inspected for recent writes (1 = its direct entries).
+const ACTIVITY_MAX_DEPTH: usize = 2;
+/// Upper bound on entries examined per candidate folder by the activity probe.
+const ACTIVITY_MAX_ENTRIES: usize = 500;
+
+/// Pure decision: is `newest` (the most recent modification time seen) within the activity
+/// window ending at `now`? Timestamps in the future (clock skew) count as active; an unknown
+/// time does not.
+fn is_recent_activity(newest: Option<SystemTime>, now: SystemTime) -> bool {
+    match newest {
+        Some(t) => match now.duration_since(t) {
+            Ok(age) => age <= LEFTOVER_ACTIVITY_WINDOW,
+            Err(_) => true,
+        },
+        None => false,
+    }
+}
+
+/// Newest modification time of `dir` itself and of its entries up to `max_depth` levels
+/// below it, examining at most `max_entries` entries. Read-only; reparse points (junctions,
+/// symlinks) are inspected but never followed.
+fn newest_mtime_bounded(dir: &Path, max_depth: usize, max_entries: usize) -> Option<SystemTime> {
+    let mut newest = std::fs::symlink_metadata(dir)
+        .and_then(|m| m.modified())
+        .ok();
+    let mut budget = max_entries;
+    let mut stack: Vec<(PathBuf, usize)> = vec![(dir.to_path_buf(), 1)];
+
+    while let Some((current, depth)) = stack.pop() {
+        let entries = match std::fs::read_dir(&current) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        for entry in entries.flatten() {
+            if budget == 0 {
+                return newest;
+            }
+            budget -= 1;
+            // DirEntry::metadata does not traverse symlinks/junctions.
+            let meta = match entry.metadata() {
+                Ok(m) => m,
+                Err(_) => continue,
+            };
+            if let Ok(m) = meta.modified() {
+                newest = Some(match newest {
+                    Some(n) if n >= m => n,
+                    _ => m,
+                });
+            }
+            if meta.is_dir() && !meta.file_type().is_symlink() && depth < max_depth {
+                stack.push((entry.path(), depth + 1));
+            }
+        }
+    }
+    newest
+}
+
+/// True when `dir` (or anything up to two levels inside it, bounded) was modified within the
+/// last 30 days relative to `now`, i.e. the folder is in use and must not be a leftover.
+fn is_folder_recently_active(dir: &Path, now: SystemTime) -> bool {
+    is_recent_activity(
+        newest_mtime_bounded(dir, ACTIVITY_MAX_DEPTH, ACTIVITY_MAX_ENTRIES),
+        now,
+    )
 }
 
 /// Fallback bounded on-disk size calculator when directory is not inside active StorageTree.
@@ -640,6 +712,86 @@ mod tests {
             infer_directory_from_command(unquoted),
             Some(PathBuf::from(r"C:\Apps\Simple"))
         );
+    }
+
+    const DAY: Duration = Duration::from_secs(24 * 60 * 60);
+
+    #[test]
+    fn recent_activity_decision_uses_30_day_window() {
+        let now = SystemTime::UNIX_EPOCH + 1000 * DAY;
+        assert!(is_recent_activity(Some(now), now));
+        assert!(is_recent_activity(Some(now - 29 * DAY), now));
+        assert!(is_recent_activity(Some(now - 30 * DAY), now));
+        assert!(!is_recent_activity(Some(now - 31 * DAY), now));
+        assert!(!is_recent_activity(Some(now - 400 * DAY), now));
+        // Clock skew: a future mtime is treated as active, not as a leftover.
+        assert!(is_recent_activity(Some(now + DAY), now));
+        assert!(!is_recent_activity(None, now));
+    }
+
+    fn set_mtime(path: &Path, t: SystemTime) {
+        std::fs::File::options()
+            .write(true)
+            .open(path)
+            .unwrap()
+            .set_modified(t)
+            .unwrap();
+    }
+
+    #[test]
+    fn freshly_written_folder_is_active_until_it_ages() {
+        let dir = tempfile::tempdir().unwrap();
+        std::fs::write(dir.path().join("settings.json"), b"{}").unwrap();
+        let created = SystemTime::now();
+
+        assert!(is_folder_recently_active(dir.path(), created));
+        assert!(is_folder_recently_active(dir.path(), created + 20 * DAY));
+        // Nothing written for 60 days: eligible as a leftover again.
+        assert!(!is_folder_recently_active(dir.path(), created + 60 * DAY));
+    }
+
+    #[test]
+    fn activity_probe_sees_depth_two_but_not_depth_three() {
+        // Folder and directory mtimes are ~T0 (creation). "now" is T0 + 60 days, so only a
+        // file whose mtime is set to T0 + 59 days counts as recent.
+        let dir = tempfile::tempdir().unwrap();
+        let root = dir.path();
+        std::fs::create_dir_all(root.join("a").join("b")).unwrap();
+        let shallow = root.join("a").join("depth2.txt");
+        let deep = root.join("a").join("b").join("depth3.txt");
+        std::fs::write(&shallow, b"x").unwrap();
+        std::fs::write(&deep, b"x").unwrap();
+
+        let t0 = SystemTime::now();
+        let now = t0 + 60 * DAY;
+        let old = t0 - 365 * DAY;
+        set_mtime(&shallow, old);
+        set_mtime(&deep, old);
+        assert!(!is_folder_recently_active(root, now));
+
+        // A recent write three levels down is outside the probe's depth.
+        set_mtime(&deep, t0 + 59 * DAY);
+        assert!(!is_folder_recently_active(root, now));
+
+        // A recent write two levels down marks the folder as in use.
+        set_mtime(&shallow, t0 + 59 * DAY);
+        assert!(is_folder_recently_active(root, now));
+    }
+
+    #[test]
+    fn activity_probe_respects_entry_budget() {
+        let dir = tempfile::tempdir().unwrap();
+        let t0 = SystemTime::now();
+        for i in 0..5 {
+            let p = dir.path().join(format!("f{i}.txt"));
+            std::fs::write(&p, b"x").unwrap();
+            set_mtime(&p, t0 + 59 * DAY);
+        }
+        // Budget 0 inspects only the folder itself (mtime ~T0).
+        let newest = newest_mtime_bounded(dir.path(), 2, 0).unwrap();
+        assert!(newest < t0 + DAY);
+        let newest = newest_mtime_bounded(dir.path(), 2, 500).unwrap();
+        assert!(newest >= t0 + 58 * DAY);
     }
 
     #[test]

@@ -59,6 +59,7 @@ pub fn detect_dev_artifacts(tree: Option<&StorageTree>) -> Vec<DevArtifact> {
     if let Some(t) = tree {
         let node_count = t.node_count();
         let now = SystemTime::now();
+        let mut candidates: Vec<Candidate> = Vec::new();
 
         for i in 0..node_count {
             let id = NodeId(i as u64);
@@ -115,57 +116,71 @@ pub fn detect_dev_artifacts(tree: Option<&StorageTree>) -> Vec<DevArtifact> {
                 };
 
                 if let Some((ecosystem, kind, risk, desc, cmd)) = matched_meta {
-                    if node.size > 0 {
-                        if let Some(path) = t.full_path(id) {
-                            let path_key = path.to_string_lossy().to_ascii_lowercase();
-                            if !seen_paths.insert(path_key) {
-                                continue;
-                            }
-
-                            // Extract project name from parent node
-                            let project_name = node
-                                .parent
-                                .and_then(|pid| t.node(pid))
-                                .map(|pnode| {
-                                    Path::new(&pnode.name)
-                                        .file_name()
-                                        .and_then(|n| n.to_str())
-                                        .unwrap_or(pnode.name)
-                                        .to_string()
-                                })
-                                .unwrap_or_else(|| "Unknown Project".to_string());
-
-                            // Calculate dormancy from modification time
-                            let (is_dormant, days_inactive) = match node.modified {
-                                Some(mod_time) => {
-                                    let days = now
-                                        .duration_since(mod_time)
-                                        .map(|d| (d.as_secs() / 86400) as u32)
-                                        .unwrap_or(0);
-                                    (days >= 30, days)
-                                }
-                                None => (false, 0),
-                            };
-
-                            artifacts.push(DevArtifact {
-                                id: format!("{:?}_{}", ecosystem, path.display()),
-                                ecosystem,
-                                kind,
-                                name: node.name.to_string(),
-                                project_name,
-                                path,
-                                size: node.size,
-                                file_count: node.file_count,
-                                is_dormant,
-                                days_inactive,
-                                risk_level: risk,
-                                description: desc.to_string(),
-                                cleanup_command: cmd.to_string(),
-                            });
-                        }
+                    if node.size > 0 && has_project_marker(t, id, node.parent, &name_lower) {
+                        candidates.push(Candidate {
+                            id,
+                            ecosystem,
+                            kind,
+                            risk,
+                            desc,
+                            cmd,
+                        });
                     }
                 }
             }
+        }
+
+        // An artifact nested inside another one (node_modules inside node_modules, a
+        // package's own bin/) is part of the outer artifact, never a separate candidate.
+        let candidate_ids: std::collections::HashSet<NodeId> =
+            candidates.iter().map(|c| c.id).collect();
+
+        for c in candidates {
+            if has_candidate_ancestor(t, c.id, &candidate_ids) {
+                continue;
+            }
+            let Some(node) = t.node(c.id) else { continue };
+            let Some(path) = t.full_path(c.id) else {
+                continue;
+            };
+            let path_key = path.to_string_lossy().to_ascii_lowercase();
+            if is_installed_software_path(&path_key) || !seen_paths.insert(path_key) {
+                continue;
+            }
+
+            // Extract project name from parent node
+            let project_name = node
+                .parent
+                .and_then(|pid| t.node(pid))
+                .map(|pnode| {
+                    Path::new(&pnode.name)
+                        .file_name()
+                        .and_then(|n| n.to_str())
+                        .unwrap_or(pnode.name)
+                        .to_string()
+                })
+                .unwrap_or_else(|| "Unknown Project".to_string());
+
+            // Directories carry no modification time, so dormancy comes from the newest
+            // file inside the artifact (build outputs are rewritten on every build).
+            let (is_dormant, days_inactive) =
+                dormancy(newest_file_mtime(t, c.id, MAX_ACTIVITY_VISITS), now);
+
+            artifacts.push(DevArtifact {
+                id: format!("{:?}_{}", c.ecosystem, path.display()),
+                ecosystem: c.ecosystem,
+                kind: c.kind,
+                name: node.name.to_string(),
+                project_name,
+                path,
+                size: node.size,
+                file_count: node.file_count,
+                is_dormant,
+                days_inactive,
+                risk_level: c.risk,
+                description: c.desc.to_string(),
+                cleanup_command: c.cmd.to_string(),
+            });
         }
     }
 
@@ -175,6 +190,142 @@ pub fn detect_dev_artifacts(tree: Option<&StorageTree>) -> Vec<DevArtifact> {
     // Sort by size descending
     artifacts.sort_by_key(|a| std::cmp::Reverse(a.size));
     artifacts
+}
+
+/// `days_inactive` value meaning "no file times available, activity unknown".
+pub const DAYS_UNKNOWN: u32 = u32::MAX;
+
+/// Upper bound on nodes inspected per artifact when looking for its newest file.
+const MAX_ACTIVITY_VISITS: usize = 200_000;
+
+struct Candidate {
+    id: NodeId,
+    ecosystem: DevEcosystem,
+    kind: DevArtifactKind,
+    risk: RiskLevel,
+    desc: &'static str,
+    cmd: &'static str,
+}
+
+/// True when the folder sits in a real project: the build-system file that recreates it
+/// is next to it (or, for virtual environments, inside it). Without this, any folder named
+/// `bin`, `target` or `node_modules` (for example `~/.cargo/bin`) would be offered.
+fn has_project_marker(
+    t: &StorageTree,
+    id: NodeId,
+    parent: Option<NodeId>,
+    name_lower: &str,
+) -> bool {
+    let child_names = |of: NodeId| -> Vec<String> {
+        t.children(of)
+            .unwrap_or(&[])
+            .iter()
+            .filter_map(|c| t.node(*c))
+            .filter(|n| n.kind == NodeKind::File)
+            .map(|n| n.name.to_ascii_lowercase())
+            .collect()
+    };
+    match name_lower {
+        ".venv" | "venv" => child_names(id).iter().any(|n| n == "pyvenv.cfg"),
+        "__pycache__" => child_names(id).iter().any(|n| n.ends_with(".pyc")),
+        _ => {
+            let Some(pid) = parent else { return false };
+            let siblings = child_names(pid);
+            match name_lower {
+                "node_modules" => siblings.iter().any(|n| n == "package.json"),
+                "target" => siblings.iter().any(|n| n == "cargo.toml"),
+                "bin" | "obj" => siblings.iter().any(|n| {
+                    n.ends_with(".csproj") || n.ends_with(".fsproj") || n.ends_with(".vbproj")
+                }),
+                ".gradle" => siblings.iter().any(|n| {
+                    matches!(
+                        n.as_str(),
+                        "build.gradle"
+                            | "build.gradle.kts"
+                            | "settings.gradle"
+                            | "settings.gradle.kts"
+                            | "gradlew"
+                    )
+                }),
+                _ => false,
+            }
+        }
+    }
+}
+
+fn has_candidate_ancestor(
+    t: &StorageTree,
+    id: NodeId,
+    candidates: &std::collections::HashSet<NodeId>,
+) -> bool {
+    let mut cur = t.node(id).and_then(|n| n.parent);
+    while let Some(pid) = cur {
+        if candidates.contains(&pid) {
+            return true;
+        }
+        cur = t.node(pid).and_then(|n| n.parent);
+    }
+    false
+}
+
+/// Paths that belong to installed software or toolchains rather than a user's project.
+/// Their bundled `node_modules`, `bin` or `target` folders are part of a working program.
+fn is_installed_software_path(path_lower: &str) -> bool {
+    const PARTS: &[&str] = &[
+        r"\program files",
+        r"\programdata\",
+        r"\windows\",
+        r"\windowsapps\",
+        r"\appdata\local\programs\",
+        r"\appdata\local\microsoft\",
+        r"\appdata\roaming\npm\",
+        r"\nvm\",
+        r"\resources\app",
+        r"\.cargo\",
+        r"\.rustup\",
+        r"\.vscode\extensions\",
+        r"\.vscode-insiders\extensions\",
+        r"\.cursor\extensions\",
+        r"\scoop\apps\",
+        r"\chocolatey\",
+    ];
+    PARTS.iter().any(|p| path_lower.contains(p))
+}
+
+/// Newest file modification time inside `id`, visiting at most `max_visits` nodes.
+fn newest_file_mtime(t: &StorageTree, id: NodeId, max_visits: usize) -> Option<SystemTime> {
+    let mut newest: Option<SystemTime> = None;
+    let mut stack = vec![id];
+    let mut visits = 0usize;
+    while let Some(cur) = stack.pop() {
+        visits += 1;
+        if visits > max_visits {
+            break;
+        }
+        let Some(node) = t.node(cur) else { continue };
+        if node.kind == NodeKind::File {
+            if let Some(m) = node.modified {
+                newest = Some(newest.map_or(m, |n| n.max(m)));
+            }
+        } else if let Some(children) = t.children(cur) {
+            stack.extend_from_slice(children);
+        }
+    }
+    newest
+}
+
+/// Dormant when the newest activity is 30 or more days old; unknown activity is never dormant.
+fn dormancy(newest: Option<SystemTime>, now: SystemTime) -> (bool, u32) {
+    match newest {
+        Some(m) => {
+            let days = now
+                .duration_since(m)
+                .map(|d| (d.as_secs() / 86400) as u32)
+                .unwrap_or(0);
+            (days >= 30, days)
+        }
+        None => (false, DAYS_UNKNOWN),
+    }
 }
 
 /// Probes canonical global package caches, stores, and container disks on Windows.
@@ -326,7 +477,7 @@ fn probe_global_dev_caches(
                 size,
                 file_count,
                 is_dormant: false,
-                days_inactive: 0,
+                days_inactive: DAYS_UNKNOWN,
                 risk_level: risk,
                 description: desc.to_string(),
                 cleanup_command: cmd.to_string(),
@@ -444,6 +595,10 @@ mod tests {
                 meta: dir_meta("target"),
             },
             ScanEvent::FileFound {
+                parent_id: NodeId(0),
+                meta: file_meta("Cargo.toml", 100),
+            },
+            ScanEvent::FileFound {
                 parent_id: NodeId(1),
                 meta: file_meta("libapp.rlib", 10485760), // 10 MB
             },
@@ -455,8 +610,8 @@ mod tests {
             },
             ScanEvent::DirectoryComplete {
                 id: NodeId(0),
-                total_size: 10485760,
-                file_count: 1,
+                total_size: 10485860,
+                file_count: 2,
                 dir_count: 1,
             },
         ];
@@ -473,6 +628,157 @@ mod tests {
         assert_eq!(art.size, 10485760);
         assert_eq!(art.file_count, 1);
         assert_eq!(art.project_name, "MyRustApp");
+    }
+
+    /// Builds a tree rooted at `root` from `(relative/path/with/slashes, size, modified)` files.
+    fn tree_of(root: &str, files: &[(&str, u64, Option<SystemTime>)]) -> StorageTree {
+        use std::collections::BTreeMap;
+        // Directory paths ("" is the root) -> id, plus their files and child dirs.
+        let mut ids: BTreeMap<String, u64> = BTreeMap::new();
+        ids.insert(String::new(), 0);
+        let mut next = 1u64;
+        let mut events = vec![ScanEvent::EnteredDirectory {
+            parent_id: None,
+            id: NodeId(0),
+            meta: dir_meta(root),
+        }];
+        let mut dirs_in_order = vec![String::new()];
+        for (path, _, _) in files {
+            let parts: Vec<&str> = path.split('/').collect();
+            let mut cur = String::new();
+            for part in &parts[..parts.len() - 1] {
+                let child = if cur.is_empty() {
+                    part.to_string()
+                } else {
+                    format!("{cur}/{part}")
+                };
+                if !ids.contains_key(&child) {
+                    ids.insert(child.clone(), next);
+                    events.push(ScanEvent::EnteredDirectory {
+                        parent_id: Some(NodeId(ids[&cur])),
+                        id: NodeId(next),
+                        meta: dir_meta(part),
+                    });
+                    dirs_in_order.push(child.clone());
+                    next += 1;
+                }
+                cur = child;
+            }
+        }
+        for (path, size, modified) in files {
+            let (dir, name) = path.rsplit_once('/').unwrap_or(("", path));
+            let mut meta = file_meta(name, *size);
+            meta.modified = *modified;
+            events.push(ScanEvent::FileFound {
+                parent_id: NodeId(ids[dir]),
+                meta,
+            });
+        }
+        // Post-order completion: deepest directories first.
+        dirs_in_order
+            .sort_by_key(|d| std::cmp::Reverse(d.matches('/').count() + !d.is_empty() as usize));
+        for d in dirs_in_order {
+            let inside = |p: &str| d.is_empty() || p.starts_with(&format!("{d}/"));
+            let total: u64 = files.iter().filter(|f| inside(f.0)).map(|f| f.1).sum();
+            let count = files.iter().filter(|f| inside(f.0)).count() as u64;
+            let sub = ids
+                .keys()
+                .filter(|k| !k.is_empty() && *k != &d && inside(k))
+                .count() as u64;
+            events.push(ScanEvent::DirectoryComplete {
+                id: NodeId(ids[&d]),
+                total_size: total,
+                file_count: count,
+                dir_count: sub,
+            });
+        }
+        StorageTree::build(events).unwrap()
+    }
+
+    fn project_artifacts(tree: &StorageTree) -> Vec<DevArtifact> {
+        detect_dev_artifacts(Some(tree))
+            .into_iter()
+            .filter(|a| a.kind == DevArtifactKind::ProjectArtifact)
+            .collect()
+    }
+
+    #[test]
+    fn folders_without_a_project_marker_are_not_artifacts() {
+        // A plain "bin" (no .csproj) and a "target" (no Cargo.toml), e.g. ~/go/bin or a photo folder.
+        let tree = tree_of(
+            r"C:\Users\u\stuff",
+            &[
+                ("bin/tool.exe", 5000, None),
+                ("target/notes.txt", 5000, None),
+            ],
+        );
+        assert!(project_artifacts(&tree).is_empty());
+    }
+
+    #[test]
+    fn installed_software_folders_are_never_artifacts() {
+        // Bundled node_modules of an installed desktop app and Node's own global modules.
+        let tree = tree_of(
+            r"C:\Users\u\AppData\Local",
+            &[
+                ("Programs/Editor/resources/app/package.json", 10, None),
+                (
+                    "Programs/Editor/resources/app/node_modules/x/index.js",
+                    9000,
+                    None,
+                ),
+                ("nvm/v24.14.0/package.json", 10, None),
+                ("nvm/v24.14.0/node_modules/npm/index.js", 9000, None),
+            ],
+        );
+        assert!(project_artifacts(&tree).is_empty());
+    }
+
+    #[test]
+    fn nested_artifacts_are_reported_once() {
+        let tree = tree_of(
+            r"C:\code\web",
+            &[
+                ("package.json", 10, None),
+                ("node_modules/lib/package.json", 10, None),
+                ("node_modules/lib/node_modules/dep/index.js", 4000, None),
+                ("node_modules/lib/index.js", 4000, None),
+            ],
+        );
+        let arts = project_artifacts(&tree);
+        assert_eq!(arts.len(), 1, "{arts:?}");
+        assert!(arts[0].path.ends_with("node_modules"));
+        assert_eq!(
+            arts[0].project_name,
+            r"C:\code\web".rsplit('\\').next().unwrap()
+        );
+    }
+
+    #[test]
+    fn dormancy_comes_from_newest_file_inside_the_artifact() {
+        let now = SystemTime::now();
+        let day = std::time::Duration::from_secs(86_400);
+        let old = Some(now - day * 90);
+        let recent = Some(now - day * 2);
+        let tree = tree_of(
+            r"C:\code",
+            &[
+                ("old/Cargo.toml", 10, old),
+                ("old/target/debug/app.exe", 9000, old),
+                ("new/Cargo.toml", 10, recent),
+                ("new/target/debug/app.exe", 9000, recent),
+                ("unknown/Cargo.toml", 10, None),
+                ("unknown/target/debug/app.exe", 9000, None),
+            ],
+        );
+        let arts = project_artifacts(&tree);
+        let by = |p: &str| arts.iter().find(|a| a.project_name == p).unwrap();
+        assert!(by("old").is_dormant);
+        assert!(by("old").days_inactive >= 89);
+        assert!(!by("new").is_dormant);
+        assert!(by("new").days_inactive <= 3);
+        assert!(!by("unknown").is_dormant);
+        assert_eq!(by("unknown").days_inactive, DAYS_UNKNOWN);
     }
 
     #[test]

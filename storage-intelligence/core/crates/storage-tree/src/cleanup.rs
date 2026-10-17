@@ -4,6 +4,7 @@
 //! dry-run simulation mode, and safe deletion via Windows Recycle Bin (FOF_ALLOWUNDO).
 
 use crate::tree::{NodeKind, StorageTree};
+use common::NodeId;
 use std::path::{Path, PathBuf};
 
 /// Enumeration of distinct cleanup rule categories (PRD §12).
@@ -405,20 +406,47 @@ impl StorageTree {
         let mut file_count = 0u64;
         let mut targets = Vec::new();
 
-        // 1. Try resolving through in-memory tree nodes first
-        let target_str = target_dir.to_string_lossy().to_ascii_lowercase();
+        // 1. Try resolving through in-memory tree nodes first. Find the target folder once and
+        // walk only its subtree; building every node's full path cost ~7 s per rule at 2M nodes.
+        let target_str = target_dir
+            .to_string_lossy()
+            .replace('/', "\\")
+            .trim_end_matches('\\')
+            .to_ascii_lowercase();
+        let root_str = self
+            .full_path(self.root())
+            .map(|p| {
+                p.to_string_lossy()
+                    .replace('/', "\\")
+                    .trim_end_matches('\\')
+                    .to_ascii_lowercase()
+            })
+            .unwrap_or_default();
+        let start = self.find_by_path(target_dir).or_else(|| {
+            // The scan root itself lies inside the target folder: the whole tree is in scope.
+            (root_str.starts_with(&format!("{target_str}\\"))).then(|| self.root())
+        });
         let mut matched_in_tree = false;
 
-        for node in &self.nodes {
-            if let Some(path) = self.full_path(node.id) {
-                let p_str = path.to_string_lossy().to_ascii_lowercase();
-                if p_str.starts_with(&target_str) && p_str != target_str {
-                    matched_in_tree = true;
-                    if node.kind == NodeKind::File && filter(&node.name) {
-                        total_bytes += node.size;
-                        file_count += 1;
-                        targets.push(path);
+        if let Some(start) = start {
+            let mut stack: Vec<NodeId> = self.children(start).unwrap_or(&[]).to_vec();
+            if start == self.root() && root_str != target_str {
+                // Root is a descendant of the target, so its own files count too.
+                matched_in_tree = true;
+            }
+            while let Some(id) = stack.pop() {
+                matched_in_tree = true;
+                let node = &self.nodes[id.0 as usize];
+                if node.kind == NodeKind::File {
+                    if filter(&node.name) {
+                        if let Some(path) = self.full_path(id) {
+                            total_bytes += node.size;
+                            file_count += 1;
+                            targets.push(path);
+                        }
                     }
+                } else if let Some(children) = self.children(id) {
+                    stack.extend_from_slice(children);
                 }
             }
         }
@@ -576,6 +604,115 @@ mod tests {
     use super::*;
     use common::{FileAttributeFlags, NodeId, ScanEvent};
     use tempfile::tempdir;
+
+    /// Root dir `root` with one level of subdirs: `(subdir or "", file name, size)`.
+    fn small_tree(root: &str, files: &[(&str, &str, u64)]) -> StorageTree {
+        let dir = |name: &str| common::DirMetadata {
+            name: name.into(),
+            is_reparse_point: false,
+        };
+        let file = |name: &str, size: u64| common::FileMetadata {
+            name: name.into(),
+            size,
+            extension: None,
+            modified: None,
+            created: None,
+            attributes: FileAttributeFlags::default(),
+        };
+        let mut events = vec![ScanEvent::EnteredDirectory {
+            parent_id: None,
+            id: NodeId(0),
+            meta: dir(root),
+        }];
+        let mut subs: Vec<&str> = files
+            .iter()
+            .map(|f| f.0)
+            .filter(|s| !s.is_empty())
+            .collect();
+        subs.dedup();
+        for (i, s) in subs.iter().enumerate() {
+            events.push(ScanEvent::EnteredDirectory {
+                parent_id: Some(NodeId(0)),
+                id: NodeId(i as u64 + 1),
+                meta: dir(s),
+            });
+        }
+        let id_of = |s: &str| {
+            subs.iter()
+                .position(|x| *x == s)
+                .map_or(NodeId(0), |i| NodeId(i as u64 + 1))
+        };
+        for (s, name, size) in files {
+            events.push(ScanEvent::FileFound {
+                parent_id: id_of(s),
+                meta: file(name, *size),
+            });
+        }
+        for s in &subs {
+            let inside: Vec<_> = files.iter().filter(|f| f.0 == *s).collect();
+            events.push(ScanEvent::DirectoryComplete {
+                id: id_of(s),
+                total_size: inside.iter().map(|f| f.2).sum(),
+                file_count: inside.len() as u64,
+                dir_count: 0,
+            });
+        }
+        events.push(ScanEvent::DirectoryComplete {
+            id: NodeId(0),
+            total_size: files.iter().map(|f| f.2).sum(),
+            file_count: files.len() as u64,
+            dir_count: subs.len() as u64,
+        });
+        StorageTree::build(events).unwrap()
+    }
+
+    #[test]
+    fn aggregate_counts_only_files_under_the_target_folder() {
+        let tree = small_tree(
+            r"C:\Users\u\AppData\Local",
+            &[
+                ("Temp", "a.tmp", 100),
+                ("Temp", "b.tmp", 200),
+                ("Other", "c.txt", 400),
+            ],
+        );
+        let (bytes, count, targets) =
+            tree.aggregate_path_or_disk(Path::new(r"C:\Users\u\AppData\Local\Temp"), |_| true);
+        assert_eq!((bytes, count, targets.len()), (300, 2, 2));
+
+        // Same folder spelled with different case and a trailing slash
+        let (bytes, count, _) =
+            tree.aggregate_path_or_disk(Path::new(r"c:\users\U\appdata\local\TEMP\"), |_| true);
+        assert_eq!((bytes, count), (300, 2));
+
+        // Filter still applies
+        let (bytes, count, _) = tree
+            .aggregate_path_or_disk(Path::new(r"C:\Users\u\AppData\Local\Temp"), |n| {
+                n.starts_with('a')
+            });
+        assert_eq!((bytes, count), (100, 1));
+    }
+
+    #[test]
+    fn aggregate_covers_a_scan_root_that_lies_inside_the_target() {
+        // Scanned a subfolder of Temp: everything in the tree is inside the target
+        let tree = small_tree(
+            r"C:\Users\u\AppData\Local\Temp\job",
+            &[("", "x.tmp", 10), ("sub", "y.tmp", 20)],
+        );
+        let (bytes, count, _) =
+            tree.aggregate_path_or_disk(Path::new(r"C:\Users\u\AppData\Local\Temp"), |_| true);
+        assert_eq!((bytes, count), (30, 2));
+    }
+
+    #[test]
+    fn aggregate_ignores_tree_nodes_outside_the_target() {
+        let tree = small_tree(r"C:\code", &[("", "main.rs", 10)]);
+        // Not in the tree and does not exist on disk: nothing found
+        let (bytes, count, targets) =
+            tree.aggregate_path_or_disk(Path::new(r"Z:\definitely\missing"), |_| true);
+        assert_eq!((bytes, count, targets.len()), (0, 0, 0));
+    }
 
     #[test]
     fn safety_protected_paths_are_strictly_rejected() {

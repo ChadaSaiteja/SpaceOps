@@ -70,9 +70,18 @@ public sealed record DevArtifactInfo(
         _ => "Developer Storage",
     };
 
-    public string DormancyText => IsDormant
-        ? $"Dormant ({DaysInactive} days inactive)"
-        : (DaysInactive > 0 ? $"Active ({DaysInactive} days ago)" : "Active today");
+    /// <summary>Matches the Rust core's DAYS_UNKNOWN: no file times were available for this artifact.</summary>
+    public const uint DaysUnknown = uint.MaxValue;
+
+    public bool IsActivityKnown => Kind == DevArtifactKind.ProjectArtifact && DaysInactive != DaysUnknown;
+
+    public string DormancyText => Kind != DevArtifactKind.ProjectArtifact
+        ? "Shared cache"
+        : DaysInactive == DaysUnknown
+            ? "Activity unknown"
+            : IsDormant
+                ? $"Dormant ({DaysInactive} days inactive)"
+                : (DaysInactive > 0 ? $"Active ({DaysInactive} days ago)" : "Active today");
 }
 
 /// <summary>

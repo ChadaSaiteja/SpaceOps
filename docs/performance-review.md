@@ -158,3 +158,21 @@ tile layer to a `CanvasRenderTarget`/`CanvasCachedGeometry` and draw only the ho
 outline on top when the pointer moves. A Rust-side batch call returning names and sizes
 for a rect list in one FFI crossing would remove the per-tile P/Invoke cost entirely, but
 it needs a new `extern "C"` function and is outside this pass (FFI surface frozen).
+
+## Treemap directory coloring (dominant-content category)
+
+Directory tiles now take the category of the file reached by repeatedly following the
+largest child (max 32 hops, resolved only for tiles that survive culling). Measured with
+`cargo run --release -p storage-tree --example tree_benchmark`, `layout(1920x1080,d4)`,
+before/after binaries run interleaved, median of 3 runs (best-of-5 inside each run):
+
+| Nodes | Before    | After     |
+|------:|----------:|----------:|
+| 200K  | 17.78 ms  | 20.30 ms  |
+| 500K  | 44.49 ms  | 45.16 ms  |
+| 1M    | 105.03 ms | 106.47 ms |
+
+The 1M layout is within 1.5% of the previous median. The 200K difference is inside this
+machine's run-to-run noise (single runs of the unchanged binary ranged 17.6-19.1 ms, and
+of the new one 18.0-27.9 ms, while other workloads were active); the added work is one or
+two O(1) arena lookups per emitted directory tile.

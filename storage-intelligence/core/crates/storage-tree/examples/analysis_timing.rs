@@ -36,6 +36,23 @@ fn main() {
     );
 
     let t = Instant::now();
+    let junk = tree.detect_cleanup_candidates();
+    println!(
+        "cleanup rules   {:>8.2} s ({} candidates)",
+        t.elapsed().as_secs_f64(),
+        junk.len()
+    );
+    for c in &junk {
+        println!(
+            "    {:<34} {:>14} bytes {:>8} files {:>7} targets",
+            c.name,
+            c.total_bytes,
+            c.file_count,
+            c.target_paths.len()
+        );
+    }
+
+    let t = Instant::now();
     let arts = developer::detect_dev_artifacts(Some(&tree));
     let dormant = arts.iter().filter(|a| a.is_dormant).count();
     println!(

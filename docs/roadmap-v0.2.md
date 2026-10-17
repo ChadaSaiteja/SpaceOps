@@ -94,3 +94,10 @@ Not yet verified / still open:
 UI tour (2026-10-17, read-only: typed a path, pressed Scan on the repo folder, switched pages; no Clean/Uninstall/Recycle pressed):
 - All five pages render with real data; Overview, Treemap, Cleanup, Developer, Applications verified by screenshot.
 - Fixed from the tour: folder headers in treemap, Depth selector wired (was a stub), `AppData\Local\Programs` and other shared folders no longer offered as leftovers, leftovers labelled Medium risk, registry sizes labelled "Registry est.", row text left-aligned.
+
+Real-drive run (2026-10-17, read-only scan of a 2,164,935-node user profile; nothing cleaned):
+- Scan 33-49 s (Win32 tier, not elevated), tree build ~0.5 s, page switches 35-314 ms, app stays responsive, no crash.
+- Fixed: developer artifacts offered from installed software (app bundles, nvm, ~/.cargo/bin) and nested duplicates (7,896 -> 1,178); dormancy never worked because folders carry no mtime (0 -> 458 dormant).
+- Fixed: cleanup analysis 22.2 s -> 2.0 s (Overview "Reclaimable now" waited ~26 s before).
+- Fixed (feat/rust-quality): treemap folders colored by dominant content; leftovers skip folders active in the last 30 days (34 -> 15).
+- Open: app working set ~620-750 MB at 2.16M nodes (the 55 MB figure is the core tree at 1M nodes only); worth a memory profile.

@@ -79,12 +79,18 @@ Working order. Each task ends with a verification gate; do not start the next ta
 3. Code-signing certificate (cost) vs shipping unsigned with documented SmartScreen steps.
 
 ## Status (integration/v0.2)
-Done and verified locally (96 Rust + 34 C# tests, clean build, app launches without crashing):
+Done and verified locally (97 Rust + 34 C# tests, clean build, app launches without crashing):
 - Tasks 1-5 (theme, sidebar shell, Overview, treemap polish, cleanup unification), C# code split, FFI module split, performance review (8 kept changes).
 - Task 8 pipeline written; Task 9-10 README, landing page, guides, sitemap, robots, llms files, packaging drafts.
 
 Not yet verified / still open:
-- Visual review of the new UI (screenshots of the WinUI window were black in the test environment); click-through of pages other than Overview; real-drive scan; 60 FPS on a 1M-node tree.
+- 60 FPS on a 1M-node tree (only a 16k-node folder was scanned in the UI tour).
+- Treemap folders are always drawn in the "Other" grey; coloring folders by their dominant file category would make deep build trees readable (needs a Rust aggregate).
+- Leftover detection is still a name-match heuristic (e.g. per-user folders in ProgramData, MSIX apps such as Claude get flagged); results are Medium risk and unselected, but a stronger signal (registry/MSIX package lookup) is needed before any default selection.
 - App smoke check in CI (Task 0).
 - Release workflow only validated locally (publish succeeds); arm64 cross-compile, release creation and notes extraction need a real run: push a `v0.2.0-rc1` tag or run the workflow with dry_run.
 - Code signing, winget/Scoop/Chocolatey submissions, GitHub Pages source, repo topics and social preview (see docs/github-repo-settings.md and docs/launch-checklist.md).
+
+UI tour (2026-10-17, read-only: typed a path, pressed Scan on the repo folder, switched pages; no Clean/Uninstall/Recycle pressed):
+- All five pages render with real data; Overview, Treemap, Cleanup, Developer, Applications verified by screenshot.
+- Fixed from the tour: folder headers in treemap, Depth selector wired (was a stub), `AppData\Local\Programs` and other shared folders no longer offered as leftovers, leftovers labelled Medium risk, registry sizes labelled "Registry est.", row text left-aligned.

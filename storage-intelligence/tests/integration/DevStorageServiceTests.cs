@@ -60,6 +60,16 @@ public class DevStorageServiceTests
             var netProj = Directory.CreateDirectory(Path.Combine(tempRoot.FullName, "DesktopApp", "obj", "Debug"));
             File.WriteAllBytes(Path.Combine(netProj.FullName, "app.dll"), new byte[40000]);
 
+            // Each artifact only counts next to (or, for .venv, inside) the file that recreates it
+            File.WriteAllText(Path.Combine(tempRoot.FullName, "WebFrontend", "package.json"), "{}");
+            File.WriteAllText(Path.Combine(tempRoot.FullName, "CoreEngine", "Cargo.toml"), "[package]");
+            File.WriteAllText(Path.Combine(tempRoot.FullName, "DataService", ".venv", "pyvenv.cfg"), "home = C:\\Python");
+            File.WriteAllText(Path.Combine(tempRoot.FullName, "DesktopApp", "DesktopApp.csproj"), "<Project />");
+
+            // A plain "bin" folder with no project file next to it is not a build artifact
+            var toolsBin = Directory.CreateDirectory(Path.Combine(tempRoot.FullName, "Tools", "bin"));
+            File.WriteAllBytes(Path.Combine(toolsBin.FullName, "tool.exe"), new byte[30000]);
+
             using var scanResult = await ScanService.ScanDriveWithResultAsync(tempRoot.FullName);
             using var tree = await StorageTreeService.BuildAsync(scanResult);
 
@@ -97,6 +107,13 @@ public class DevStorageServiceTests
             Assert.Equal(DevArtifactKind.ProjectArtifact, objArt.Kind);
             Assert.Equal("DesktopApp", objArt.ProjectName);
             Assert.True(objArt.SizeBytes >= 40000);
+
+            // No project file next to Tools\bin, so it must not be offered
+            Assert.DoesNotContain(artifacts, a => a.Path.EndsWith(Path.Combine("Tools", "bin"), StringComparison.OrdinalIgnoreCase));
+
+            // Files were just written, so every project artifact is active, not dormant
+            Assert.All(artifacts.Where(a => a.Kind == DevArtifactKind.ProjectArtifact && a.Path.StartsWith(tempRoot.FullName, StringComparison.OrdinalIgnoreCase)),
+                a => Assert.False(a.IsDormant));
         }
         finally
         {

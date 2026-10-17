@@ -60,7 +60,9 @@ public sealed class DevArtifactViewModel : INotifyPropertyChanged
         _ => ThemeBrushes.Neutral,
     };
 
-    public SolidColorBrush DormancyBrush => IsDormant ? ThemeBrushes.Amber : ThemeBrushes.Green;
+    public SolidColorBrush DormancyBrush => IsDormant
+        ? ThemeBrushes.Amber
+        : (Info.IsActivityKnown ? ThemeBrushes.Green : ThemeBrushes.Muted);
 
     public SolidColorBrush RiskBrush => RiskLevel switch
     {

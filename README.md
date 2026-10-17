@@ -13,7 +13,7 @@
 [![Platform](https://img.shields.io/badge/Platform-Windows%2010%20%2F%2011-0078D6?logo=windows)](https://microsoft.com/windows)
 [![Rust](https://img.shields.io/badge/Rust-1.75%2B-orange?logo=rust)](https://www.rust-lang.org/)
 [![.NET](https://img.shields.io/badge/.NET-9.0-512BD4?logo=dotnet)](https://dotnet.microsoft.com/)
-[![Tests](https://img.shields.io/badge/Tests-130%20Passed-brightgreen)](https://github.com/ChadaSaiteja/SpaceOps/actions/workflows/ci.yml)
+[![Tests](https://img.shields.io/badge/Tests-131%20Passed-brightgreen)](https://github.com/ChadaSaiteja/SpaceOps/actions/workflows/ci.yml)
 
 [Download](#download) •
 [What is SpaceOps?](#what-is-spaceops) •

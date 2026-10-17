@@ -217,6 +217,8 @@ fn layout_children(
 
     for &id in child_ids {
         if let Some(node) = tree.node(id) {
+            // Directory categories are resolved lazily in `layout_row`, only for tiles that
+            // survive culling, so the largest-child walk never runs for invisible items.
             let cat = if node.kind == NodeKind::Directory {
                 FileCategory::Other
             } else {
@@ -258,6 +260,32 @@ fn layout_children(
         min_size_px,
         out,
     );
+}
+
+/// Maximum number of largest-child hops `dominant_category` follows before giving up.
+const MAX_DOMINANT_HOPS: usize = 32;
+
+/// Cheap approximation of a directory's dominant content category: follows the largest
+/// child (children are pre-sorted by size descending) until it reaches a file, and returns
+/// that file's category. Empty directories, reparse points, inaccessible nodes and chains
+/// longer than `MAX_DOMINANT_HOPS` yield `Other`. O(depth), never walks a whole subtree.
+fn dominant_category(tree: &StorageTree, dir_id: NodeId) -> FileCategory {
+    let mut current = dir_id;
+    for _ in 0..=MAX_DOMINANT_HOPS {
+        let node = match tree.node(current) {
+            Some(n) => n,
+            None => return FileCategory::Other,
+        };
+        match node.kind {
+            NodeKind::File => return classify_extension(node.extension),
+            NodeKind::Directory => match tree.children(current).and_then(|c| c.first()) {
+                Some(&largest) => current = largest,
+                None => return FileCategory::Other,
+            },
+            _ => return FileCategory::Other,
+        }
+    }
+    FileCategory::Other
 }
 
 /// Squarifies a list of items into `bounds`.
@@ -441,6 +469,11 @@ fn layout_row(
         }
 
         // Add this item rectangle
+        let category = if item.kind == NodeKind::Directory {
+            dominant_category(tree, item.node_id)
+        } else {
+            item.category
+        };
         out.push(TreemapRect {
             node_id: item.node_id,
             x: rx,
@@ -449,7 +482,7 @@ fn layout_row(
             height: rh,
             depth: current_depth,
             kind: item.kind,
-            category: item.category,
+            category,
         });
 
         // Recursively subdivide directory children if within max_depth and large enough
@@ -711,6 +744,123 @@ mod tests {
         for r in &rects {
             assert!(r.width >= 350.0 || r.height >= 350.0);
         }
+    }
+
+    fn dir_event(id: u64, parent: Option<u64>, name: &str) -> ScanEvent {
+        ScanEvent::EnteredDirectory {
+            id: NodeId(id),
+            parent_id: parent.map(NodeId),
+            meta: DirMetadata {
+                name: OsString::from(name),
+                is_reparse_point: false,
+            },
+        }
+    }
+
+    fn file_event(parent: u64, name: &str, ext: &str, size: u64) -> ScanEvent {
+        ScanEvent::FileFound {
+            parent_id: NodeId(parent),
+            meta: FileMetadata {
+                name: OsString::from(name),
+                size,
+                extension: Some(ext.to_string()),
+                modified: None,
+                created: None,
+                attributes: FileAttributeFlags::default(),
+            },
+        }
+    }
+
+    fn done_event(id: u64, total_size: u64, file_count: u64, dir_count: u64) -> ScanEvent {
+        ScanEvent::DirectoryComplete {
+            id: NodeId(id),
+            total_size,
+            file_count,
+            dir_count,
+        }
+    }
+
+    /// root/
+    ///   media/            (mostly video, nested one level)
+    ///     season1/ ep1.mkv 7000, ep2.mkv 1000
+    ///     notes.txt 100
+    ///   empty/
+    ///   misc/ blob.unknownext 900
+    fn build_category_tree() -> StorageTree {
+        let events = vec![
+            dir_event(0, None, "root"),
+            dir_event(1, Some(0), "media"),
+            dir_event(2, Some(1), "season1"),
+            file_event(2, "ep1.mkv", "mkv", 7000),
+            file_event(2, "ep2.mkv", "mkv", 1000),
+            done_event(2, 8000, 2, 0),
+            file_event(1, "notes.txt", "txt", 100),
+            done_event(1, 8100, 3, 1),
+            dir_event(3, Some(0), "empty"),
+            done_event(3, 0, 0, 0),
+            dir_event(4, Some(0), "misc"),
+            file_event(4, "blob.unknownext", "unknownext", 900),
+            done_event(4, 900, 1, 0),
+            done_event(0, 9000, 4, 4),
+        ];
+        StorageTree::build(events).unwrap()
+    }
+
+    /// Tree ids are reassigned during build, so tests look directories up by name.
+    fn child_named(tree: &StorageTree, parent: NodeId, name: &str) -> NodeId {
+        *tree
+            .children(parent)
+            .unwrap()
+            .iter()
+            .find(|&&c| tree.node(c).unwrap().name == name)
+            .unwrap_or_else(|| panic!("{name} missing"))
+    }
+
+    #[test]
+    fn directory_with_mostly_video_is_categorized_video() {
+        let tree = build_category_tree();
+        let media_id = child_named(&tree, tree.root(), "media");
+        assert_eq!(dominant_category(&tree, media_id), FileCategory::Video);
+
+        let rects = compute_treemap_layout(&tree, tree.root(), 800.0, 600.0, 1, 2.0);
+        let media = rects
+            .iter()
+            .find(|r| r.node_id == media_id)
+            .expect("media rect missing");
+        assert_eq!(media.kind, NodeKind::Directory);
+        assert_eq!(media.category, FileCategory::Video);
+    }
+
+    #[test]
+    fn empty_and_unknown_directories_stay_other() {
+        let tree = build_category_tree();
+        let empty = child_named(&tree, tree.root(), "empty");
+        let misc = child_named(&tree, tree.root(), "misc");
+        assert_eq!(dominant_category(&tree, empty), FileCategory::Other);
+        assert_eq!(dominant_category(&tree, misc), FileCategory::Other);
+    }
+
+    #[test]
+    fn dominant_category_stops_after_hop_limit() {
+        // A chain of directories deeper than the hop limit ending in a video file.
+        let depth = MAX_DOMINANT_HOPS as u64 + 5;
+        let mut events = Vec::new();
+        events.push(dir_event(0, None, "root"));
+        for i in 1..=depth {
+            events.push(dir_event(i, Some(i - 1), &format!("d{i}")));
+        }
+        events.push(file_event(depth, "deep.mp4", "mp4", 500));
+        for i in (0..=depth).rev() {
+            events.push(done_event(i, 500, 1, u64::from(i < depth)));
+        }
+        let tree = StorageTree::build(events).unwrap();
+        assert_eq!(dominant_category(&tree, tree.root()), FileCategory::Other);
+        // Close enough to the file, the chain resolves.
+        let mut near = tree.root();
+        for i in 1..=depth - 3 {
+            near = child_named(&tree, near, &format!("d{i}"));
+        }
+        assert_eq!(dominant_category(&tree, near), FileCategory::Video);
     }
 
     #[test]

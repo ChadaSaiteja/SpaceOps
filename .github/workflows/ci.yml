@@ -1,14 +1,83 @@
 name: CI
 
+# The full Windows build + tests (~5-10 min) runs only when app code changes, and only once:
+# - Website/docs-only changes (index.html, *.md, docs/, docs-site/, images...) skip the build.
+# - A PR merged into main is not rebuilt; it already passed on the PR.
+# - A new push to the same PR cancels the run that is still in progress.
+# - "Run workflow" on the Actions tab always runs the full build.
+# Use the "CI result" check (not "Build & Test") as the required status check: it passes
+# when the build passed or was correctly skipped.
+
 on:
   push:
     branches: [ main ]
   pull_request:
     branches: [ main ]
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
 
 jobs:
+  changes:
+    name: Detect code changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Decide whether the build is needed
+        id: filter
+        shell: bash
+        env:
+          EVENT: ${{ github.event_name }}
+          PR_BASE: ${{ github.event.pull_request.base.sha }}
+          PR_HEAD: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE: ${{ github.event.before }}
+          PUSH_AFTER: ${{ github.sha }}
+          HEAD_MESSAGE: ${{ github.event.head_commit.message }}
+        run: |
+          set -euo pipefail
+          decide() { echo "code=$1" >> "$GITHUB_OUTPUT"; echo "Build needed: $1 ($2)"; }
+
+          if [ "$EVENT" = "workflow_dispatch" ]; then decide true "manual run"; exit 0; fi
+
+          if [ "$EVENT" = "push" ]; then
+            # Merges from a PR were already built and tested on the PR.
+            first_line="$(printf '%s' "$HEAD_MESSAGE" | head -n1)"
+            if printf '%s' "$first_line" | grep -qE '^Merge pull request #[0-9]+|\(#[0-9]+\)$'; then
+              decide false "PR merge, already tested on the PR"; exit 0
+            fi
+            BASE="$PUSH_BEFORE"; HEAD="$PUSH_AFTER"
+          else
+            BASE="$PR_BASE"; HEAD="$PR_HEAD"
+          fi
+
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            decide true "no usable base commit"; exit 0
+          fi
+
+          changed="$(git diff --name-only "$BASE" "$HEAD")"
+          echo "Changed files:"; echo "$changed"
+          # App code, build config, or this workflow. Everything else (website, docs, README) is skipped.
+          if echo "$changed" | grep -qE '^(storage-intelligence/|global\.json$|\.github/workflows/ci\.yml$)'; then
+            decide true "app code changed"
+          else
+            decide false "only website/docs changed"
+          fi
+
   build-and-test:
     name: Build & Test (Windows)
+    needs: changes
+    if: needs.changes.outputs.code == 'true'
     runs-on: windows-latest
 
     steps:
@@ -30,6 +99,13 @@ jobs:
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '9.0.x'
+
+      - name: NuGet package cache
+        uses: actions/cache@v4
+        with:
+          path: ~/.nuget/packages
+          key: nuget-${{ runner.os }}-${{ hashFiles('**/*.csproj', 'global.json', 'storage-intelligence/app/global.json') }}
+          restore-keys: nuget-${{ runner.os }}-
 
       - name: Verify Rust code formatting
         run: |
@@ -84,3 +160,23 @@ jobs:
       - name: Run C# integration tests (FFI boundary + end-to-end smoke)
         run: |
           dotnet test storage-intelligence/tests/integration/StorageIntelligence.IntegrationTests.csproj -c Release --verbosity normal
+
+  ci-result:
+    name: CI result
+    if: always()
+    needs: [ changes, build-and-test ]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Report overall result
+        shell: bash
+        env:
+          CHANGES: ${{ needs.changes.result }}
+          BUILD: ${{ needs.build-and-test.result }}
+          NEEDED: ${{ needs.changes.outputs.code }}
+        run: |
+          echo "Detect changes: $CHANGES, build needed: $NEEDED, build: $BUILD"
+          if [ "$CHANGES" != "success" ]; then echo "Change detection failed"; exit 1; fi
+          if [ "$BUILD" = "success" ] || { [ "$BUILD" = "skipped" ] && [ "$NEEDED" != "true" ]; }; then
+            echo "CI passed"; exit 0
+          fi
+          echo "Build & Test did not pass"; exit 1

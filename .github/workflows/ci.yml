@@ -1,7 +1,10 @@
 name: CI
 
-# The full Windows build + tests (~5-10 min) runs only when app code changes, and only once:
+# The Windows build runs only when app code changes, only once, and only tests what changed:
 # - Website/docs-only changes (index.html, *.md, docs/, docs-site/, images...) skip the build.
+# - C# app/test changes: build + C# tests; Rust format, lint and tests are skipped.
+# - Rust core changes: Rust format, lint and tests + C# tests (the app calls the core, and the
+#   C# integration tests are what catch a core change that breaks the app).
 # - A PR merged into main is not rebuilt; it already passed on the PR.
 # - A new push to the same PR cancels the run that is still in progress.
 # - "Run workflow" on the Actions tab always runs the full build.
@@ -28,6 +31,7 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       code: ${{ steps.filter.outputs.code }}
+      rust: ${{ steps.filter.outputs.rust }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -46,15 +50,19 @@ jobs:
           HEAD_MESSAGE: ${{ github.event.head_commit.message }}
         run: |
           set -euo pipefail
-          decide() { echo "code=$1" >> "$GITHUB_OUTPUT"; echo "Build needed: $1 ($2)"; }
+          # decide <build needed> <rust checks needed> <reason>
+          decide() {
+            echo "code=$1" >> "$GITHUB_OUTPUT"; echo "rust=$2" >> "$GITHUB_OUTPUT"
+            echo "Build needed: $1, Rust checks: $2 ($3)"
+          }
 
-          if [ "$EVENT" = "workflow_dispatch" ]; then decide true "manual run"; exit 0; fi
+          if [ "$EVENT" = "workflow_dispatch" ]; then decide true true "manual run"; exit 0; fi
 
           if [ "$EVENT" = "push" ]; then
             # Merges from a PR were already built and tested on the PR.
             first_line="$(printf '%s' "$HEAD_MESSAGE" | head -n1)"
             if printf '%s' "$first_line" | grep -qE '^Merge pull request #[0-9]+|\(#[0-9]+\)$'; then
-              decide false "PR merge, already tested on the PR"; exit 0
+              decide false false "PR merge, already tested on the PR"; exit 0
             fi
             BASE="$PUSH_BEFORE"; HEAD="$PUSH_AFTER"
           else
@@ -62,16 +70,24 @@ jobs:
           fi
 
           if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ] || ! git cat-file -e "$BASE^{commit}" 2>/dev/null; then
-            decide true "no usable base commit"; exit 0
+            decide true true "no usable base commit"; exit 0
           fi
 
           changed="$(git diff --name-only "$BASE" "$HEAD")"
           echo "Changed files:"; echo "$changed"
-          # App code, build config, or this workflow. Everything else (website, docs, README) is skipped.
-          if echo "$changed" | grep -qE '^(storage-intelligence/|global\.json$|\.github/workflows/ci\.yml$)'; then
-            decide true "app code changed"
+          # Build config or this workflow changed: run everything.
+          if echo "$changed" | grep -qE '^(global\.json|\.github/workflows/ci\.yml)$'; then
+            decide true true "build config or CI workflow changed"; exit 0
+          fi
+          rust=false; app=false
+          echo "$changed" | grep -qE '^storage-intelligence/core/' && rust=true
+          echo "$changed" | grep -qE '^storage-intelligence/(app|tests|scripts)/' && app=true
+          if [ "$rust" = true ]; then
+            decide true true "Rust core changed"
+          elif [ "$app" = true ]; then
+            decide true false "only the C# app/tests changed"
           else
-            decide false "only website/docs changed"
+            decide false false "only website/docs changed"
           fi
 
   build-and-test:
@@ -110,16 +126,19 @@ jobs:
           restore-keys: nuget-${{ runner.os }}-
 
       - name: Verify Rust code formatting
+        if: needs.changes.outputs.rust == 'true'
         run: |
           cd storage-intelligence/core
           cargo fmt --all -- --check
 
       - name: Run Rust Clippy linter
+        if: needs.changes.outputs.rust == 'true'
         run: |
           cd storage-intelligence/core
           cargo clippy --all-targets -- -D warnings
 
       - name: Run Rust workspace tests
+        if: needs.changes.outputs.rust == 'true'
         run: |
           cd storage-intelligence/core
           cargo test --workspace --verbose

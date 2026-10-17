@@ -7,7 +7,9 @@ use std::time::{Duration, Instant};
 use storage_tree::{app_manager, developer, StorageTree};
 
 fn main() {
-    let root = std::env::args().nth(1).expect("usage: analysis_timing <folder>");
+    let root = std::env::args()
+        .nth(1)
+        .expect("usage: analysis_timing <folder>");
     let cancel = common::CancellationToken::new();
 
     let t = Instant::now();
@@ -19,11 +21,19 @@ fn main() {
         &|_| {},
     )
     .expect("scan failed");
-    println!("scan            {:>8.2} s ({} events)", t.elapsed().as_secs_f64(), events.len());
+    println!(
+        "scan            {:>8.2} s ({} events)",
+        t.elapsed().as_secs_f64(),
+        events.len()
+    );
 
     let t = Instant::now();
     let tree = StorageTree::build(events).expect("build failed");
-    println!("tree build      {:>8.2} s ({} nodes)", t.elapsed().as_secs_f64(), tree.node_count());
+    println!(
+        "tree build      {:>8.2} s ({} nodes)",
+        t.elapsed().as_secs_f64(),
+        tree.node_count()
+    );
 
     let t = Instant::now();
     let arts = developer::detect_dev_artifacts(Some(&tree));
@@ -37,9 +47,17 @@ fn main() {
 
     let t = Instant::now();
     let apps = app_manager::discover_win32_apps(Some(&tree));
-    println!("apps            {:>8.2} s ({} apps)", t.elapsed().as_secs_f64(), apps.len());
+    println!(
+        "apps            {:>8.2} s ({} apps)",
+        t.elapsed().as_secs_f64(),
+        apps.len()
+    );
 
     let t = Instant::now();
     let left = app_manager::find_app_leftovers(&apps, Some(&tree));
-    println!("leftovers       {:>8.2} s ({} found)", t.elapsed().as_secs_f64(), left.len());
+    println!(
+        "leftovers       {:>8.2} s ({} found)",
+        t.elapsed().as_secs_f64(),
+        left.len()
+    );
 }

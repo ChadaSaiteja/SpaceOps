@@ -149,12 +149,70 @@ public static class AppManagerService
             }
         }
 
-        // 2. Discover MSIX / AppX packages via WinRT PackageManager
+        // 2. Discover MSIX / AppX packages via WinRT PackageManager. Enumeration runs on a worker
+        // with a time limit: under service accounts (CI runners) it can stall indefinitely, and the
+        // app must not freeze waiting for it. The worker never touches the native tree, so a timed-out
+        // worker cannot outlive the tree it would otherwise be reading.
+        var msixTask = Task.Run(EnumerateMsixPackages);
+        if (msixTask.Wait(MsixEnumerationTimeout))
+        {
+            foreach (var pkg in msixTask.Result)
+            {
+                ulong actualSize = 0;
+                ulong fileCount = 0;
+
+                // Attribute size from tree if available
+                if (!string.IsNullOrEmpty(pkg.InstallPath) && tree != null)
+                {
+                    var node = tree.FindByPath(pkg.InstallPath);
+                    if (node != null)
+                    {
+                        actualSize = node.Value.Size;
+                        fileCount = node.Value.FileCount;
+                    }
+                }
+
+                apps.Add(new InstalledAppInfo(
+                    Id: pkg.Id,
+                    Name: pkg.Name,
+                    Version: pkg.Version,
+                    Publisher: pkg.Publisher,
+                    InstallLocation: pkg.InstallPath,
+                    UninstallString: "",
+                    QuietUninstallString: "",
+                    InstallDate: "",
+                    Kind: AppKind.Msix,
+                    EstimatedSizeBytes: 0,
+                    ActualSizeBytes: actualSize,
+                    FileCount: fileCount,
+                    IsSystemComponent: false
+                ));
+            }
+        }
+
+        // Sort descending by true disk size, then estimated size, then name
+        apps.Sort((a, b) =>
+        {
+            int cmp = b.DisplaySizeBytes.CompareTo(a.DisplaySizeBytes);
+            if (cmp != 0) return cmp;
+            return string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase);
+        });
+
+        return apps;
+    }
+
+    /// <summary>Upper bound on Store/MSIX package enumeration; slower environments skip MSIX apps.</summary>
+    internal static TimeSpan MsixEnumerationTimeout { get; set; } = TimeSpan.FromSeconds(20);
+
+    private sealed record MsixPackage(string Id, string Name, string Version, string Publisher, string InstallPath);
+
+    private static List<MsixPackage> EnumerateMsixPackages()
+    {
+        var result = new List<MsixPackage>();
         try
         {
             var packageManager = new Windows.Management.Deployment.PackageManager();
-            var packages = packageManager.FindPackagesForUser("");
-            foreach (var pkg in packages)
+            foreach (var pkg in packageManager.FindPackagesForUser(""))
             {
                 if (pkg.IsFramework || pkg.IsResourcePackage) continue;
 
@@ -172,51 +230,19 @@ public static class AppManagerService
                 string publisher = "";
                 try { publisher = pkg.PublisherDisplayName; } catch { }
 
-                ulong actualSize = 0;
-                ulong fileCount = 0;
-
-                // Attribute size from tree if available
-                if (!string.IsNullOrEmpty(installPath) && tree != null)
-                {
-                    var node = tree.FindByPath(installPath);
-                    if (node != null)
-                    {
-                        actualSize = node.Value.Size;
-                        fileCount = node.Value.FileCount;
-                    }
-                }
-
-                apps.Add(new InstalledAppInfo(
-                    Id: pkg.Id.FullName,
-                    Name: displayName,
-                    Version: $"{pkg.Id.Version.Major}.{pkg.Id.Version.Minor}.{pkg.Id.Version.Build}",
-                    Publisher: publisher,
-                    InstallLocation: installPath,
-                    UninstallString: "",
-                    QuietUninstallString: "",
-                    InstallDate: "",
-                    Kind: AppKind.Msix,
-                    EstimatedSizeBytes: 0,
-                    ActualSizeBytes: actualSize,
-                    FileCount: fileCount,
-                    IsSystemComponent: false
-                ));
+                result.Add(new MsixPackage(
+                    pkg.Id.FullName,
+                    displayName,
+                    $"{pkg.Id.Version.Major}.{pkg.Id.Version.Minor}.{pkg.Id.Version.Build}",
+                    publisher,
+                    installPath));
             }
         }
         catch
         {
             // Ignored in execution environments where WinRT PackageManager is unavailable
         }
-
-        // Sort descending by true disk size, then estimated size, then name
-        apps.Sort((a, b) =>
-        {
-            int cmp = b.DisplaySizeBytes.CompareTo(a.DisplaySizeBytes);
-            if (cmp != 0) return cmp;
-            return string.Compare(a.Name, b.Name, StringComparison.OrdinalIgnoreCase);
-        });
-
-        return apps;
+        return result;
     }
 
     /// <summary>

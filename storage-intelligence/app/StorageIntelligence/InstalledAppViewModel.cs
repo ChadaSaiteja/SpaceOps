@@ -26,7 +26,11 @@ public sealed class InstalledAppViewModel : INotifyPropertyChanged
     public bool IsSystemComponent => Info.IsSystemComponent;
 
     public string FormattedSize => Info.FormattedSize;
-    public string FileCountText => FileCount > 0 ? $"{FileCount:N0} files" : (Info.ActualSizeBytes > 0 ? "Scanned" : "Registry Est.");
+    // The Rust side copies the registry estimate into ActualSize when the install folder is not in the scanned tree,
+    // so a size equal to the estimate with no file count is still an estimate, not a measurement.
+    public string FileCountText => FileCount > 0
+        ? $"{FileCount:N0} files"
+        : (Info.ActualSizeBytes > 0 && Info.ActualSizeBytes != Info.EstimatedSizeBytes ? "Scanned" : "Registry est.");
     public string KindText => Info.KindText;
 
     public string IconGlyph => Kind == AppKind.Msix ? "\uE74C" : "\uE71D";

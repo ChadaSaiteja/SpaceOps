@@ -292,6 +292,12 @@ public sealed partial class TreemapPage : Page
 
     private void DepthComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
     {
-        // Reserved for dynamic depth adjustment in future revisions
+        if (Treemap == null) return;
+        if (DepthComboBox.SelectedItem is ComboBoxItem item &&
+            item.Tag is string tag &&
+            uint.TryParse(tag, out uint depth))
+        {
+            Treemap.MaxDepth = depth;
+        }
     }
 }

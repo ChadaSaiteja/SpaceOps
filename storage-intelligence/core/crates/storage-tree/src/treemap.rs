@@ -329,6 +329,12 @@ fn squarify(
     }
 }
 
+/// Height reserved at the top of a directory tile for its label when it has children laid out.
+const HEADER_HEIGHT: f32 = 18.0;
+/// Minimum directory tile size that gets a label header; smaller tiles keep the 2px padding.
+const HEADER_MIN_WIDTH: f32 = 60.0;
+const HEADER_MIN_HEIGHT: f32 = 48.0;
+
 /// Items with an area at or below this are ignored by the aspect-ratio computation.
 const MIN_COUNTED_AREA: f32 = 0.0001;
 
@@ -454,13 +460,19 @@ fn layout_row(
         {
             if let Some(sub_children) = tree.children(item.node_id) {
                 if !sub_children.is_empty() {
-                    // Small padding inside directory tile
+                    // Small padding inside directory tile, plus a header strip on tiles big
+                    // enough to label so the folder name stays visible above its children
                     let pad = 2.0f32;
+                    let header = if rw >= HEADER_MIN_WIDTH && rh >= HEADER_MIN_HEIGHT {
+                        HEADER_HEIGHT
+                    } else {
+                        pad
+                    };
                     let inner_bounds = RectBounds {
                         x: rx + pad,
-                        y: ry + pad,
+                        y: ry + header,
                         w: (rw - pad * 2.0).max(0.0),
-                        h: (rh - pad * 2.0).max(0.0),
+                        h: (rh - header - pad).max(0.0),
                     };
 
                     layout_children(

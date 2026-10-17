@@ -55,6 +55,21 @@ public sealed partial class TreemapControl : UserControl
 
     public StorageTreeService? Tree => _tree;
     public ulong CurrentRootId => _currentRootId;
+
+    private uint _maxDepth = 3;
+
+    /// <summary>Number of directory levels laid out below the current root (1-3).</summary>
+    public uint MaxDepth
+    {
+        get => _maxDepth;
+        set
+        {
+            uint clamped = Math.Clamp(value, 1u, 3u);
+            if (clamped == _maxDepth) return;
+            _maxDepth = clamped;
+            RecomputeLayout();
+        }
+    }
     public ulong? SelectedNodeId => _selectedNodeId;
     public IReadOnlyList<BreadcrumbItem> Breadcrumbs => _breadcrumbs;
 
@@ -195,7 +210,7 @@ public sealed partial class TreemapControl : UserControl
                 _currentRootId,
                 (float)Canvas.ActualWidth,
                 (float)Canvas.ActualHeight,
-                maxDepth: 2,
+                maxDepth: _maxDepth,
                 minSizePx: 3.0f);
         }
         catch (Exception)
@@ -236,7 +251,13 @@ public sealed partial class TreemapControl : UserControl
             {
                 try
                 {
-                    if (r.Height >= 36)
+                    if (r.Kind == NodeKind.Directory)
+                    {
+                        // Folders keep name and size on one line so it fits the layout's header strip
+                        var info = _tree.GetNodeInfo(r.NodeId);
+                        _labels[i] = $"{info.Name}  {Services.Fmt.Bytes(info.Size)}";
+                    }
+                    else if (r.Height >= 36)
                     {
                         var info = _tree.GetNodeInfo(r.NodeId);
                         _labels[i] = info.Name;
@@ -337,8 +358,9 @@ public sealed partial class TreemapControl : UserControl
                 float tw = w - 14;
                 if (fmt != null && tw > 8)
                 {
-                    ds.DrawText(label, new Rect(x + 8, y + 6, tw, 16), shadow, fmt);
-                    ds.DrawText(label, new Rect(x + 7, y + 5, tw, 16), Colors.White, fmt);
+                    float ty = isDir ? y + 1 : y + 5;
+                    ds.DrawText(label, new Rect(x + 8, ty + 1, tw, 16), shadow, fmt);
+                    ds.DrawText(label, new Rect(x + 7, ty, tw, 16), Colors.White, fmt);
 
                     string? sizeText = _sizeLabels[i];
                     if (sizeText != null && _subLabelFormat != null)

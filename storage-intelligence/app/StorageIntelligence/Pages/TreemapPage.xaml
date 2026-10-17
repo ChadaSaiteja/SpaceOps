@@ -69,8 +69,8 @@
                                     <FontIcon Glyph="{x:Bind Glyph}" FontSize="12" Foreground="White" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                 </Border>
                                 <StackPanel Grid.Column="1" VerticalAlignment="Center">
-                                    <TextBlock Text="{x:Bind Name}" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis" MaxWidth="190" />
-                                    <TextBlock Text="{x:Bind FullPath}" FontSize="10" Foreground="{StaticResource SpaceMutedBrush}" TextTrimming="CharacterEllipsis" MaxWidth="190" />
+                                    <TextBlock HorizontalAlignment="Left" Text="{x:Bind Name}" FontWeight="SemiBold" FontSize="12" TextTrimming="CharacterEllipsis" MaxWidth="190" />
+                                    <TextBlock HorizontalAlignment="Left" Text="{x:Bind FullPath}" FontSize="10" Foreground="{StaticResource SpaceMutedBrush}" TextTrimming="CharacterEllipsis" MaxWidth="190" />
                                 </StackPanel>
                                 <StackPanel Grid.Column="2" VerticalAlignment="Center" HorizontalAlignment="Right">
                                     <TextBlock Text="{x:Bind FormattedSize}" FontWeight="SemiBold" FontSize="11" HorizontalAlignment="Right" />
@@ -84,7 +84,7 @@
                 <!-- Quick Depth Selector -->
                 <StackPanel Grid.Column="3" Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
                     <TextBlock Text="Depth:" VerticalAlignment="Center" FontSize="12" Foreground="{StaticResource SpaceSubBrush}" />
-                    <ComboBox x:Name="DepthComboBox" SelectionChanged="DepthComboBox_SelectionChanged" SelectedIndex="1" Width="76">
+                    <ComboBox x:Name="DepthComboBox" SelectionChanged="DepthComboBox_SelectionChanged" SelectedIndex="2" Width="76">
                         <ComboBoxItem Content="1" Tag="1" />
                         <ComboBoxItem Content="2" Tag="2" />
                         <ComboBoxItem Content="3" Tag="3" />
@@ -120,7 +120,7 @@
                         <StackPanel Spacing="12">
                             <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
                                 <FontIcon x:Name="DetailIcon" Glyph="&#xE8B7;" FontSize="24" Foreground="{StaticResource SpaceAccentBrush}" />
-                                <TextBlock x:Name="DetailTitle" Text="No Selection" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="220" />
+                                <TextBlock HorizontalAlignment="Left" x:Name="DetailTitle" Text="No Selection" FontSize="16" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="220" />
                             </StackPanel>
 
                             <StackPanel Spacing="6">

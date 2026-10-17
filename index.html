@@ -60,7 +60,10 @@
     "Hardware-accelerated Direct2D squarified treemap",
     "Developer clutter detection across 8 ecosystems",
     "Recycle Bin-routed cleanup via Windows Shell COM",
-    "Sub-5ms tokenized in-memory search",
+    "Overview page with usage by category, top consumers and reclaimable total",
+    "Unified cleanup list across system junk, developer artifacts and app leftovers",
+    "Installed applications ranked by disk usage, with leftover detection",
+    "Structured in-memory search with ext:, size: and type: filters",
     "SQLite WAL persistence with NTFS USN Journal incremental sync"
   ],
   "offers": { "@type": "Offer", "price": "0", "priceCurrency": "USD" },
@@ -186,37 +189,127 @@
   .cta{display:flex;gap:13px;justify-content:center;flex-wrap:wrap}
   .meta-line{margin-top:20px;color:var(--muted);font-size:.82rem;font-family:var(--font-mono);display:flex;gap:18px;justify-content:center;flex-wrap:wrap}
 
-  .window{margin:56px auto 0;max-width:1020px;background:var(--surface);border:1px solid var(--border);border-radius:14px;overflow:hidden;box-shadow:0 40px 90px -30px rgba(0,0,0,.55);position:relative;text-align:left}
-  .win-bar{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid var(--border);background:var(--card)}
-  .dots{display:flex;gap:6px}.dots i{width:10px;height:10px;border-radius:50%;background:var(--border)}
-  .crumbs{font-family:var(--font-mono);font-size:.76rem;color:var(--sub);flex:1}
-  .crumbs b{color:var(--text);font-weight:500}
-  .search{font-family:var(--font-mono);font-size:.72rem;color:var(--muted);border:1px solid var(--border);border-radius:6px;padding:3px 10px;background:var(--surface)}
-  .win-body{display:grid;grid-template-columns:1fr 250px}
-  .tm{display:grid;grid-template-columns:repeat(12,1fr);grid-template-rows:repeat(8,34px);gap:4px;padding:12px;min-height:300px}
-  .tile{border-radius:6px;padding:8px 10px;font-size:.7rem;font-family:var(--font-mono);color:#fff;display:flex;flex-direction:column;justify-content:space-between;cursor:pointer;overflow:hidden;border:1px solid rgba(255,255,255,.1);transition:filter .15s,outline-color .15s;outline:2px solid transparent;opacity:0;animation:pop .5s forwards}
-  .tile:hover,.tile.sel{filter:brightness(1.18);outline-color:#fff;z-index:2}
-  .tile small{opacity:.8;font-size:.9em}
-  @keyframes pop{from{opacity:0;transform:scale(.92)}to{opacity:1;transform:none}}
-  .t1{grid-column:1/7;grid-row:1/5;background:linear-gradient(135deg,#0d9488,#0f766e)}
-  .t2{grid-column:7/10;grid-row:1/4;background:linear-gradient(135deg,#3a86ff,#2563eb)}
-  .t3{grid-column:10/13;grid-row:1/4;background:linear-gradient(135deg,#9d4edd,#7c3aed)}
-  .t4{grid-column:1/4;grid-row:5/9;background:linear-gradient(135deg,#f72585,#be185d)}
-  .t5{grid-column:4/7;grid-row:5/9;background:linear-gradient(135deg,#ea8a00,#b45309)}
-  .t6{grid-column:7/11;grid-row:4/9;background:linear-gradient(135deg,#0891b2,#0e7490)}
-  .t7{grid-column:11/13;grid-row:4/7;background:linear-gradient(135deg,#4f46e5,#4338ca)}
-  .t8{grid-column:11/13;grid-row:7/9;background:linear-gradient(135deg,#64748b,#475569)}
-  .tile:nth-child(2){animation-delay:.08s}.tile:nth-child(3){animation-delay:.16s}.tile:nth-child(4){animation-delay:.24s}.tile:nth-child(5){animation-delay:.32s}.tile:nth-child(6){animation-delay:.4s}.tile:nth-child(7){animation-delay:.48s}.tile:nth-child(8){animation-delay:.56s}
-  .side{border-left:1px solid var(--border);padding:16px;background:var(--card);font-size:.82rem;display:flex;flex-direction:column;gap:12px}
-  .side h4{font-size:.68rem;text-transform:uppercase;letter-spacing:.1em;color:var(--muted);font-family:var(--font-mono);font-weight:500}
-  .side .path{font-family:var(--font-mono);font-size:.74rem;word-break:break-all;color:var(--text)}
-  .side .big{font-family:var(--font-mono);font-size:1.7rem;font-weight:700;color:var(--accent);line-height:1}
-  .side dl{display:grid;grid-template-columns:auto 1fr;gap:5px 12px;color:var(--sub)}
-  .side dd{text-align:right;font-family:var(--font-mono);color:var(--text)}
-  .bar{height:6px;background:var(--border);border-radius:3px;overflow:hidden}
-  .bar i{display:block;height:100%;width:38%;background:linear-gradient(90deg,var(--accent),var(--blue));transition:width .25s}
-  .tag{display:inline-block;font-size:.68rem;font-family:var(--font-mono);padding:2px 8px;border-radius:999px;background:rgba(255,183,3,.14);color:var(--amber);border:1px solid rgba(255,183,3,.3)}
+  /* ---- App preview: a faithful replica of the WinUI app (Fluent Sidebar, dark theme from Styles/Theme.xaml) ---- */
+  .ax{--a-bg:#0b0f17;--a-surface:#0d121b;--a-card:#111724;--a-field:#0a0e16;--a-tm:#080b12;--a-border:#1f2a3c;--a-hover:#141c2a;--a-on:#182234;
+    --a-text:#f0f4fc;--a-sub:#8b9bb4;--a-muted:#56657e;--a-accent:#00f5d4;--a-accent2:#3a86ff;--a-onacc:#052e25;--a-green:#34d399;--a-amber:#fbbf24;--a-orange:#ff9f1c;--a-red:#fb7185;
+    margin:56px auto 0;max-width:1100px;background:var(--a-bg);color:var(--a-text);border:1px solid var(--a-border);border-radius:12px;overflow:hidden;
+    box-shadow:0 40px 90px -30px rgba(0,0,0,.6);text-align:left;font-size:12.5px;line-height:1.45;font-family:'Segoe UI Variable','Segoe UI',var(--font-ui)}
+  .ax *{box-sizing:border-box}
+  .ax-title{display:flex;align-items:center;gap:10px;height:34px;padding:0 12px;background:#0d121b;border-bottom:1px solid var(--a-border);color:var(--a-sub);font-size:12px}
+  .ax-title svg{width:15px;height:15px}
+  .ax-title .wc{margin-left:auto;display:flex;gap:20px;letter-spacing:.2em;font-size:11px}
+  .ax-body{display:flex;height:600px}
+  .ax-side{width:200px;flex-shrink:0;background:var(--a-surface);border-right:1px solid var(--a-border);padding:12px 8px;display:flex;flex-direction:column;gap:4px}
+  .ax-brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:14px;padding:4px 8px 12px}
+  .ax-brand svg{width:24px;height:24px}
+  .ax-nav{display:flex;flex-direction:column;gap:2px}
+  .ax-nav button{display:flex;align-items:center;gap:11px;width:100%;background:none;border:0;color:var(--a-sub);font:500 12.5px inherit;font-family:inherit;padding:9px 10px;border-radius:6px;cursor:pointer;position:relative;text-align:left}
+  .ax-nav button svg{width:16px;height:16px;flex-shrink:0;stroke:currentColor;fill:none;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
+  .ax-nav button:hover{background:var(--a-hover);color:var(--a-text)}
+  .ax-nav button[aria-pressed="true"]{background:var(--a-on);color:var(--a-text);font-weight:600}
+  .ax-nav button[aria-pressed="true"]::before{content:"";position:absolute;left:-8px;top:9px;bottom:9px;width:3px;border-radius:2px;background:var(--a-accent)}
+  .ax-drive{margin-top:auto;background:var(--a-card);border:1px solid var(--a-border);border-radius:8px;padding:11px}
+  .ax-drive b{font-size:12px;display:flex;gap:7px;align-items:center}
+  .ax-drive small{display:block;color:var(--a-sub);font-size:10.5px;margin-top:7px}
+  .ax-main{flex:1;min-width:0;display:flex;flex-direction:column}
+  .ax-hdr{display:flex;gap:8px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--a-border)}
+  .ax-path{flex:1;min-width:0;display:flex;align-items:center;gap:8px;background:var(--a-field);border:1px solid var(--a-border);border-radius:6px;padding:6px 10px;font-size:12px;white-space:nowrap;overflow:hidden}
+  .ax-path svg{width:14px;height:14px;stroke:var(--a-accent);fill:none;stroke-width:1.8;flex-shrink:0}
+  .ax-btn{display:inline-flex;align-items:center;gap:6px;background:var(--a-card);border:1px solid var(--a-border);color:var(--a-text);border-radius:6px;padding:6px 12px;font:500 12px inherit;font-family:inherit;cursor:pointer;white-space:nowrap}
+  .ax-btn:hover{border-color:var(--a-accent)}
+  .ax-btn.pri{background:var(--a-accent);color:var(--a-onacc);border-color:transparent;font-weight:600}
+  .ax-btn[disabled]{opacity:.45;cursor:default;border-color:var(--a-border)}
+  .ax-page{flex:1;min-height:0;overflow:auto;padding:16px 18px}
+  .ax-page[hidden]{display:none}
+  .ax-status{height:30px;flex-shrink:0;display:flex;align-items:center;gap:12px;padding:0 14px;border-top:1px solid var(--a-border);color:var(--a-sub);font-size:11px}
+  .ax-status .sp{flex:1}
+  .ax-prog{width:120px;height:4px;border-radius:2px;background:var(--a-border);overflow:hidden;display:none}
+  .ax-prog i{display:block;height:100%;width:0;background:var(--a-accent)}
+  .ax-prog.run{display:block}.ax-prog.run i{animation:axscan 1.6s ease-out forwards}
+  @keyframes axscan{to{width:100%}}
+  .ax h3.pt{font-size:18px;font-weight:700;margin:0 0 2px;display:flex;align-items:center;gap:9px}
+  .ax h3.pt svg{width:18px;height:18px;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+  .ax .cap{color:var(--a-sub);font-size:11.5px;margin-bottom:12px}
+  .ax-card{background:var(--a-card);border:1px solid var(--a-border);border-radius:8px;padding:14px}
+  .ax-sec{font-size:10.5px;letter-spacing:.09em;color:var(--a-sub);font-weight:600;margin-bottom:10px}
+  .ax-grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  .ax-donut{width:118px;height:118px;border-radius:50%;flex-shrink:0;position:relative;display:grid;place-items:center}
+  .ax-donut::after{content:"";position:absolute;inset:16px;border-radius:50%;background:var(--a-card)}
+  .ax-donut span{position:relative;z-index:1;text-align:center;font:700 16px var(--font-mono)}
+  .ax-donut small{display:block;font:500 9.5px inherit;font-family:inherit;color:var(--a-sub)}
+  .ax-kv{display:grid;grid-template-columns:12px 1fr auto 42px;gap:8px;align-items:center;font-size:11.5px;padding:2px 0}
+  .ax-kv i{width:9px;height:9px;border-radius:2px;display:block}
+  .ax-kv b{font:600 11px var(--font-mono);text-align:right}
+  .ax-kv em{font-style:normal;color:var(--a-sub);font-size:10.5px;text-align:right}
+  .ax-top{display:grid;grid-template-columns:18px 1fr auto;gap:2px 9px;align-items:center;margin-bottom:7px}
+  .ax-top svg{width:15px;height:15px;stroke:var(--a-amber);fill:none;stroke-width:1.7;grid-row:span 2}
+  .ax-top b{font:700 11.5px var(--font-mono);color:var(--a-accent);text-align:right}
+  .ax-top .tb{height:3px;background:var(--a-border);border-radius:2px;overflow:hidden}
+  .ax-top .tb i{display:block;height:100%;background:var(--a-accent)}
+  .ax-top small{color:var(--a-sub);font-size:10px;text-align:right}
+  .ax-big{font:700 26px var(--font-mono);color:var(--a-accent);line-height:1.1;margin-bottom:8px}
+  .ax-line{display:flex;justify-content:space-between;font-size:11.5px;color:var(--a-sub);padding:2px 0}
+  .ax-line b{font-family:var(--font-mono);color:var(--a-text);font-weight:600}
+  .ax-qa{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+  .ax-qa .ax-btn{justify-content:center}
+  .ax-tmwrap{display:grid;grid-template-columns:1fr 230px;gap:12px;height:100%}
+  .ax-tmleft{display:flex;flex-direction:column;min-width:0;min-height:0}
+  .ax-crumb{display:flex;align-items:center;gap:10px;margin-bottom:10px;font-size:12px}
+  .ax-crumb .s{margin-left:auto;background:var(--a-field);border:1px solid var(--a-border);border-radius:6px;padding:5px 10px;color:var(--a-muted);min-width:170px;font-size:11.5px}
+  .ax-crumb .d{color:var(--a-sub);font-size:11.5px}
+  .ax-tm{position:relative;flex:1;min-height:240px;background:var(--a-tm);border:1px solid var(--a-border);border-radius:8px;overflow:hidden}
+  .ax-tile{position:absolute;border-radius:6px;overflow:hidden;cursor:pointer;border:1px solid rgba(255,255,255,.15);background-image:linear-gradient(135deg,rgba(255,255,255,.18),rgba(0,0,0,.22))}
+  .ax-tile.dir{border-color:rgba(255,255,255,.3)}
+  .ax-tile span{position:absolute;left:7px;top:2px;right:6px;font-size:10.5px;font-weight:600;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 1px 2px rgba(0,0,0,.6)}
+  .ax-tile:hover{filter:brightness(1.15);box-shadow:0 0 0 2px var(--a-accent),0 0 14px rgba(0,245,212,.45);z-index:3}
+  .ax-tile.sel{box-shadow:0 0 0 2px var(--a-accent);z-index:2}
+  .ax-legend{display:grid;grid-template-columns:1fr 1fr;gap:5px 10px;font-size:11px}
+  .ax-legend span{display:flex;align-items:center;gap:7px}.ax-legend i{width:10px;height:10px;border-radius:2px}
+  .ax-det .p{font:500 10.5px var(--font-mono);color:var(--a-sub);word-break:break-all;margin:6px 0 10px}
+  .ax-det .ax-big{font-size:22px}
+  .ax-bar{height:5px;border-radius:3px;background:var(--a-border);overflow:hidden;margin-bottom:10px}
+  .ax-bar i{display:block;height:100%;background:linear-gradient(90deg,var(--a-accent),var(--a-accent2));transition:width .2s}
+  .ax-pill{display:inline-block;font-size:10px;font-weight:600;padding:1px 7px;border-radius:4px;white-space:nowrap}
+  .ax-pill.low,.ax-pill.act{background:rgba(52,211,153,.16);color:var(--a-green)}
+  .ax-pill.med,.ax-pill.dorm{background:rgba(251,191,36,.16);color:var(--a-amber)}
+  .ax-pill.high{background:rgba(251,113,133,.16);color:var(--a-red)}
+  .ax-pill.src{background:rgba(0,245,212,.14);color:var(--a-accent)}
+  .ax-pill.lo{background:rgba(255,159,28,.16);color:var(--a-orange)}
+  .ax-pill.neu{background:var(--a-on);color:var(--a-sub)}
+  .ax-tools{display:flex;gap:8px;align-items:center;margin-bottom:10px;flex-wrap:wrap}
+  .ax-tools .f{background:var(--a-field);border:1px solid var(--a-border);border-radius:6px;padding:5px 10px;color:var(--a-muted);min-width:180px;font-size:11.5px}
+  .ax-tools .r{margin-left:auto;display:flex;gap:8px}
+  .ax-row{display:grid;grid-template-columns:auto 1fr auto auto;gap:12px;align-items:center;background:var(--a-card);border:1px solid var(--a-border);border-radius:8px;padding:10px 12px;margin-bottom:7px}
+  .ax-row .ic{width:32px;height:32px;border-radius:7px;display:grid;place-items:center}
+  .ax-row .ic svg{width:16px;height:16px;stroke:#0b0f17;fill:none;stroke-width:2}
+  .ax-row .n{font-weight:600;font-size:12px;display:flex;gap:7px;align-items:center;flex-wrap:wrap}
+  .ax-row .d{color:var(--a-sub);font-size:11px;margin-top:2px}
+  .ax-row .m{color:var(--a-muted);font-size:10px;font-family:var(--font-mono);margin-top:1px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ax-row .z{text-align:right;font:700 13px var(--font-mono);color:var(--a-accent)}
+  .ax-row .z small{display:block;font:400 10px inherit;font-family:inherit;color:var(--a-sub)}
+  .ax-row .acts{display:flex;gap:6px}
+  .ax-ck{width:18px;height:18px;border-radius:4px;border:1.5px solid var(--a-sub);background:none;cursor:pointer;padding:0;display:grid;place-items:center}
+  .ax-ck[aria-checked="true"]{background:var(--a-accent2);border-color:var(--a-accent2)}
+  .ax-ck[aria-checked="true"]::after{content:"";width:4px;height:8px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg) translate(-1px,-1px)}
+  .ax-sum{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+  .ax-sum .t{font-size:15px;font-weight:700;color:var(--a-accent)}
+  .ax-sum .b{color:var(--a-sub);font-size:11px}
+  .ax-opts{display:flex;flex-direction:column;gap:6px;margin-top:8px;font-size:12px}
+  .ax-opts label{display:flex;gap:9px;align-items:center;cursor:pointer}
+  .ax-foot{display:flex;justify-content:space-between;align-items:center;margin-top:10px;color:var(--a-sub);font-size:11px;gap:10px}
+  .ax-toast{position:sticky;bottom:0;margin-top:8px;background:var(--a-on);border:1px solid var(--a-border);border-radius:6px;padding:7px 10px;font-size:11px;color:var(--a-text);display:none}
+  .ax-toast.on{display:block}
   .hint{text-align:center;color:var(--muted);font-size:.78rem;margin-top:14px;font-family:var(--font-mono)}
+  @media(max-width:860px){
+    .ax-body{flex-direction:column;height:auto}
+    .ax-side{width:auto;flex-direction:row;align-items:center;border-right:0;border-bottom:1px solid var(--a-border);overflow-x:auto;padding:6px}
+    .ax-brand,.ax-drive{display:none}
+    .ax-nav{flex-direction:row}.ax-nav button{padding:8px 10px}
+    .ax-nav button[aria-pressed="true"]::before{left:10px;right:10px;top:auto;bottom:0;width:auto;height:3px}
+    .ax-page{max-height:none;overflow:visible}
+    .ax-grid2,.ax-tmwrap{grid-template-columns:1fr}.ax-tm{min-height:280px}
+    .ax-hdr .opt{display:none}.ax-row{grid-template-columns:auto 1fr auto}.ax-row .acts{display:none}
+  }
   .chips{display:flex;gap:9px;justify-content:center;flex-wrap:wrap;margin-top:40px}
   .chip{font-family:var(--font-mono);font-size:.74rem;color:var(--sub);border:1px solid var(--border);background:var(--surface);border-radius:6px;padding:5px 11px}
 
@@ -300,14 +393,12 @@
 
   @media(max-width:860px){
     .nav ul{display:none}.split{grid-template-columns:1fr;gap:30px}
-    .win-body{grid-template-columns:1fr}.side{border-left:none;border-top:1px solid var(--border)}
-    .hero{padding:56px 0 30px}section{padding:60px 0}.search{display:none}
-    .tm{grid-template-rows:repeat(8,26px);min-height:260px}.tile{font-size:.62rem;padding:6px}
+    .hero{padding:56px 0 30px}section{padding:60px 0}
   }
   @media (prefers-reduced-motion: reduce){
     html{scroll-behavior:auto}
     *,*::before,*::after{animation:none !important;transition:none !important}
-    .tile{opacity:1}.card:hover,.btn:hover{transform:none}
+    .card:hover,.btn:hover{transform:none}
   }
 </style>
 </head>
@@ -337,9 +428,9 @@
 <section class="hero">
   <div class="wrap">
     <div class="hero-in">
-      <div class="badge"><i></i>MIT licensed &middot; Windows 10 / 11 &middot; v0.1.0</div>
+      <div class="badge"><i></i>MIT licensed &middot; Windows 10 / 11 &middot; New Fluent Sidebar UI</div>
       <h1>Find what&rsquo;s eating your disk.<br><span class="grad">Clean it without regret.</span></h1>
-      <p class="lede">SpaceOps is a free, open-source disk analyzer for Windows. A parallel Rust engine maps every byte into an interactive treemap, flags developer clutter across 8 ecosystems, and sends every deletion to the Recycle Bin.</p>
+      <p class="lede">SpaceOps is a free, open-source disk analyzer for Windows. A parallel Rust engine maps every byte into an interactive treemap, shows what you can safely reclaim on one Overview page, flags developer clutter across 8 ecosystems, and sends every deletion to the Recycle Bin.</p>
       <div class="cta">
         <a class="btn btn-primary" href="#download">Download for Windows</a>
         <a class="btn btn-ghost" href="#build">Build from source</a>
@@ -347,35 +438,159 @@
       <div class="meta-line"><span>100% offline</span><span>Zero telemetry</span><span>x64 &amp; ARM64</span><span>Free &amp; open source</span></div>
     </div>
 
-    <div class="window" role="group" aria-label="Illustrative mockup of the SpaceOps treemap view">
-      <div class="win-bar">
-        <div class="dots"><i></i><i></i><i></i></div>
-        <div class="crumbs">This PC &rsaquo; C: &rsaquo; <b>Users</b> &rsaquo; <b>dev</b></div>
-        <div class="search">ext:vhdx size:&gt;1GB</div>
+    <div class="ax" id="app" role="region" aria-label="Interactive preview of the SpaceOps app with sample data">
+      <div class="ax-title" aria-hidden="true">
+        <svg viewBox="0 0 100 100"><rect width="100" height="100" rx="20" fill="#06090e"/><rect x="18" y="18" width="38" height="38" rx="5" fill="#00f5d4"/><rect x="62" y="18" width="20" height="20" rx="4" fill="#9d4edd"/><rect x="62" y="44" width="20" height="38" rx="4" fill="#3a86ff"/><rect x="18" y="62" width="38" height="20" rx="5" fill="#f72585"/></svg>
+        SpaceOps<span class="wc"><span>&#8211;</span><span>&#9633;</span><span>&#10005;</span></span>
       </div>
-      <div class="win-body">
-        <div class="tm" id="tm">
-          <div class="tile t1 sel" data-p="C:\Users\dev\AppData\Local\Docker\ext4.vhdx" data-s="48.2 GB" data-f="3" data-d="Dormant 41d" data-w="38"><b>Docker / WSL2</b><small>48.2 GB</small></div>
-          <div class="tile t2" data-p="C:\code\engine\target" data-s="21.6 GB" data-f="184,302" data-d="Dormant 63d" data-w="17"><b>Rust target/</b><small>21.6 GB</small></div>
-          <div class="tile t3" data-p="C:\code\web\node_modules" data-s="14.9 GB" data-f="412,880" data-d="Dormant 97d" data-w="12"><b>node_modules</b><small>14.9 GB</small></div>
-          <div class="tile t4" data-p="C:\Users\dev\Videos" data-s="17.3 GB" data-f="214" data-d="Active" data-w="14"><b>Videos</b><small>17.3 GB</small></div>
-          <div class="tile t5" data-p="C:\Users\dev\.nuget\packages" data-s="9.8 GB" data-f="96,410" data-d="Cache" data-w="8"><b>NuGet</b><small>9.8 GB</small></div>
-          <div class="tile t6" data-p="C:\Windows\SoftwareDistribution" data-s="11.4 GB" data-f="22,019" data-d="Protected" data-w="9"><b>SoftwareDistribution</b><small>11.4 GB</small></div>
-          <div class="tile t7" data-p="C:\code\ml\.venv" data-s="5.1 GB" data-f="38,771" data-d="Dormant 52d" data-w="4"><b>.venv</b><small>5.1 GB</small></div>
-          <div class="tile t8" data-p="Remaining directories" data-s="3.7 GB" data-f="9,402" data-d="&mdash;" data-w="3"><b>Other</b></div>
+      <div class="ax-body">
+        <div class="ax-side">
+          <div class="ax-brand"><svg viewBox="0 0 100 100" aria-hidden="true"><rect width="100" height="100" rx="22" fill="#00f5d4"/><rect x="20" y="40" width="60" height="22" rx="8" fill="none" stroke="#052e25" stroke-width="8"/><circle cx="68" cy="51" r="4" fill="#052e25"/></svg>SpaceOps</div>
+          <nav class="ax-nav" aria-label="App pages">
+            <button type="button" data-page="overview" aria-pressed="true"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg>Overview</button>
+            <button type="button" data-page="treemap" aria-pressed="false"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="8" height="8" rx="1.5"/><rect x="13" y="3" width="8" height="8" rx="1.5"/><rect x="3" y="13" width="8" height="8" rx="1.5"/><rect x="13" y="13" width="8" height="8" rx="1.5"/></svg>Treemap</button>
+            <button type="button" data-page="cleanup" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13M10 11v6M14 11v6"/></svg>Cleanup</button>
+            <button type="button" data-page="developer" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M8 4c-2 0-2 2-2 4s-2 4-3 4c1 0 3 2 3 4s0 4 2 4M16 4c2 0 2 2 2 4s2 4 3 4c-1 0-3 2-3 4s0 4-2 4"/></svg>Developer</button>
+            <button type="button" data-page="applications" aria-pressed="false"><svg viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12"/><rect x="3" y="4" width="3" height="4" rx=".5"/><rect x="3" y="10" width="3" height="4" rx=".5"/><rect x="3" y="16" width="3" height="4" rx=".5"/></svg>Applications</button>
+          </nav>
+          <div class="ax-drive"><b><svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="#00f5d4" stroke-width="1.8"><rect x="3" y="8" width="18" height="8" rx="2"/><circle cx="17" cy="12" r="1"/></svg>C: drive</b><div class="ax-bar" style="margin:8px 0 0"><i style="width:76%"></i></div><small>352 GB used of 462 GB &bull; 110 GB free</small></div>
         </div>
-        <aside class="side" aria-live="polite">
-          <h4>Selected</h4>
-          <div class="path" id="sPath">C:\Users\dev\AppData\Local\Docker\ext4.vhdx</div>
-          <div class="big" id="sSize">48.2 GB</div>
-          <div class="bar"><i id="sBar"></i></div>
-          <dl><dt>Files</dt><dd id="sFiles">3</dd><dt>Share of scan</dt><dd id="sShare">38%</dd><dt>Status</dt><dd><span class="tag" id="sTag">Dormant 41d</span></dd></dl>
-          <h4>Scan</h4>
-          <dl><dt>Size</dt><dd>cluster-allocated</dd><dt>Reparse points</dt><dd>leaf nodes</dd></dl>
-        </aside>
+        <div class="ax-main">
+          <div class="ax-hdr">
+            <div class="ax-path"><svg viewBox="0 0 24 24"><path d="M3 6a1 1 0 0 1 1-1h5l2 2h8a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></svg>C:\Users\dev</div>
+            <button type="button" class="ax-btn pri" id="axScan">&#9655; Scan</button>
+            <button type="button" class="ax-btn opt" disabled>&#10005; Cancel</button>
+            <button type="button" class="ax-btn opt">&#8635; Sync index</button>
+          </div>
+
+          <div class="ax-page" data-view="overview">
+            <h3 class="pt">Overview</h3>
+            <div class="cap">C:\Users\dev &bull; 1,204,331 files in 96,410 folders</div>
+            <div class="ax-grid2">
+              <div class="ax-card">
+                <div class="ax-sec">USAGE BY CATEGORY</div>
+                <div style="display:flex;gap:16px;align-items:center">
+                  <div class="ax-donut" style="background:conic-gradient(#34d399 0 26%,#00f5d4 26% 50%,#9d4edd 50% 63%,#ff9f1c 63% 72%,#64748b 72% 82%,#3a86ff 82% 88%,#475569 88% 100%)"><span>186 GB<small>scanned</small></span></div>
+                  <div style="flex:1;min-width:0">
+                    <div class="ax-kv"><i style="background:#34d399"></i>Archives<b>48.4 GB</b><em>26%</em></div>
+                    <div class="ax-kv"><i style="background:#00f5d4"></i>Code &amp; Data<b>44.6 GB</b><em>24%</em></div>
+                    <div class="ax-kv"><i style="background:#9d4edd"></i>Video<b>24.2 GB</b><em>13%</em></div>
+                    <div class="ax-kv"><i style="background:#ff9f1c"></i>Images<b>16.7 GB</b><em>9%</em></div>
+                    <div class="ax-kv"><i style="background:#64748b"></i>System<b>18.6 GB</b><em>10%</em></div>
+                    <div class="ax-kv"><i style="background:#3a86ff"></i>Documents<b>11.2 GB</b><em>6%</em></div>
+                    <div class="ax-kv"><i style="background:#475569"></i>Smaller files<b>22.3 GB</b><em>12%</em></div>
+                  </div>
+                </div>
+              </div>
+              <div class="ax-card">
+                <div class="ax-sec">TOP 5 CONSUMERS</div>
+                <div class="ax-top"><svg viewBox="0 0 24 24"><path d="M3 6a1 1 0 0 1 1-1h5l2 2h8a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></svg>AppData<b>60.0 GB</b><div class="tb"><i style="width:100%"></i></div><small>32.3%</small></div>
+                <div class="ax-top"><svg viewBox="0 0 24 24"><path d="M3 6a1 1 0 0 1 1-1h5l2 2h8a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></svg>code<b>41.6 GB</b><div class="tb"><i style="width:69%"></i></div><small>22.4%</small></div>
+                <div class="ax-top"><svg viewBox="0 0 24 24"><path d="M3 6a1 1 0 0 1 1-1h5l2 2h8a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></svg>Videos<b>24.2 GB</b><div class="tb"><i style="width:40%"></i></div><small>13.0%</small></div>
+                <div class="ax-top"><svg viewBox="0 0 24 24"><path d="M3 6a1 1 0 0 1 1-1h5l2 2h8a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></svg>Pictures<b>16.7 GB</b><div class="tb"><i style="width:28%"></i></div><small>9.0%</small></div>
+                <div class="ax-top"><svg viewBox="0 0 24 24"><path d="M3 6a1 1 0 0 1 1-1h5l2 2h8a1 1 0 0 1 1 1v10a1 1 0 0 1-1 1H4a1 1 0 0 1-1-1z"/></svg>Documents<b>11.2 GB</b><div class="tb"><i style="width:19%"></i></div><small>6.0%</small></div>
+              </div>
+              <div class="ax-card">
+                <div class="ax-sec">RECLAIMABLE NOW</div>
+                <div class="ax-big">58.5 GB</div>
+                <div class="ax-line">System junk (7)<b>10.3 GB</b></div>
+                <div class="ax-line">Dormant developer artifacts (3)<b>41.6 GB</b></div>
+                <div class="ax-line">App leftovers (12)<b>6.6 GB</b></div>
+                <div style="color:var(--a-muted);font-size:10.5px;margin:8px 0 10px">Cleanup always routes through the Recycle Bin by default, and protected system paths are never touched.</div>
+                <button type="button" class="ax-btn pri" data-go="cleanup">Review and clean</button>
+              </div>
+              <div class="ax-card">
+                <div class="ax-sec">QUICK ACTIONS</div>
+                <div class="ax-qa">
+                  <button type="button" class="ax-btn" id="axRescan">&#8635; Rescan</button>
+                  <button type="button" class="ax-btn">&#8635; Sync index</button>
+                  <button type="button" class="ax-btn" data-go="treemap">Open treemap</button>
+                  <button type="button" class="ax-btn" data-go="cleanup">Smart cleanup</button>
+                  <button type="button" class="ax-btn" data-go="developer">Developer storage</button>
+                  <button type="button" class="ax-btn" data-go="applications">Applications</button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="ax-page" data-view="treemap" hidden>
+            <div class="ax-tmwrap">
+              <div class="ax-tmleft">
+                <div class="ax-crumb"><span style="color:var(--a-sub)">&larr;</span>C:\Users\dev<span class="s">Search files, ext:vhdx, size:&gt;1GB&hellip;</span><span class="d">Depth: 3</span></div>
+                <div class="ax-tm" id="axTm"></div>
+              </div>
+              <div style="display:flex;flex-direction:column;gap:12px;min-width:0">
+                <div class="ax-card ax-det" aria-live="polite">
+                  <div style="font-weight:700;font-size:14px" id="axName">ext4.vhdx</div>
+                  <div class="p" id="axPath">C:\Users\dev\AppData\Local\Docker\wsl\disk\ext4.vhdx</div>
+                  <div class="ax-big" id="axSize">48.2 GB</div>
+                  <div class="ax-bar"><i id="axShare" style="width:26%"></i></div>
+                  <div class="ax-line">Share of scan<b id="axPct">25.9%</b></div>
+                  <div class="ax-line">Category<b id="axCat">Archives</b></div>
+                  <div class="ax-line">Status<span class="ax-pill dorm" id="axTag">Dormant 41d</span></div>
+                  <div style="display:flex;gap:6px;margin-top:10px"><span class="ax-btn pri">Drill Down</span><span class="ax-btn">Show in Explorer</span></div>
+                </div>
+                <div class="ax-card">
+                  <div class="ax-sec">FILE TYPES</div>
+                  <div class="ax-legend"><span><i style="background:#9d4edd"></i>Video</span><span><i style="background:#f72585"></i>Audio</span><span><i style="background:#ff9f1c"></i>Images</span><span><i style="background:#3a86ff"></i>Documents</span><span><i style="background:#34d399"></i>Archives</span><span><i style="background:#fb7185"></i>Programs</span><span><i style="background:#00f5d4"></i>Code &amp; Data</span><span><i style="background:#64748b"></i>System</span><span><i style="background:#475569"></i>Other</span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="ax-page" data-view="cleanup" hidden>
+            <h3 class="pt"><svg viewBox="0 0 24 24" stroke="#ff9f1c"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg>Smart Storage Cleanup</h3>
+            <div class="ax-card" style="margin:10px 0">
+              <div class="ax-sum"><span class="t">Total Reclaimable: 58.5 GB across 22 items</span></div>
+              <div class="ax-sum b" style="margin:0">System junk 10.3 GB (7) &bull; Developer artifacts 41.6 GB (3) &bull; App leftovers 6.6 GB (12)</div>
+              <div style="color:var(--a-muted);font-size:10.5px;margin-top:4px">Zero-Accident Safety: Protected system roots excluded. All deletions default to Recycle Bin.</div>
+            </div>
+            <div class="ax-tools"><span class="ax-btn">All sources &#9662;</span><span class="cap" style="margin:0" id="axSel">Selected: 2 items &bull; 9.9 GB</span><span class="r"><button type="button" class="ax-btn" id="axSafe">Select safe</button><button type="button" class="ax-btn" id="axClear">Clear</button></span></div>
+            <div id="axClean">
+              <div class="ax-row"><button type="button" class="ax-ck" role="checkbox" aria-checked="true" aria-label="Select User Temporary Files" data-gb="7.4" data-safe="1"></button><div><div class="n">User Temporary Files <span class="ax-pill src">System junk</span><span class="ax-pill low">Low Risk</span></div><div class="d">Temporary data created by applications and installers.</div><div class="m">%LOCALAPPDATA%\Temp</div></div><div class="z">7.4 GB<small>21,940 files</small></div><span></span></div>
+              <div class="ax-row"><button type="button" class="ax-ck" role="checkbox" aria-checked="true" aria-label="Select Windows Update download cache" data-gb="2.5" data-safe="1"></button><div><div class="n">Windows Update Cache <span class="ax-pill src">System junk</span><span class="ax-pill low">Low Risk</span></div><div class="d">Downloaded update packages that were already installed.</div><div class="m">C:\Windows\SoftwareDistribution\Download</div></div><div class="z">2.5 GB<small>3,102 files</small></div><span></span></div>
+              <div class="ax-row"><button type="button" class="ax-ck" role="checkbox" aria-checked="false" aria-label="Select engine target folder" data-gb="21.6"></button><div><div class="n">engine &middot; target <span class="ax-pill src">Developer</span><span class="ax-pill dorm">Dormant 63d</span></div><div class="d">Cargo build artifacts; recreated via 'cargo build'.</div><div class="m">C:\Users\dev\code\engine\target</div></div><div class="z">21.6 GB<small>184,302 files</small></div><span></span></div>
+              <div class="ax-row"><button type="button" class="ax-ck" role="checkbox" aria-checked="false" aria-label="Select web-dashboard node_modules" data-gb="14.9"></button><div><div class="n">web-dashboard &middot; node_modules <span class="ax-pill src">Developer</span><span class="ax-pill dorm">Dormant 97d</span></div><div class="d">npm dependencies; restored with 'npm install'.</div><div class="m">C:\Users\dev\code\web\node_modules</div></div><div class="z">14.9 GB<small>412,880 files</small></div><span></span></div>
+              <div class="ax-row"><button type="button" class="ax-ck" role="checkbox" aria-checked="false" aria-label="Select OldLauncher leftover" data-gb="2.1"></button><div><div class="n">OldLauncher leftover <span class="ax-pill lo">App leftover</span><span class="ax-pill med">Medium Risk</span></div><div class="d">Local AppData residue of an application that is no longer installed. Review before cleaning.</div><div class="m">C:\Users\dev\AppData\Local\OldLauncher</div></div><div class="z">2.1 GB<small>1,204 files</small></div><span></span></div>
+            </div>
+            <div class="ax-opts">
+              <label><button type="button" class="ax-ck" role="checkbox" aria-checked="true" aria-label="Send to Windows Recycle Bin"></button>Send to Windows Recycle Bin (Recoverable, Recommended)</label>
+              <label><button type="button" class="ax-ck" role="checkbox" aria-checked="false" aria-label="Dry-run simulation only" id="axDry"></button>Dry-Run Simulation Only (Audit space without removing files)</label>
+            </div>
+            <div class="ax-foot"><span>Analysis complete. Protected paths verified.</span><button type="button" class="ax-btn pri" id="axCleanBtn">Clean Selected Items</button></div>
+            <div class="ax-toast" id="axToast" role="status">This is a website preview: nothing on your PC is touched. In the app, selected items go to the Recycle Bin.</div>
+          </div>
+
+          <div class="ax-page" data-view="developer" hidden>
+            <h3 class="pt"><svg viewBox="0 0 24 24" stroke="#34d399"><path d="M8 4c-2 0-2 2-2 4s-2 4-3 4c1 0 3 2 3 4s0 4 2 4M16 4c2 0 2 2 2 4s2 4 3 4c-1 0-3 2-3 4s0 4-2 4"/></svg>Developer Storage Intelligence</h3>
+            <div class="ax-tools" style="margin-top:10px"><span class="f">Filter by project or path&hellip;</span><span class="ax-btn">All Ecosystems &#9662;</span><span class="cap" style="margin:0">&#9744; Dormant Only (&gt;30d)</span><span class="r"><span class="ax-btn">&#8635; Scan Dev Storage</span></span></div>
+            <div class="ax-row"><div class="ic" style="background:#ff9f1c"><svg viewBox="0 0 24 24"><path d="M4 7l8-4 8 4v10l-8 4-8-4z"/></svg></div><div><div class="n">engine <span class="ax-pill neu">target</span><span class="ax-pill dorm">Dormant 63d</span></div><div class="m">C:\Users\dev\code\engine\target</div><div class="d">Cargo build artifacts; recreated via 'cargo build'.</div></div><div class="z">21.6 GB<small>184,302 files</small></div><div class="acts"><span class="ax-btn">Clean (Recycle Bin)</span></div></div>
+            <div class="ax-row"><div class="ic" style="background:#34d399"><svg viewBox="0 0 24 24"><path d="M4 7l8-4 8 4v10l-8 4-8-4z"/></svg></div><div><div class="n">web-dashboard <span class="ax-pill neu">node_modules</span><span class="ax-pill dorm">Dormant 97d</span></div><div class="m">C:\Users\dev\code\web\node_modules</div><div class="d">npm dependencies; restored with 'npm install'.</div></div><div class="z">14.9 GB<small>412,880 files</small></div><div class="acts"><span class="ax-btn">Clean (Recycle Bin)</span></div></div>
+            <div class="ax-row"><div class="ic" style="background:#3a86ff"><svg viewBox="0 0 24 24"><path d="M4 7l8-4 8 4v10l-8 4-8-4z"/></svg></div><div><div class="n">ml-experiments <span class="ax-pill neu">.venv</span><span class="ax-pill dorm">Dormant 52d</span></div><div class="m">C:\Users\dev\code\ml\.venv</div><div class="d">Python virtual environment; recreate from requirements.txt.</div></div><div class="z">5.1 GB<small>38,771 files</small></div><div class="acts"><span class="ax-btn">Clean (Recycle Bin)</span></div></div>
+            <div class="ax-row"><div class="ic" style="background:#9d4edd"><svg viewBox="0 0 24 24"><path d="M4 7l8-4 8 4v10l-8 4-8-4z"/></svg></div><div><div class="n">billing-api <span class="ax-pill neu">bin</span><span class="ax-pill act">Active today</span></div><div class="m">C:\Users\dev\code\billing\bin</div><div class="d">.NET compiled binaries; recreated via 'dotnet build'.</div></div><div class="z">1.2 GB<small>3,120 files</small></div><div class="acts"><span class="ax-btn">Clean (Recycle Bin)</span></div></div>
+            <div class="ax-foot"><span>4 developer artifacts found &bull; 42.8 GB total (41.6 GB dormant)</span></div>
+          </div>
+
+          <div class="ax-page" data-view="applications" hidden>
+            <h3 class="pt"><svg viewBox="0 0 24 24" stroke="#00f5d4"><path d="M9 6h12M9 12h12M9 18h12"/><rect x="3" y="4" width="3" height="4" rx=".5"/><rect x="3" y="10" width="3" height="4" rx=".5"/><rect x="3" y="16" width="3" height="4" rx=".5"/></svg>Installed Applications &amp; Storage Attribution</h3>
+            <div class="ax-tools" style="margin-top:10px"><span class="f">Filter apps by name or publisher&hellip;</span><span class="ax-btn">All Types &#9662;</span><span class="r"><span class="ax-btn">&#8635; Refresh</span><button type="button" class="ax-btn" id="axLeft">View Leftovers</button></span></div>
+            <div id="axApps">
+              <div class="ax-row"><div class="ic" style="background:#9d4edd"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/></svg></div><div><div class="n">Visual Studio 2022 <span class="ax-pill neu">17.11</span></div><div class="d">Microsoft Corporation</div><div class="m">C:\Program Files\Microsoft Visual Studio\2022\Community</div></div><div class="z">42.3 GB<small>96,410 files</small></div><div class="acts"><span class="ax-btn">Uninstall</span></div></div>
+              <div class="ax-row"><div class="ic" style="background:#3a86ff"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/></svg></div><div><div class="n">Docker Desktop <span class="ax-pill neu">4.34.1</span></div><div class="d">Docker Inc.</div><div class="m">C:\Program Files\Docker\Docker</div></div><div class="z">6.8 GB<small>21,004 files</small></div><div class="acts"><span class="ax-btn">Uninstall</span></div></div>
+              <div class="ax-row"><div class="ic" style="background:#f72585"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="16" height="16" rx="3"/></svg></div><div><div class="n">Photo Editor Pro <span class="ax-pill neu">24.6</span></div><div class="d">Example Software Ltd.</div><div class="m">C:\Program Files\PhotoEditor</div></div><div class="z">4.1 GB<small>Registry est.</small></div><div class="acts"><span class="ax-btn">Uninstall</span></div></div>
+            </div>
+            <div id="axLeftovers" hidden>
+              <div class="ax-row"><div class="ic" style="background:#ff9f1c"><svg viewBox="0 0 24 24"><path d="M4 7h16M6 7l1 13h10l1-13"/></svg></div><div><div class="n">OldLauncher <span class="ax-pill med">Medium Risk</span></div><div class="m">C:\Users\dev\AppData\Local\OldLauncher</div><div class="d">No installed app matches this folder. Review before cleaning.</div></div><div class="z" style="color:var(--a-orange)">2.1 GB<small>1,204 files</small></div><div class="acts"><span class="ax-btn">Clean</span></div></div>
+              <div class="ax-row"><div class="ic" style="background:#ff9f1c"><svg viewBox="0 0 24 24"><path d="M4 7h16M6 7l1 13h10l1-13"/></svg></div><div><div class="n">RetiredVPN <span class="ax-pill med">Medium Risk</span></div><div class="m">C:\ProgramData\RetiredVPN</div><div class="d">No installed app matches this folder. Review before cleaning.</div></div><div class="z" style="color:var(--a-orange)">0.8 GB<small>312 files</small></div><div class="acts"><span class="ax-btn">Clean</span></div></div>
+            </div>
+            <div class="ax-foot"><span>Sizes come from the scan when the install folder was scanned, otherwise from the Windows registry estimate.</span></div>
+          </div>
+
+          <div class="ax-status"><div class="ax-prog" id="axProg"><i></i></div><span id="axStat">Ready &bull; 1,204,331 nodes scanned in 4.2 s</span><span class="sp"></span><span>Total Size: 186 GB</span></div>
+        </div>
       </div>
     </div>
-    <p class="hint">Illustrative mockup with sample data &mdash; hover a tile to inspect it</p>
+    <p class="hint">Interactive preview of the real app layout with sample data &mdash; click the sidebar pages, hover treemap tiles</p>
 
     <div class="chips">
       <span class="chip">Rust</span><span class="chip">.NET 9</span><span class="chip">WinUI 3</span><span class="chip">Direct2D</span><span class="chip">SQLite WAL</span><span class="chip">NTFS USN</span>
@@ -422,10 +637,13 @@ if ($actual -ieq $expected) { 'OK: checksum matches' } else { 'MISMATCH: do not 
     </div>
     <div class="grid g3">
       <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M19.1 4.9L17 7M7 17l-2.1 2.1"/></svg></div><h3>Parallel Rust scanner</h3><p>Rayon-backed traversal over Win32 <code>FindFirstFileExW</code>, reporting true 4&nbsp;KB cluster-allocated size, not misleading logical bytes.</p></div>
-      <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="10" height="10" rx="1.5"/><rect x="15" y="3" width="6" height="6" rx="1.5"/><rect x="15" y="11" width="6" height="10" rx="1.5"/><rect x="3" y="15" width="10" height="6" rx="1.5"/></svg></div><h3>Accelerated treemap</h3><p>Squarified layout (Bruls&ndash;Huizing&ndash;van Wijk) drawn with Direct2D. Double-click to drill in, use breadcrumbs to climb out.</p></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><path d="M3 11l9-8 9 8v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z"/></svg></div><h3>Overview at a glance</h3><p>One page with usage by category, your five biggest space consumers, how much you can reclaim right now, and quick actions.</p></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="10" height="10" rx="1.5"/><rect x="15" y="3" width="6" height="6" rx="1.5"/><rect x="15" y="11" width="6" height="10" rx="1.5"/><rect x="3" y="15" width="10" height="6" rx="1.5"/></svg></div><h3>Accelerated treemap</h3><p>Squarified layout drawn with Direct2D, with folder name headers so you always know where you are. Pick 1&ndash;3 levels of depth, double-click to drill in, breadcrumbs to climb out.</p></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><path d="M4 7h16M9 7V4h6v3M6 7l1 13h10l1-13"/></svg></div><h3>One cleanup list</h3><p>System junk, dormant developer artifacts and app leftovers in a single list with one reclaimable total. Only low-risk items are pre-selected.</p></div>
       <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><path d="M4 7l8-4 8 4v10l-8 4-8-4z"/><path d="M4 7l8 4 8-4M12 11v10"/></svg></div><h3>8 developer ecosystems</h3><p>Node.js, Rust, .NET, Python, Java, Docker/WSL, Git and IDE caches, with dormancy flags for projects untouched 30+ days.</p></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><path d="M9 6h12M9 12h12M9 18h12"/><rect x="3" y="4" width="3" height="4" rx=".5"/><rect x="3" y="10" width="3" height="4" rx=".5"/><rect x="3" y="16" width="3" height="4" rx=".5"/></svg></div><h3>Applications &amp; leftovers</h3><p>Installed apps ranked by real disk usage, with honest &ldquo;Registry est.&rdquo; labels when a folder was not scanned, plus folders left behind by uninstalled apps, flagged for review.</p></div>
       <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6z"/><path d="M9 12l2 2 4-4"/></svg></div><h3>Zero-accident cleanup</h3><p>Immutable system-path blacklist, Recycle Bin-only deletion through Shell COM, and a dry-run mode that touches nothing.</p></div>
-      <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></div><h3>Sub-5&nbsp;ms search</h3><p>Query indexed trees with structured filters: <code>ext:log</code>, <code>size:&gt;1GB</code>, <code>type:dir</code>, or any combination.</p></div>
+      <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg></div><h3>Fast structured search</h3><p>Filter a scanned tree with <code>ext:log</code>, <code>size:&gt;1GB</code>, <code>type:dir</code>, or any combination; about 50&nbsp;ms across 1,000,000 nodes.</p></div>
       <div class="card"><div class="ico"><svg viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-3-6.7L21 8"/><path d="M21 3v5h-5"/></svg></div><h3>Incremental sync</h3><p>SQLite WAL snapshots restore trees in under 100&nbsp;ms; the NTFS USN Journal resyncs changes in under 50&nbsp;ms, no full rescan.</p></div>
     </div>
   </div>
@@ -454,7 +672,7 @@ if ($actual -ieq $expected) { 'OK: checksum matches' } else { 'MISMATCH: do not 
   <div class="wrap">
     <div class="sec-head">
       <div class="eyebrow">Safety model</div>
-      <h2>Four layers between a click and your filesystem</h2>
+      <h2>Five layers between a click and your filesystem</h2>
       <p class="sec-sub">Details in the <a href="https://github.com/ChadaSaiteja/SpaceOps/blob/main/docs/safety-model.md">safety model</a>.</p>
     </div>
     <div class="steps">
@@ -462,6 +680,7 @@ if ($actual -ieq $expected) { 'OK: checksum matches' } else { 'MISMATCH: do not 
       <div class="step"><h3>Dry run first</h3><p>Preview exactly what would be reclaimed before anything is touched.</p></div>
       <div class="step"><h3>Recycle Bin only</h3><p>Deletion goes through the Windows Shell COM API, so every file can be restored.</p></div>
       <div class="step"><h3>Junction-safe</h3><p>Symlinks, junctions and mount points are leaves, never followed or double-counted.</p></div>
+      <div class="step"><h3>Review-first leftovers</h3><p>Folders that look left behind by uninstalled apps are a best guess, so they are marked Medium risk and never pre-selected. Shared folders such as <code>AppData\Local\Programs</code> are never offered.</p></div>
     </div>
   </div>
 </section>
@@ -474,12 +693,13 @@ if ($actual -ieq $expected) { 'OK: checksum matches' } else { 'MISMATCH: do not 
       <p class="sec-sub">Reproduce with <code>cargo run --release -p storage-tree --example tree_benchmark</code></p>
     </div>
     <div class="stats">
-      <div class="stat"><div class="num">218 ms</div><div class="lbl">Tree build</div><div class="tgt">target &le; 2.0 s</div></div>
-      <div class="stat"><div class="num">26.1 ns</div><div class="lbl">Node lookup</div><div class="tgt">target &lt; 1,000 ns</div></div>
-      <div class="stat"><div class="num">45.7 ms</div><div class="lbl">Top-100 files</div><div class="tgt">target &lt; 50 ms</div></div>
+      <div class="stat"><div class="num">~180 ms</div><div class="lbl">Tree build</div><div class="tgt">target &le; 2.0 s</div></div>
+      <div class="stat"><div class="num">~35 &micro;s</div><div class="lbl">Top-100 files</div><div class="tgt">target &lt; 50 ms</div></div>
+      <div class="stat"><div class="num">~52 ms</div><div class="lbl">Text search</div><div class="tgt">1M nodes, name match</div></div>
+      <div class="stat"><div class="num">~92 ms</div><div class="lbl">Treemap layout</div><div class="tgt">1920&times;1080, depth 4</div></div>
       <div class="stat"><div class="num">55 MB</div><div class="lbl">Memory (RSS)</div><div class="tgt">target &lt; 300 MB</div></div>
     </div>
-    <p class="note">Core-engine figures from the project&rsquo;s own benchmark; your results will vary.</p>
+    <p class="note">Medians from the v0.2 <a href="https://github.com/ChadaSaiteja/SpaceOps/blob/main/docs/performance-review.md">performance review</a> on one developer machine; your results will vary.</p>
   </div>
 </section>
 
@@ -603,21 +823,98 @@ cd SpaceOps
 
 <script>
 (function(){
-  var tiles=document.querySelectorAll('#tm .tile');
-  function pick(t){
-    tiles.forEach(function(x){x.classList.remove('sel')});t.classList.add('sel');
-    var d=t.dataset;
-    document.getElementById('sPath').textContent=d.p;
-    document.getElementById('sSize').textContent=d.s;
-    document.getElementById('sFiles').textContent=d.f;
-    document.getElementById('sShare').textContent=d.w+'%';
-    document.getElementById('sTag').textContent=d.d;
-    document.getElementById('sBar').style.width=d.w+'%';
+  /* ---- App preview (sample data only; nothing here touches the visitor's PC) ---- */
+  var app=document.getElementById('app');
+  if(app){
+    var navBtns=app.querySelectorAll('.ax-nav button'),views=app.querySelectorAll('.ax-page');
+    function show(p){
+      navBtns.forEach(function(b){b.setAttribute('aria-pressed',b.dataset.page===p?'true':'false')});
+      views.forEach(function(v){v.hidden=v.dataset.view!==p});
+      if(p==='treemap')drawTm();
+    }
+    navBtns.forEach(function(b){b.addEventListener('click',function(){show(b.dataset.page)})});
+    app.querySelectorAll('[data-go]').forEach(function(b){b.addEventListener('click',function(){show(b.dataset.go)})});
+
+    // Treemap: same palette as Styles/Palette.cs; folders get an 18px header strip like the app's layout engine
+    var COL={video:'#9d4edd',image:'#ff9f1c',doc:'#3a86ff',archive:'#34d399',code:'#00f5d4',system:'#64748b',other:'#475569',folder:'#475569'};
+    var CATN={video:'Video',image:'Images',doc:'Documents',archive:'Archives',code:'Code & Data',system:'System',other:'Other',folder:'Folder'};
+    var ROOT='C:\\Users\\dev',TOTAL=186;
+    var TREE=[
+      {n:'AppData',k:[{n:'ext4.vhdx',s:48.2,c:'archive',t:'Dormant 41d',p:'\\AppData\\Local\\Docker\\wsl\\disk\\ext4.vhdx'},{n:'Temp',s:7.4,c:'other',t:'Cache'},{n:'npm-cache',s:2.1,c:'code',t:'Cache'},{n:'Packages',s:2.3,c:'system',t:'Protected'}]},
+      {n:'code',k:[{n:'target',s:21.6,c:'code',t:'Dormant 63d',p:'\\code\\engine\\target'},{n:'node_modules',s:14.9,c:'code',t:'Dormant 97d',p:'\\code\\web\\node_modules'},{n:'.venv',s:5.1,c:'code',t:'Dormant 52d',p:'\\code\\ml\\.venv'}]},
+      {n:'Videos',k:[{n:'trip-2025.mp4',s:13.0,c:'video',t:'Active'},{n:'recordings',s:11.2,c:'video',t:'Active'}]},
+      {n:'Pictures',k:[{n:'Camera',s:12.4,c:'image',t:'Active'},{n:'Screenshots',s:4.3,c:'image',t:'Active'}]},
+      {n:'Documents',k:[{n:'archive.pst',s:6.0,c:'doc',t:'Active'},{n:'Scans',s:5.2,c:'doc',t:'Active'}]},
+      {n:'.nuget',k:[{n:'packages',s:9.8,c:'archive',t:'Cache'}]},
+      {n:'Other files',s:12.7,c:'other',t:'—'}
+    ];
+    TREE.forEach(function(d){if(d.k){d.s=d.k.reduce(function(a,b){return a+b.s},0);d.c='folder';d.t='Folder';d.k.forEach(function(x){x.p=x.p||('\\'+d.n+'\\'+x.n)})}d.p=d.p||('\\'+d.n)});
+    function squarify(items,x,y,w,h){
+      var out=[],list=items.slice().sort(function(a,b){return b.s-a.s});
+      var tot=list.reduce(function(a,b){return a+b.s},0);if(tot<=0||w<=0||h<=0)return out;
+      var sc=(w*h)/tot,row=[],rem=[x,y,w,h];
+      function worst(r,side){var s=0,mx=0,mn=1e12;r.forEach(function(i){var a=i.s*sc;s+=a;mx=Math.max(mx,a);mn=Math.min(mn,a)});return Math.max(side*side*mx/(s*s),s*s/(side*side*mn))}
+      function lay(r,x,y,w,h){var s=r.reduce(function(a,i){return a+i.s*sc},0),pos;
+        if(w>=h){var cw=s/h;pos=y;r.forEach(function(i){var rh=i.s*sc/cw;out.push({it:i,x:x,y:pos,w:cw,h:rh});pos+=rh});return[x+cw,y,w-cw,h]}
+        var ch=s/w;pos=x;r.forEach(function(i){var rw=i.s*sc/ch;out.push({it:i,x:pos,y:y,w:rw,h:ch});pos+=rw});return[x,y+ch,w,h-ch]}
+      while(list.length){var it=list[0],side=Math.min(rem[2],rem[3]);
+        if(!row.length||worst(row.concat([it]),side)<=worst(row,side)){row.push(it);list.shift()}else{rem=lay(row,rem[0],rem[1],rem[2],rem[3]);row=[]}}
+      if(row.length)lay(row,rem[0],rem[1],rem[2],rem[3]);
+      return out;
+    }
+    var tm=document.getElementById('axTm'),sel=null;
+    function fmt(g){return g.toFixed(1)+' GB'}
+    function pick(it,el){
+      if(sel)sel.classList.remove('sel');sel=el;if(el)el.classList.add('sel');
+      document.getElementById('axName').textContent=it.n;
+      document.getElementById('axPath').textContent=ROOT+it.p;
+      document.getElementById('axSize').textContent=fmt(it.s);
+      var pct=it.s/TOTAL*100;
+      document.getElementById('axShare').style.width=pct.toFixed(1)+'%';
+      document.getElementById('axPct').textContent=pct.toFixed(1)+'%';
+      document.getElementById('axCat').textContent=CATN[it.c];
+      var tag=document.getElementById('axTag');tag.textContent=it.t;
+      tag.className='ax-pill '+(it.t.indexOf('Dormant')===0?'dorm':it.t==='Protected'?'high':it.t==='Active'?'act':'neu');
+    }
+    function tile(it,r,dir){
+      var el=document.createElement('div');el.className='ax-tile'+(dir?' dir':'');
+      el.style.cssText='left:'+(r.x+1)+'px;top:'+(r.y+1)+'px;width:'+Math.max(0,r.w-2)+'px;height:'+Math.max(0,r.h-2)+'px;background-color:'+COL[it.c];
+      if(r.w>44&&r.h>16){var s=document.createElement('span');s.textContent=it.n+'  '+fmt(it.s);el.appendChild(s)}
+      el.addEventListener('mouseenter',function(e){e.stopPropagation();pick(it,el)});
+      el.addEventListener('click',function(e){e.stopPropagation();pick(it,el)});
+      tm.appendChild(el);return el;
+    }
+    function drawTm(){
+      if(!tm||!tm.clientWidth)return;tm.textContent='';sel=null;
+      var first=null;
+      squarify(TREE,2,2,tm.clientWidth-4,tm.clientHeight-4).forEach(function(r){
+        var it=r.it;tile(it,r,!!it.k);
+        if(it.k){var hd=(r.w>=60&&r.h>=44)?18:2;
+          squarify(it.k,r.x+3,r.y+hd,r.w-6,r.h-hd-3).forEach(function(c){var el=tile(c.it,c,false);if(c.it.n==='ext4.vhdx')first=[c.it,el]})}
+      });
+      if(first)pick(first[0],first[1]);
+    }
+    var rt;window.addEventListener('resize',function(){clearTimeout(rt);rt=setTimeout(function(){if(!app.querySelector('[data-view="treemap"]').hidden)drawTm()},60)});
+
+    // Cleanup checkboxes and running total (default selection = low-risk system junk only, as in the app)
+    var rows=app.querySelectorAll('#axClean .ax-ck');
+    function total(){var n=0,g=0;rows.forEach(function(c){if(c.getAttribute('aria-checked')==='true'){n++;g+=parseFloat(c.dataset.gb)}});
+      document.getElementById('axSel').textContent='Selected: '+n+' items \u2022 '+g.toFixed(1)+' GB'}
+    app.querySelectorAll('.ax-ck').forEach(function(c){c.addEventListener('click',function(){c.setAttribute('aria-checked',c.getAttribute('aria-checked')==='true'?'false':'true');total()})});
+    document.getElementById('axSafe').addEventListener('click',function(){rows.forEach(function(c){c.setAttribute('aria-checked',c.dataset.safe?'true':'false')});total()});
+    document.getElementById('axClear').addEventListener('click',function(){rows.forEach(function(c){c.setAttribute('aria-checked','false')});total()});
+    document.getElementById('axCleanBtn').addEventListener('click',function(){var t=document.getElementById('axToast');t.classList.add('on');setTimeout(function(){t.classList.remove('on')},4000)});
+
+    // Applications: leftovers toggle
+    var lb=document.getElementById('axLeft');
+    lb.addEventListener('click',function(){var a=document.getElementById('axApps'),l=document.getElementById('axLeftovers');var on=l.hidden;l.hidden=!on;a.hidden=on;lb.textContent=on?'View Apps':'View Leftovers'});
+
+    // Scan: progress in the status bar (pretend; no file access)
+    function scan(){var p=document.getElementById('axProg'),s=document.getElementById('axStat');p.classList.remove('run');void p.offsetWidth;p.classList.add('run');s.textContent='Scanning C:\\Users\\dev \u2026';
+      setTimeout(function(){p.classList.remove('run');s.textContent='Ready \u2022 1,204,331 nodes scanned in 4.2 s'},1700)}
+    document.getElementById('axScan').addEventListener('click',scan);
+    document.getElementById('axRescan').addEventListener('click',scan);
   }
-  tiles.forEach(function(t){
-    t.addEventListener('mouseenter',function(){pick(t)});
-    t.addEventListener('click',function(){pick(t)});
-  });
   document.querySelectorAll('.copy').forEach(function(b){
     var id=b.getAttribute('data-copy')||'cmds';
     if(navigator.clipboard){b.addEventListener('click',function(){

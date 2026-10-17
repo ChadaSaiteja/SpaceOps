@@ -55,6 +55,32 @@ jobs:
         run: |
           dotnet build storage-intelligence/app/StorageIntelligence/StorageIntelligence.csproj -c Release
 
-      - name: Run C# integration tests (FFI boundary)
+      # Non-blocking: start the real app for ~8 s and report whether it stayed up and whether it
+      # wrote crash.log next to the exe. Never deletes anything; a pre-existing crash.log is only
+      # counted if it was rewritten during this launch.
+      - name: Launch check (non-blocking)
+        continue-on-error: true
+        shell: pwsh
+        run: |
+          $exe = Get-ChildItem storage-intelligence/app/StorageIntelligence/bin/Release -Recurse -Filter StorageIntelligence.exe | Select-Object -First 1
+          if (-not $exe) { Write-Host "StorageIntelligence.exe not found"; exit 1 }
+          $crashLog = Join-Path $exe.DirectoryName 'crash.log'
+          $before = if (Test-Path $crashLog) { (Get-Item $crashLog).LastWriteTimeUtc } else { $null }
+          Write-Host "Launching $($exe.FullName)"
+          $p = Start-Process -FilePath $exe.FullName -WorkingDirectory $exe.DirectoryName -PassThru
+          Start-Sleep -Seconds 8
+          $p.Refresh()
+          $alive = -not $p.HasExited
+          $crashed = (Test-Path $crashLog) -and (($null -eq $before) -or ((Get-Item $crashLog).LastWriteTimeUtc -gt $before))
+          Write-Host "Alive after 8s: $alive"
+          if (-not $alive) { Write-Host "Exit code: $($p.ExitCode)" }
+          Write-Host "crash.log written: $crashed"
+          if ($crashed) { Get-Content $crashLog | Select-Object -First 40 }
+          if ($alive) { Stop-Process -Id $p.Id -Force }
+          if (-not $alive -or $crashed) { exit 1 }
+
+      # Runs every test in the project, including SmokeTests (end-to-end scan -> tree -> treemap ->
+      # search -> developer storage -> dry-run-only cleanup against a temp folder).
+      - name: Run C# integration tests (FFI boundary + end-to-end smoke)
         run: |
           dotnet test storage-intelligence/tests/integration/StorageIntelligence.IntegrationTests.csproj -c Release --verbosity normal

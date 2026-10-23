@@ -64,29 +64,39 @@ public class SearchServiceTests
         }
     }
 
-    [Fact]
+    // This test stalled on the GitHub runner (killed by --blame-hang) while passing locally.
+    // TestTrace records how far it gets; the timeout fails it cleanly so the rest still run.
+    [Fact(Timeout = 60_000)]
     public async Task Search_BySizeAndCategory_FiltersCorrectly()
     {
+        TestTrace.Step("start");
         var dir = Directory.CreateTempSubdirectory("si_search_cat_test_");
         try
         {
+            TestTrace.Step($"temp dir {dir.FullName}");
             File.WriteAllBytes(Path.Combine(dir.FullName, "clip.mp4"), new byte[40000]);
             File.WriteAllBytes(Path.Combine(dir.FullName, "short.mp4"), new byte[2000]);
             File.WriteAllBytes(Path.Combine(dir.FullName, "backup.zip"), new byte[50000]);
+            TestTrace.Step("files written");
 
             using var scanResult = await ScanService.ScanDriveWithResultAsync(dir.FullName);
+            TestTrace.Step("scan done");
             using var tree = await StorageTreeService.BuildAsync(scanResult);
+            TestTrace.Step("tree built");
 
             // Search for video files larger than 10KB
             var results = await tree.SearchAsync("type:video size:>10KB kind:file");
+            TestTrace.Step($"search done: {results.Length} results");
 
             Assert.Single(results);
             Assert.Equal("clip.mp4", results[0].Name);
             Assert.Equal(FileCategory.Video, results[0].Category);
+            TestTrace.Step("asserts passed");
         }
         finally
         {
             dir.Delete(recursive: true);
+            TestTrace.Step("temp dir removed");
         }
     }
 

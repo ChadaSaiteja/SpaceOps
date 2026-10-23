@@ -113,10 +113,15 @@ jobs:
         with:
           workspaces: storage-intelligence/core
 
+      # Install exactly the SDK pinned in global.json (rollForward: disable). Using '9.0.x' broke
+      # the build when 9.0.319 shipped: the runner got 9.0.319 and dotnet refused to start.
       - name: Set up .NET SDK
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '9.0.x'
+          global-json-file: global.json
+
+      - name: Show .NET SDK in use
+        run: dotnet --version
 
       - name: NuGet package cache
         uses: actions/cache@v4

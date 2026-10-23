@@ -153,9 +153,13 @@ jobs:
           cd storage-intelligence/core
           cargo build --release -p ffi
 
+      # WindowsAppSDKSelfContained: the runner has no Windows App Runtime installed. A framework-
+      # dependent build runs the Windows App SDK bootstrapper the first time the app assembly is
+      # touched, and without the runtime it never returns (this is what stalled the C# tests).
+      # Self-contained, the runtime ships in the output and no bootstrapper runs, like release builds.
       - name: Build WinUI 3 Desktop Application
         run: |
-          dotnet build storage-intelligence/app/StorageIntelligence/StorageIntelligence.csproj -c Release
+          dotnet build storage-intelligence/app/StorageIntelligence/StorageIntelligence.csproj -c Release -p:WindowsAppSDKSelfContained=true
 
       # Non-blocking: start the real app for ~8 s and report whether it stayed up and whether it
       # wrote crash.log next to the exe. Never deletes anything; a pre-existing crash.log is only
@@ -202,6 +206,7 @@ jobs:
           $testArgs = @(
             'test', 'storage-intelligence/tests/integration/StorageIntelligence.IntegrationTests.csproj',
             '-c', 'Release',
+            '-p:WindowsAppSDKSelfContained=true',
             '--filter', 'Category!=Machine',
             '--logger', 'console;verbosity=normal',
             '--logger', 'trx;LogFileName=results.trx',

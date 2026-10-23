@@ -580,34 +580,65 @@ fn is_folder_recently_active(dir: &Path, now: SystemTime) -> bool {
 
 /// Fallback bounded on-disk size calculator when directory is not inside active StorageTree.
 fn compute_quick_dir_size(dir: &Path) -> (u64, u64) {
-    compute_quick_dir_size_bounded(dir, 0, 3)
+    compute_quick_dir_size_bounded(dir, QUICK_SIZE_MAX_DEPTH, QUICK_SIZE_MAX_ENTRIES)
 }
 
-fn compute_quick_dir_size_bounded(dir: &Path, depth: usize, max_depth: usize) -> (u64, u64) {
-    if depth > max_depth {
-        return (0, 0);
-    }
+/// Levels below the folder that the quick size estimate descends into.
+const QUICK_SIZE_MAX_DEPTH: usize = 3;
+/// Entries examined in total by one quick size estimate, whatever the folder's shape.
+const QUICK_SIZE_MAX_ENTRIES: usize = 20_000;
+
+/// Size and file count of `dir`, examining at most `max_entries` entries in total and
+/// descending at most `max_depth` levels. Reparse points (junctions, symlinks) are never
+/// followed: Windows keeps self-referencing junctions such as `ProgramData\Application Data`,
+/// and following them multiplied the work until the call effectively never returned.
+fn compute_quick_dir_size_bounded(dir: &Path, max_depth: usize, max_entries: usize) -> (u64, u64) {
     let mut total_size = 0u64;
     let mut file_count = 0u64;
+    let mut budget = max_entries;
+    let mut stack: Vec<(PathBuf, usize)> = vec![(dir.to_path_buf(), 0)];
 
-    if let Ok(entries) = std::fs::read_dir(dir) {
-        for entry in entries.flatten().take(500) {
-            let p = entry.path();
-            if p.is_file() {
+    while let Some((current, depth)) = stack.pop() {
+        let Ok(entries) = std::fs::read_dir(&current) else {
+            continue;
+        };
+        for entry in entries.flatten() {
+            if budget == 0 {
+                return (total_size, file_count);
+            }
+            budget -= 1;
+            // file_type() does not follow reparse points, unlike Path::is_dir()/is_file()
+            let Ok(ft) = entry.file_type() else { continue };
+            if ft.is_symlink() || is_reparse_point(&entry) {
+                continue;
+            }
+            if ft.is_file() {
                 if let Ok(meta) = entry.metadata() {
                     total_size += meta.len();
                     file_count += 1;
                 }
-            } else if p.is_dir() {
-                let (sub_size, sub_files) =
-                    compute_quick_dir_size_bounded(&p, depth + 1, max_depth);
-                total_size += sub_size;
-                file_count += sub_files;
+            } else if ft.is_dir() && depth < max_depth {
+                stack.push((entry.path(), depth + 1));
             }
         }
     }
 
     (total_size, file_count)
+}
+
+/// Junctions and mount points are reparse points that `file_type()` reports as directories.
+#[cfg(windows)]
+fn is_reparse_point(entry: &std::fs::DirEntry) -> bool {
+    use std::os::windows::fs::MetadataExt;
+    const FILE_ATTRIBUTE_REPARSE_POINT: u32 = 0x400;
+    std::fs::symlink_metadata(entry.path())
+        .map(|m| m.file_attributes() & FILE_ATTRIBUTE_REPARSE_POINT != 0)
+        .unwrap_or(false)
+}
+
+#[cfg(not(windows))]
+fn is_reparse_point(_entry: &std::fs::DirEntry) -> bool {
+    false
 }
 
 #[cfg(test)]
@@ -805,5 +836,41 @@ mod tests {
         let (size, files) = compute_quick_dir_size(dir.path());
         assert_eq!(size, 15);
         assert_eq!(files, 2);
+    }
+
+    #[test]
+    fn quick_dir_size_stops_at_the_entry_budget() {
+        use tempfile::tempdir;
+        let dir = tempdir().unwrap();
+        for i in 0..50 {
+            std::fs::write(dir.path().join(format!("f{i}.txt")), b"x").unwrap();
+        }
+        let (size, files) = compute_quick_dir_size_bounded(dir.path(), 3, 10);
+        assert_eq!((size, files), (10, 10));
+    }
+
+    #[test]
+    fn quick_dir_size_never_follows_a_junction_loop() {
+        use tempfile::tempdir;
+        let dir = tempdir().unwrap();
+        std::fs::write(dir.path().join("real.txt"), b"12345").unwrap();
+        // A junction pointing back at its own parent, like ProgramData\Application Data.
+        let link = dir.path().join("loop");
+        let made = std::process::Command::new("cmd")
+            .args(["/C", "mklink", "/J"])
+            .arg(&link)
+            .arg(dir.path())
+            .output()
+            .map(|o| o.status.success())
+            .unwrap_or(false);
+        if !made {
+            eprintln!("skipping: could not create a junction here");
+            return;
+        }
+        let (size, files) = compute_quick_dir_size(dir.path());
+        // Only the real file: the junction is neither followed nor counted.
+        assert_eq!((size, files), (5, 1));
+        // The test only removes the junction link it created (never its target).
+        let _ = std::fs::remove_dir(&link);
     }
 }

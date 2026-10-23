@@ -179,7 +179,8 @@ jobs:
       # Runs every test except those that read this machine's installed apps and global caches
       # (Category=Machine: a CI runner's software says nothing about our code). Includes SmokeTests
       # (end-to-end scan -> tree -> treemap -> search -> developer storage -> dry-run-only cleanup).
-      # --blame-hang kills any test stuck for 3 minutes and records which one it was.
+      # --blame-hang kills any test stuck for 3 minutes and records which one it was; test classes
+      # run one at a time here so the test it names is the one that was actually stuck.
       - name: Run C# integration tests (FFI boundary + end-to-end smoke)
         timeout-minutes: 15
         run: >
@@ -190,6 +191,7 @@ jobs:
           --logger "trx;LogFileName=results.trx"
           --results-directory TestResults
           --blame-hang --blame-hang-timeout 3m
+          -- xUnit.ParallelizeTestCollections=false
 
       # Turns failed or hung tests into annotations on the run summary, readable without opening logs.
       - name: Report failed or hung tests

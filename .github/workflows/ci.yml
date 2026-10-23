@@ -183,6 +183,8 @@ jobs:
       # run one at a time here so the test it names is the one that was actually stuck.
       - name: Run C# integration tests (FFI boundary + end-to-end smoke)
         timeout-minutes: 15
+        env:
+          SI_TEST_TRACE: ${{ runner.temp }}/test-trace.log
         run: >
           dotnet test storage-intelligence/tests/integration/StorageIntelligence.IntegrationTests.csproj
           -c Release
@@ -204,6 +206,10 @@ jobs:
             foreach ($r in $x.TestRun.Results.UnitTestResult) {
               if ($r.outcome -ne 'Passed') { Write-Host "::error title=Test $($r.outcome)::$($r.testName)" }
             }
+          }
+          $trace = Join-Path $env:RUNNER_TEMP 'test-trace.log'
+          if (Test-Path $trace) {
+            foreach ($line in Get-Content $trace | Select-Object -Last 20) { Write-Host "::warning title=Test trace::$line" }
           }
           foreach ($seq in Get-ChildItem TestResults -Recurse -Filter Sequence_*.xml -ErrorAction SilentlyContinue) {
             [xml]$q = Get-Content $seq.FullName

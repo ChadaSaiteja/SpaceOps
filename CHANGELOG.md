@@ -9,18 +9,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+---
+
+## [0.2.0] - 2026-10-23
+
+First release with downloadable builds: a portable, self-contained zip for Windows x64 and ARM64. Unzip and run; no .NET or Windows App Runtime install needed.
+
 ### Added
-- Fluent Sidebar UI: left navigation with Overview, Treemap, Cleanup, Developer and Applications pages; shared theme and palette; unified cleanup list with one reclaimable total.
+- **Fluent Sidebar UI**: left navigation with Overview, Treemap, Cleanup, Developer and Applications pages, shared theme and palette.
+- **Overview page**: usage by category, top 5 consumers, reclaimable-now total and quick actions.
+- **One cleanup list** across system junk, dormant developer artifacts and app leftovers, with one reclaimable total; only low-risk system junk is pre-selected.
+- **Treemap**: folder name headers, a working 1-3 level depth selector, and folders colored by their dominant content.
 - Self-contained x64 and ARM64 release packaging with SHA-256 checksums (`docs/releasing.md`).
-- Landing-page guides, sitemap, robots, social image, `llms-full.txt`, `codemeta.json`.
+- Landing-page app preview, guides, sitemap, robots, social image, `llms-full.txt`, `codemeta.json`.
 
 ### Changed
-- Faster tree build, search, treemap layout and scanner allocations (see `docs/performance-review.md`).
+- Faster core: tree build ~3x, top files 108 ms -> 35 us, search ~9x, treemap layout ~2.8x at 1M nodes; fewer scanner allocations (see `docs/performance-review.md`).
+- Cleanup analysis 22 s -> 2 s on a 2.1M-item profile, so "Reclaimable now" appears seconds after a scan.
 - `crates/ffi` split into one module per feature; exported symbols and generated bindings unchanged.
-- C# integration tests run in CI again.
+- CI builds and tests only what changed, never twice, and runs the C# integration tests again.
 
 ### Fixed
+- **Safety**: developer artifacts are only offered from real projects (`package.json`, `Cargo.toml`, `*.csproj`, ...) and never from installed software (Program Files, `AppData\Local\Programs`, nvm, `.cargo`, app bundles).
+- **Safety**: shared folders such as `AppData\Local\Programs` are never offered as app leftovers; leftovers are marked Medium risk, never pre-selected, and folders active in the last 30 days are skipped.
+- Dormancy detection: it never worked (every artifact showed "Active today"); it now uses the newest file inside each artifact.
+- Leftover size estimates could run effectively forever on folders with self-referencing junctions; they are now bounded and never follow junctions.
+- Store app enumeration no longer freezes the Applications page when Windows is slow to answer.
 - Startup crash caused by filter handlers running before the Applications and Developer pages were ready.
+- Registry size estimates are labelled "Registry est." instead of "Scanned"; row text is left-aligned.
 
 ---
 

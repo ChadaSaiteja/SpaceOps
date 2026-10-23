@@ -47,7 +47,7 @@ checksum = "4e7648175b45a9a48536d676f68d918270699102aa8dab5496df06904c914600"
 
 [[package]]
 name = "common"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "thiserror 1.0.69",
 ]
@@ -138,7 +138,7 @@ checksum = "da7c62ceae207dd37ea5b845da6a0696c799f85e97da1ab5b7910be3c1c80223"
 
 [[package]]
 name = "ffi"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "common",
  "csbindgen",
@@ -376,7 +376,7 @@ dependencies = [
 
 [[package]]
 name = "scanner"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "common",
  "rayon",
@@ -427,7 +427,7 @@ checksum = "ba467056f1b547ed52077911161fc86985becbc60e8e1857c8a144dab0def891"
 
 [[package]]
 name = "storage-tree"
-version = "0.1.0"
+version = "0.2.0"
 dependencies = [
  "common",
  "rusqlite",

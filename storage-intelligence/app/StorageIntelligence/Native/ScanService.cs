@@ -145,10 +145,15 @@ public static unsafe class ScanService
                 ScanResultHandle* rawResult = null;
                 ushort* errorMessage = null;
 
+                // Without a listener, pass no callback at all so the native scan never calls back
+                // into .NET from its worker threads (reverse P/Invoke on every progress tick).
+                delegate* unmanaged[Cdecl]<ScanProgressFfi, void*, void> callback =
+                    progress != null ? &OnProgress : null;
+
                 int code = NativeMethods.scan_drive(
                     (ushort*)pathPtr,
                     (CancelHandle*)cancelHandle.DangerousGetHandle(),
-                    &OnProgress,
+                    callback,
                     (void*)GCHandle.ToIntPtr(gch),
                     &rawResult,
                     &errorMessage);

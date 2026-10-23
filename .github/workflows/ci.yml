@@ -188,17 +188,37 @@ jobs:
       # run one at a time here so the test it names is the one that was actually stuck.
       - name: Run C# integration tests (FFI boundary + end-to-end smoke)
         timeout-minutes: 15
+        shell: pwsh
         env:
           SI_TEST_TRACE: ${{ runner.temp }}/test-trace.log
-        run: >
-          dotnet test storage-intelligence/tests/integration/StorageIntelligence.IntegrationTests.csproj
-          -c Release
-          --filter "Category!=Machine"
-          --logger "console;verbosity=normal"
-          --logger "trx;LogFileName=results.trx"
-          --results-directory TestResults
-          --blame-hang --blame-hang-timeout 3m
-          -- xUnit.ParallelizeTestCollections=false
+        run: |
+          # dotnet-stack prints the .NET call stack of every thread in a running process; it is
+          # used below only if the tests are still running after 150 s (the suite takes ~30 s).
+          dotnet tool install --global dotnet-stack | Out-Null
+          $stackTool = Join-Path $env:USERPROFILE '.dotnet\tools\dotnet-stack.exe'
+          $stacksDir = Join-Path $env:RUNNER_TEMP 'stacks'
+          New-Item -ItemType Directory -Force $stacksDir | Out-Null
+
+          $testArgs = @(
+            'test', 'storage-intelligence/tests/integration/StorageIntelligence.IntegrationTests.csproj',
+            '-c', 'Release',
+            '--filter', 'Category!=Machine',
+            '--logger', 'console;verbosity=normal',
+            '--logger', 'trx;LogFileName=results.trx',
+            '--results-directory', 'TestResults',
+            '--blame-hang', '--blame-hang-timeout', '3m',
+            '--', 'xUnit.ParallelizeTestCollections=false'
+          )
+          $p = Start-Process dotnet -ArgumentList $testArgs -NoNewWindow -PassThru
+          $null = $p.Handle   # keeps ExitCode available after the process exits
+          if (-not $p.WaitForExit(150000)) {
+            Write-Host "Tests still running after 150 s: capturing .NET stacks of the test host"
+            foreach ($h in Get-Process testhost -ErrorAction SilentlyContinue) {
+              & $stackTool report -p $h.Id 2>&1 | Out-File -Encoding utf8 (Join-Path $stacksDir "testhost-$($h.Id).txt")
+            }
+            $p.WaitForExit()
+          }
+          exit $p.ExitCode
 
       # Turns failed or hung tests into annotations on the run summary, readable without opening logs.
       - name: Report failed or hung tests
@@ -215,6 +235,16 @@ jobs:
           $trace = Join-Path $env:RUNNER_TEMP 'test-trace.log'
           if (Test-Path $trace) {
             foreach ($line in Get-Content $trace | Select-Object -Last 20) { Write-Host "::warning title=Test trace::$line" }
+          }
+          # Stacks captured from a stalled test host: one annotation per thread that is in our code.
+          foreach ($f in Get-ChildItem (Join-Path $env:RUNNER_TEMP 'stacks') -Filter *.txt -ErrorAction SilentlyContinue) {
+            $text = Get-Content $f.FullName -Raw
+            foreach ($thread in ($text -split '(?m)^(?=\s*Thread \()')) {
+              if ($thread -match 'StorageIntelligence|scan_drive|ScanService') {
+                $msg = (($thread.Trim() -split "`r?`n") | Select-Object -First 40) -join '%0A'
+                Write-Host "::error title=Stalled thread stack ($($f.BaseName))::$msg"
+              }
+            }
           }
           foreach ($seq in Get-ChildItem TestResults -Recurse -Filter Sequence_*.xml -ErrorAction SilentlyContinue) {
             [xml]$q = Get-Content $seq.FullName

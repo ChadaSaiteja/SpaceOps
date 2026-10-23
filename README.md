@@ -297,7 +297,7 @@ Medians from the v0.2 [performance review](docs/performance-review.md) on one de
 - [x] Developer storage intelligence across 8 ecosystems with dormancy analysis
 - [x] Embedded SQLite persistence engine and NTFS USN Change Journal incremental sync
 
-### Completed (v0.2, not yet released)
+### Completed (v0.2.0)
 - [x] Fluent Sidebar UI: Overview, Treemap, Cleanup, Developer and Applications pages
 - [x] Unified cleanup list with one reclaimable total; review-first app leftovers
 - [x] Treemap folder headers and working depth selector
